@@ -31,7 +31,8 @@ export default function AuthPage({ user, recovery = false }) {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const adminLogin = new URLSearchParams(window.location.search).get('next') === 'admin'
-  const destination = adminLogin ? '/admin/dashboard' : '/dashboard'
+  const isAdminUser = Boolean(user?.app_metadata?.role === 'admin' || user?.app_metadata?.is_admin)
+  const destination = (adminLogin || isAdminUser) ? '/admin/dashboard' : '/dashboard'
   const newPassword = mode === 'signup' || mode === 'update'
   const emailOnly = mode === 'forgot' || mode === 'link'
   const fields = emailOnly ? ['email'] : mode === 'update' ? ['password', 'confirm'] : mode === 'signup' ? ['email', 'password', 'confirm'] : ['email', 'password']
@@ -51,6 +52,7 @@ export default function AuthPage({ user, recovery = false }) {
     if (invalid) { formRef.current.elements.namedItem(invalid)?.focus(); return }
     busy.current = true
     setPending('email'); setError(''); setMessage('')
+    let navigating = false
     try {
       const email = values.email.trim()
       const password = values.password
@@ -60,15 +62,25 @@ export default function AuthPage({ user, recovery = false }) {
       if (mode === 'forgot') result = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` })
       if (mode === 'link') result = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/auth/callback${adminLogin ? '?next=admin' : ''}` } })
       if (mode === 'update') result = await supabase.auth.updateUser({ password })
-      if (result.error && !(mode === 'link' && result.error.code === 'otp_disabled')) throw result.error
+      if (result.error) {
+        if (mode === 'link' && result.error.code === 'otp_disabled') {
+          throw new Error('Email sign-in links are currently unavailable. Please sign in with your password.')
+        }
+        throw result.error
+      }
       if (mode === 'forgot') setMessage('If an account exists for this email, you’ll receive a reset link. Open it in this browser to choose a new password.')
       else if (mode === 'link') setMessage('If an account exists for this email, you’ll receive a sign-in link. Open it in this browser to continue.')
       else if (mode === 'signup' && !result.data.session) setMessage('Check your inbox for a confirmation link. Open it in this browser to finish setting up your account.')
       else if (mode === 'update') setMessage('Your password has been updated. Your dashboard is ready when you are.')
-      else window.location.assign(destination)
+      else {
+        navigating = true
+        window.location.assign(destination)
+      }
       if (mode !== 'login') { setValues(v => ({ ...v, password: '', confirm: '' })); setTouched({}); setVisible(false) }
     } catch (err) { setError(friendlyError(err)) }
-    finally { busy.current = false; setPending('') }
+    finally {
+      if (!navigating) { busy.current = false; setPending('') }
+    }
   }
 
   async function google() {

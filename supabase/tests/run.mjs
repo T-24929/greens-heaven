@@ -21,6 +21,10 @@ try {
       id uuid primary key,
       email text,
       email_confirmed_at timestamptz,
+      created_at timestamptz default now(),
+      last_sign_in_at timestamptz,
+      raw_app_meta_data jsonb default '{}'::jsonb,
+      raw_user_meta_data jsonb default '{}'::jsonb,
       is_anonymous boolean default false
     );
     create function auth.uid() returns uuid language sql stable as $$

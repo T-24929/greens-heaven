@@ -8,17 +8,19 @@ import {
 } from './adminNavigation.js'
 
 test('adminRoutes contains all dashboard sub-paths and short aliases', () => {
-  assert.deepEqual(adminSubRoutes, ['overview', 'tickets', 'entrance', 'photobooth', 'updates'])
+  assert.deepEqual(adminSubRoutes, ['overview', 'tickets', 'revenue', 'entrance', 'photobooth', 'updates'])
   const expected = [
     '/admin',
     '/admin/dashboard',
     '/admin/dashboard/overview',
     '/admin/dashboard/tickets',
+    '/admin/dashboard/revenue',
     '/admin/dashboard/entrance',
     '/admin/dashboard/photobooth',
     '/admin/dashboard/updates',
     '/admin/overview',
     '/admin/tickets',
+    '/admin/revenue',
     '/admin/entrance',
     '/admin/photobooth',
     '/admin/updates',
@@ -36,9 +38,11 @@ test('getAdminTabFromPath identifies the correct admin tab', () => {
   assert.equal(getAdminTabFromPath('/admin/dashboard', { hasInitialTicket: true }), 'tickets')
   assert.equal(getAdminTabFromPath('/admin/dashboard/overview'), 'overview')
   assert.equal(getAdminTabFromPath('/admin/dashboard/tickets'), 'tickets')
+  assert.equal(getAdminTabFromPath('/admin/dashboard/revenue'), 'revenue')
   assert.equal(getAdminTabFromPath('/admin/dashboard/entrance'), 'entrance')
   assert.equal(getAdminTabFromPath('/admin/dashboard/photobooth'), 'photobooth')
   assert.equal(getAdminTabFromPath('/admin/dashboard/updates'), 'updates')
+  assert.equal(getAdminTabFromPath('/admin/revenue'), 'revenue')
   assert.equal(getAdminTabFromPath('/admin/entrance/'), 'entrance')
   assert.equal(getAdminTabFromPath('/admin/photobooth'), 'photobooth')
   assert.equal(getAdminTabFromPath('/admin'), 'overview')
@@ -54,6 +58,7 @@ test('getAdminTabFromPath identifies the correct admin tab', () => {
 test('getPathForAdminTab returns the sub-path for each bottom nav tab', () => {
   assert.equal(getPathForAdminTab('overview'), '/admin/dashboard/overview')
   assert.equal(getPathForAdminTab('tickets'), '/admin/dashboard/tickets')
+  assert.equal(getPathForAdminTab('revenue'), '/admin/dashboard/revenue')
   assert.equal(getPathForAdminTab('entrance'), '/admin/dashboard/entrance')
   assert.equal(getPathForAdminTab('photobooth'), '/admin/dashboard/photobooth')
   assert.equal(getPathForAdminTab('updates'), '/admin/dashboard/updates')

@@ -9,3 +9,11 @@
 # Vite fingerprints these filenames; a new build gets new asset URLs.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Service worker and manifest should always revalidate immediately
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/manifest.webmanifest
+  Content-Type: application/manifest+json; charset=utf-8
+  Cache-Control: public, max-age=0, must-revalidate

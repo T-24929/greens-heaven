@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { RefreshCw } from 'lucide-react'
 import { Button } from './components/ui/button.jsx'
 import { Loading, Notice } from './components/Feedback.jsx'
 import { supabase } from './utils/supabase.js'
@@ -12,6 +11,10 @@ import ReservationLayout from './components/ReservationLayout.jsx'
 import ReservationPage from './pages/ReservationPage.jsx'
 import RefundPolicyPage from './pages/RefundPolicyPage.jsx'
 import ErrorPage, { ErrorShell } from './components/ErrorPage.jsx'
+import AdminsDrawer from './components/admin/AdminsDrawer.jsx'
+import AdminHeader from './components/admin/AdminHeader.jsx'
+import { registerServiceWorker } from './lib/pwa.js'
+import { subscribeToReceiptAlerts } from './lib/adminNotifications.js'
 
 const AdminPage = lazy(() => import('./pages/AdminPage.jsx'))
 const AuthPage = lazy(() => import('./pages/AuthPage.jsx'))
@@ -26,11 +29,14 @@ function LegalPage({ privacy }) {
 }
 
 function Callback({ user, error }) {
+  const [params] = useState(() => new URLSearchParams(window.location.search))
   useEffect(() => {
-    if (user) window.location.replace(new URLSearchParams(window.location.search).get('next') === 'admin' ? '/admin/dashboard' : '/dashboard')
-  }, [user])
+    if (user) window.location.replace(params.get('next') === 'admin' ? '/admin/dashboard' : '/dashboard')
+  }, [user, params])
   if (user) return <Loading>Taking you to your reservation…</Loading>
-  return <section className="panel stack narrow"><h1 className="page-heading">Finish signing in</h1><Notice kind="error">{error || 'This sign in link has expired or was opened in a different browser. Sign in again or request a new link.'}</Notice><a className="button-link" href="/login">Back to sign in</a></section>
+  const urlError = params.get('error_description') || params.get('error')
+  const resolvedError = error || (urlError ? friendlyError({ message: urlError }) : '')
+  return <section className="panel stack narrow"><h1 className="page-heading">Finish signing in</h1><Notice kind="error">{resolvedError || 'This sign in link has expired or was opened in a different browser. Sign in again or request a new link.'}</Notice><a className="button-link" href="/login">Back to sign in</a></section>
 }
 
 export default function App() {
@@ -64,6 +70,7 @@ export default function App() {
   const [auth, setAuth] = useState({ loading: Boolean(supabase), user: null, error: '' })
   const [signingOut, setSigningOut] = useState(false)
   const [adminRefreshing, setAdminRefreshing] = useState(false)
+  const [showAdmins, setShowAdmins] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -76,8 +83,16 @@ export default function App() {
       setAuth({ loading: false, user: session?.user || null, error: '' })
       if (event === 'PASSWORD_RECOVERY' && currentPath() !== '/reset-password') window.location.replace('/reset-password')
     })
-    supabase.auth.getSession().then(({ data, error }) => {
-      if (active && !receivedAuthEvent) setAuth({ loading: false, user: data.session?.user || null, error: error ? friendlyError(error) : '' })
+    const init = supabase.auth.initializePromise || Promise.resolve({ error: null })
+    init.then(({ error: initErr }) => {
+      if (!active) return
+      if (initErr) {
+        setAuth({ loading: false, user: null, error: friendlyError(initErr) })
+        return
+      }
+      return supabase.auth.getSession().then(({ data, error }) => {
+        if (active && !receivedAuthEvent) setAuth({ loading: false, user: data.session?.user || null, error: error ? friendlyError(error) : '' })
+      })
     }).catch(err => { if (active && !receivedAuthEvent) setAuth({ loading: false, user: null, error: friendlyError(err) }) })
     return () => { active = false; subscription.unsubscribe() }
   }, [])
@@ -90,6 +105,16 @@ export default function App() {
       window.location.assign('/')
     } catch (err) { setError(friendlyError(err)); setSigningOut(false) }
   }
+
+  useEffect(() => {
+    registerServiceWorker()
+  }, [])
+
+  useEffect(() => {
+    if (!adminPath || !auth.user || !supabase) return
+    const unsubscribe = subscribeToReceiptAlerts()
+    return () => unsubscribe()
+  }, [adminPath, auth.user])
 
   function triggerAdminRefresh() {
     setAdminRefreshing(true)
@@ -121,30 +146,25 @@ export default function App() {
 
   if (notFound) return <ErrorShell user={auth.user} onSignOut={signOut} signingOut={signingOut}>{content}</ErrorShell>
 
-  if (adminPath) return <div className="app-shell admin-shell">
+  if (adminPath) return <div className="app-shell admin-shell p-3">
     <a className="skip-link" href="#main">Skip to content</a>
-    <header className="admin-site-header">
-      <a href="/" aria-label="Greens Heaven home">
-        <img src="/images/greens-heaven-logo.png" alt="Greens Heaven" width="425" height="179" />
-      </a>
-      <div className="admin-header-actions">
-        <button
-          type="button"
-          className="admin-icon admin-header-refresh"
-          aria-label="Refresh admin data"
-          title="Refresh admin data"
-          onClick={triggerAdminRefresh}
-          disabled={adminRefreshing}
-        >
-          <RefreshCw size={18} className={adminRefreshing ? 'admin-spin' : ''} />
-        </button>
-        {auth.user && <Button variant="outline" onClick={signOut} disabled={signingOut}>{signingOut ? 'Signing out…' : 'Sign out'}</Button>}
-      </div>
-    </header>
+    <AdminHeader
+      user={auth.user}
+      onSignOut={signOut}
+      signingOut={signingOut}
+      adminRefreshing={adminRefreshing}
+      onTriggerRefresh={triggerAdminRefresh}
+      onOpenAdmins={() => setShowAdmins(true)}
+    />
     <main id="main" tabIndex={-1} className="admin-main">
       <Notice kind="error">{error || auth.error}</Notice>
       {content}
     </main>
+    <AdminsDrawer
+      currentUser={auth.user}
+      open={showAdmins}
+      onClose={() => setShowAdmins(false)}
+    />
   </div>
 
   return <div className="app-shell">

@@ -87,6 +87,11 @@ export function friendlyError(error) {
   }
   if (/invalid login credentials/i.test(message)) return 'The email or password is incorrect.'
   if (/email not confirmed/i.test(message)) return 'Confirm your email using the link in your inbox, then sign in.'
+  if (/password.*(character|weak|short)/i.test(message)) return 'Password must be at least 6 characters.'
+  if (/different.*password|same.*password/i.test(message)) return 'Please choose a new password that is different from your current one.'
+  if (/already registered|already exists/i.test(message)) return 'An account already exists for this email. Sign in instead.'
+  if (/code verifier|pkce/i.test(message)) return 'Please open the sign-in link in the same browser where you requested it.'
+  if (/expired.*(link|otp|token)|(link|otp|token).*expired/i.test(message)) return 'This sign in link has expired. Please request a new one.'
   if (/rate|too many|security purposes/i.test(message)) return 'Too many attempts. Please wait a moment and try again.'
   if (/fetch|network/i.test(message)) return 'We could not reach the server. Check your connection and try again.'
   if (/schema cache|does not exist|PGRST/i.test(message)) return 'Reservations are not available yet. Please try again later.'

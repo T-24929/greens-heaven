@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { reservationWhatsappLink } from '../lib/admin-messages.js'
 import { supabase } from '../utils/supabase.js'
+import { getAdminsList, buildAdminMap } from '../lib/admins.js'
 
 import AdminWorkspace from '../components/admin/AdminWorkspace.jsx'
 import ErrorPage from '../components/ErrorPage.jsx'
@@ -29,7 +30,7 @@ function scannedTicket() {
     return TICKET_ID.test(saved || '') ? saved : null
   } catch { return null }
 }
-const RESERVATION_FIELDS = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,amount_lkr,status,receipt_path,review_note,created_at,updated_at,reviewed_at'
+const RESERVATION_FIELDS = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,amount_lkr,status,receipt_path,review_note,created_at,updated_at,reviewed_at,reviewed_by'
 const STATUS_LABELS = {
   awaiting_payment: 'Awaiting payment',
   pending_review: 'Ready for review',
@@ -84,6 +85,15 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
   const [receiptLinks, setReceiptLinks] = useState({})
   const [receiptBusyId, setReceiptBusyId] = useState(null)
   const [copied, setCopied] = useState(false)
+  const [adminMap, setAdminMap] = useState({})
+
+  useEffect(() => {
+    let active = true
+    getAdminsList().then(admins => {
+      if (active) setAdminMap(buildAdminMap(admins))
+    })
+    return () => { active = false }
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -94,7 +104,7 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
         const [resRes, recRes, revRes, notRes, attRes] = await Promise.all([
           supabase.from('reservations').select(RESERVATION_FIELDS).eq('id', reservationId).maybeSingle(),
           supabase.from('receipt_submissions').select('id,receipt_path,submitted_at').eq('reservation_id', reservationId).order('submitted_at', { ascending: false }),
-          supabase.from('review_history').select('id,decision,note,created_at').eq('reservation_id', reservationId).order('created_at', { ascending: false }),
+          supabase.from('review_history').select('id,decision,note,admin_id,created_at').eq('reservation_id', reservationId).order('created_at', { ascending: false }),
           supabase.from('notification_outbox').select('id,review_id,status,attempts,created_at,sent_at').eq('reservation_id', reservationId).order('created_at', { ascending: false }),
           supabase.from('ticket_attendance').select('gate,checked_in_at').eq('reservation_id', reservationId).order('checked_in_at', { ascending: false }).then(res => res, () => ({ data: [] })),
         ])
@@ -380,7 +390,15 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
 
             <div className="admin-receipt-card-footer">
               <ShieldCheck size={13} className="text-[#52e078]" />
-              <span>Processed by: Organizer Desk · Single Gate Pass</span>
+              <span>
+                {reservation.status === 'approved' && (adminMap[reservation.reviewed_by] || reservation.reviewed_by)
+                  ? `Approved by: ${adminMap[reservation.reviewed_by] || reservation.reviewed_by}`
+                  : reservation.status === 'approved'
+                    ? 'Approved by: Organizer Admin'
+                    : reservation.status === 'rejected' && (adminMap[reservation.reviewed_by] || reservation.reviewed_by)
+                      ? `Reviewed by: ${adminMap[reservation.reviewed_by] || reservation.reviewed_by}`
+                      : 'Processed by: Organizer Desk · Single Gate Pass'}
+              </span>
             </div>
           </div>
 
@@ -607,6 +625,46 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
           {/* Tab 2: Attendee & School Information */}
           {step === 'info' && (
             <div className="space-y-3">
+              {reservation.reviewed_at && (
+                <div className="admin-table-card">
+                  <div className="admin-table-card-header">
+                    <ShieldCheck size={13} />
+                    <span>Review &amp; Verification</span>
+                  </div>
+                  <table className="admin-kv-table">
+                    <tbody>
+                      <tr>
+                        <th scope="row">Reviewed By</th>
+                        <td>
+                          <strong className="text-[#e2eadd]">
+                            {adminMap[reservation.reviewed_by] || (reservation.reviewed_by ? `Admin (${reservation.reviewed_by.slice(0, 8)}…)` : 'Organizer Admin')}
+                          </strong>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th scope="row">Outcome</th>
+                        <td>
+                          <span className={`admin-status-dot-badge ${reservation.status}`}>
+                            <span className="admin-dot" />
+                            <span>{STATUS_LABELS[reservation.status] || reservation.status}</span>
+                          </span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th scope="row">Review Date</th>
+                        <td className="text-xs text-[#a2b59d]">{dateTime(reservation.reviewed_at)}</td>
+                      </tr>
+                      {reservation.review_note && (
+                        <tr>
+                          <th scope="row">Review Note</th>
+                          <td className="text-xs text-[#f5a898]">{reservation.review_note}</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
               <div className="admin-table-card">
                 <div className="admin-table-card-header">
                   <User size={13} />
@@ -783,6 +841,7 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
                     <thead>
                       <tr>
                         <th>Decision</th>
+                        <th>Reviewed By</th>
                         <th>Note</th>
                         <th>Date</th>
                       </tr>
@@ -795,7 +854,10 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
                               {rev.decision === 'approved' ? 'Approved' : 'Needs Fix'}
                             </span>
                           </td>
-                          <td className="text-xs text-[#b4c8af] italic max-w-[180px] truncate">
+                          <td className="text-xs text-[#e2eadd]">
+                            {adminMap[rev.admin_id] || (rev.admin_id ? `Admin (${rev.admin_id.slice(0, 8)}…)` : 'Admin')}
+                          </td>
+                          <td className="text-xs text-[#b4c8af] italic max-w-[160px] truncate">
                             {rev.note || '—'}
                           </td>
                           <td className="text-xs text-[#8ea488]">
@@ -867,6 +929,6 @@ export default function AdminPage({ user, currentPath }) {
   if (!user) return <ErrorPage status={401} />
   if (access.userId !== user.id) return <p role="status">Checking admin access…</p>
   if (access.error) return <ErrorPage status={503} description={access.error} primaryAction={{ label: 'Try again', onClick: () => setRevision(current => current + 1) }} />
-  if (!access.allowed) return <ErrorPage status={403} />
+  if (!access.allowed) return <ErrorPage status={403} primaryAction={{ label: 'Check admin access again', onClick: () => setRevision(current => current + 1) }} />
   return <AdminWorkspace key={user.id} Detail={ReservationDetails} initialTicket={scannedTicket()} currentPath={currentPath} />
 }

@@ -230,5 +230,20 @@ select test_support.ok((public.admin_event_summary()->>'entrance')='1','summary 
 select test_support.ok((public.admin_event_summary()->>'photobooth')='1','summary counts photo booth');
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',true);
 select test_support.ok((select count(*)=0 from public.ticket_attendance),'attendee cannot see recorded attendance');
+select test_support.denied($sql$select public.add_admin('10000000-0000-4000-8000-000000000004'::uuid)$sql$,'42501','ordinary attendee cannot invoke add_admin');
+
+select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000003',true);
+select test_support.ok(public.add_admin('10000000-0000-4000-8000-000000000004'::uuid),'admin can assign new admin by UID');
+
+select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',true);
+select test_support.denied($sql$select * from public.get_admins()$sql$,'42501','ordinary attendee cannot call get_admins');
+select test_support.denied($sql$select public.add_admin_by_email('other@example.com')$sql$,'42501','ordinary attendee cannot call add_admin_by_email');
+
+select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000003',true);
+select test_support.ok((select count(*) >= 2 from public.get_admins()),'admin can retrieve admins directory');
+select test_support.ok((select exists (select 1 from public.get_admins() where user_id is not null and email is not null and in_private_admins is true)),'get_admins returns user_id, email, in_private_admins');
+select test_support.ok((select exists (select 1 from public.review_history where admin_id = '10000000-0000-4000-8000-000000000003'::uuid)),'review_history records reviewer admin_id uuid');
+select test_support.ok((select exists (select 1 from public.reservations where reviewed_by = '10000000-0000-4000-8000-000000000003'::uuid)),'reservations records reviewed_by uuid');
+
 reset role;
 rollback;

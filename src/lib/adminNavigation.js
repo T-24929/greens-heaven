@@ -1,4 +1,4 @@
-export const adminSubRoutes = ['overview', 'tickets', 'entrance', 'photobooth', 'updates']
+export const adminSubRoutes = ['overview', 'tickets', 'revenue', 'entrance', 'photobooth', 'updates']
 
 export const adminRoutes = new Set([
   '/admin',
