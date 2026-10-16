@@ -204,7 +204,7 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
                   {approved.length} Paid
                 </span>
               </div>
-              <strong className="admin-metric-number !text-[#7ce698]">
+              <strong className="admin-metric-number text-[#7ce698]!">
                 {formatMoney(confirmedRevenue)}
               </strong>
               <span className="admin-metric-label">Confirmed</span>
@@ -345,7 +345,7 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
                       {/* Visual Bar Indicator */}
                       <div className="w-full h-1.5 rounded-full bg-[#102415] overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-[#2e6d3c] to-[#52e078] transition-all duration-300"
+                          className="h-full rounded-full bg-linear-to-rrom-[#2e6d3c] to-[#52e078] transition-all duration-300"
                           style={{ width: `${barWidthPct}%` }}
                           title={`Day revenue: ${formatMoney(day.revenue)}`}
                         />
@@ -440,7 +440,7 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
                       className="p-2.5 rounded-xl bg-[#07130b] border border-[#193320] flex items-center justify-between gap-2.5 hover:border-[#2e5938] transition-colors cursor-pointer touch-manipulation active:scale-[0.99]"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-7 h-7 rounded-lg bg-[#112818] border border-[#214c2b] text-[#7ce698] flex items-center justify-center font-bold text-[11px] flex-shrink-0">
+                        <div className="w-7 h-7 rounded-lg bg-[#112818] border border-[#214c2b] text-[#7ce698] flex items-center justify-center font-bold text-[11px] shrink-0">
                           Rs
                         </div>
                         <div className="min-w-0">
@@ -448,7 +448,7 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
                             <strong className="text-xs font-semibold text-[#edf5ea] truncate">
                               {r.full_name || 'Confirmed attendee'}
                             </strong>
-                            <span className="text-[10px] font-mono text-[#7ce698] bg-[#0c2012] px-1.5 py-0.2 rounded border border-[#1a4426] flex-shrink-0">
+                            <span className="text-[10px] font-mono text-[#7ce698] bg-[#0c2012] px-1.5 py-0.2 rounded border border-[#1a4426] shrink-0">
                               {r.reference}
                             </span>
                           </div>
@@ -464,7 +464,7 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <strong className="text-xs font-bold font-mono text-[#7ce698]">
                           {formatMoney(Number(r.amount_lkr) || TICKET_PRICE)}
                         </strong>

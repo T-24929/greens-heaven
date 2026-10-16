@@ -54,7 +54,7 @@ export default function AdminsDrawer({ currentUser, open, onClose }) {
           {/* Header */}
           <div className="admin-drawer-header">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-[#14281a] border border-[#264b2d] flex items-center justify-center text-[#7ce698] flex-shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-[#14281a] border border-[#264b2d] flex items-center justify-center text-[#7ce698] shrink-0">
                 <Shield size={16} />
               </div>
               <div>
@@ -69,7 +69,7 @@ export default function AdminsDrawer({ currentUser, open, onClose }) {
             <div className="admin-drawer-header-actions">
               <button
                 type="button"
-                className="admin-dialog-icon-btn min-w-[36px] min-h-[36px] flex items-center justify-center touch-manipulation select-none active:scale-[0.95]"
+                className="admin-dialog-icon-btn min-w-9 min-h-9 flex items-center justify-center touch-manipulation select-none active:scale-[0.95]"
                 onClick={loadAdmins}
                 disabled={loading}
                 title="Refresh administrators list"
@@ -79,7 +79,7 @@ export default function AdminsDrawer({ currentUser, open, onClose }) {
               </button>
               <button
                 type="button"
-                className="admin-drawer-close-btn min-w-[36px] min-h-[36px] flex items-center justify-center touch-manipulation select-none active:scale-[0.95]"
+                className="admin-drawer-close-btn min-w-9 min-h-9 flex items-center justify-center touch-manipulation select-none active:scale-[0.95]"
                 onClick={onClose}
                 title="Close"
                 aria-label="Close administrators directory"
@@ -113,7 +113,7 @@ export default function AdminsDrawer({ currentUser, open, onClose }) {
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className="w-10 h-10 rounded-full bg-[#122b19] border border-[#234c2d] text-[#86e8a0] flex items-center justify-center font-medium text-xs tracking-wider flex-shrink-0 select-none"
+                        className="w-10 h-10 rounded-full bg-[#122b19] border border-[#234c2d] text-[#86e8a0] flex items-center justify-center font-medium text-xs tracking-wider shrink-0 select-none"
                         aria-hidden="true"
                       >
                         {initials}
@@ -124,7 +124,7 @@ export default function AdminsDrawer({ currentUser, open, onClose }) {
                             {displayName}
                           </strong>
                           {isCurrent && (
-                            <span className="px-2 py-0.5 rounded-full bg-[#163821] border border-[#29643a] text-[10px] text-[#7ce698] font-semibold tracking-wide flex-shrink-0 select-none">
+                            <span className="px-2 py-0.5 rounded-full bg-[#163821] border border-[#29643a] text-[10px] text-[#7ce698] font-semibold tracking-wide shrink-0 select-none">
                               You
                             </span>
                           )}
@@ -135,7 +135,7 @@ export default function AdminsDrawer({ currentUser, open, onClose }) {
                       </div>
                     </div>
 
-                    <span className="px-2.5 py-1 rounded-full bg-[#0e2314] border border-[#1e4227] text-[11px] text-[#7ce698] font-medium flex-shrink-0 select-none">
+                    <span className="px-2.5 py-1 rounded-full bg-[#0e2314] border border-[#1e4227] text-[11px] text-[#7ce698] font-medium shrink-0 select-none">
                       Admin
                     </span>
                   </div>
@@ -148,7 +148,7 @@ export default function AdminsDrawer({ currentUser, open, onClose }) {
           <div className="admin-drawer-dock">
             <button
               type="button"
-              className="admin-button text-xs w-full justify-center min-h-[44px] touch-manipulation select-none active:scale-[0.98]"
+              className="admin-button text-xs w-full justify-center min-h-11 touch-manipulation select-none active:scale-[0.98]"
               onClick={onClose}
             >
               Close
