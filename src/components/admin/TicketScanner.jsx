@@ -10,6 +10,7 @@ import {
   Maximize2,
   Minimize2,
   SlidersHorizontal,
+  ChevronDown,
 } from 'lucide-react'
 import { BottomSheet } from '../motion/bottom-sheet.jsx'
 
@@ -26,9 +27,66 @@ if (typeof HTMLCanvasElement !== 'undefined' && !HTMLCanvasElement.prototype._qr
   HTMLCanvasElement.prototype._qrScanPatched = true
 }
 
+// Gentle pleasant chime when ticket QR is successfully scanned
+function playScanSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext
+    if (!AudioCtx) return
+    const ctx = new AudioCtx()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(880, ctx.currentTime) // A5
+    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.08) // E6
+    gain.gain.setValueAtTime(0.2, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.12)
+  } catch {
+    // AudioContext blocked or unavailable
+  }
+}
+
+// Tactile feedback on mobile devices
+function triggerHaptic() {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate([35, 20, 35])
+    }
+  } catch {
+    // Haptics unavailable
+  }
+}
+
+// Thoroughly wipe and reset the video DOM element so the previous frame is never retained in GPU memory
+function purgeVideoBuffer(videoEl) {
+  if (!videoEl) return
+  try {
+    videoEl.pause()
+    if (videoEl.srcObject) {
+      const stream = videoEl.srcObject
+      if (typeof stream.getTracks === 'function') {
+        stream.getTracks().forEach((track) => track.stop())
+      }
+      videoEl.srcObject = null
+    }
+    videoEl.removeAttribute('src')
+    // Calling load() completely clears the video decoder surface, removing the frozen last frame
+    videoEl.load()
+  } catch {
+    // Ignore video reset errors
+  }
+}
+
 export default function TicketScanner({ onScan }) {
   const video = useRef(null)
   const scannerRef = useRef(null)
+  const canScanRef = useRef(false)
+  const sessionStartRef = useRef(0)
+  const lastScannedRef = useRef({ code: null, time: 0 })
+
   const [active, setActive] = useState(false)
   const [error, setError] = useState('')
   const [cameras, setCameras] = useState([])
@@ -39,10 +97,29 @@ export default function TicketScanner({ onScan }) {
       return 'environment'
     }
   })
-  const [fitMode, setFitMode] = useState('contain') // 'contain' prevents cropping; 'cover' fills
+  const [fitMode, setFitMode] = useState(() => {
+    try {
+      return localStorage.getItem('gh_admin_camera_fit') || 'cover'
+    } catch {
+      return 'cover'
+    }
+  })
   const [sheetOpen, setSheetOpen] = useState(false)
   const [hasFlash, setHasFlash] = useState(false)
   const [flashOn, setFlashOn] = useState(false)
+  const [scanSuccess, setScanSuccess] = useState(false)
+
+  const toggleFitMode = () => {
+    setFitMode((prev) => {
+      const next = prev === 'cover' ? 'contain' : 'cover'
+      try {
+        localStorage.setItem('gh_admin_camera_fit', next)
+      } catch {
+        // ignore storage errors
+      }
+      return next
+    })
+  }
 
   const callback = useRef(onScan)
   useEffect(() => {
@@ -65,31 +142,93 @@ export default function TicketScanner({ onScan }) {
     }
   }, [])
 
+  const [prevActive, setPrevActive] = useState(active)
+  if (active !== prevActive) {
+    setPrevActive(active)
+    if (active) {
+      setScanSuccess(false)
+    }
+  }
+
   useEffect(() => {
     if (!active) return
     let cancelled = false
     let scanner = null
+    const videoEl = video.current
+
+    // Reset gating flags for new session
+    canScanRef.current = false
+    sessionStartRef.current = Date.now()
 
     import('qr-scanner')
       .then(async ({ default: QrScanner }) => {
-        if (cancelled || !video.current) return
+        if (cancelled || !videoEl) return
 
         scanner = new QrScanner(
-          video.current,
+          videoEl,
           (result) => {
-            scanner.stop()
-            setActive(false)
-            callback.current(result.data)
+            // Guard 1: Drop frames until the camera stream is fully active and delivering fresh frames
+            if (!canScanRef.current) return
+
+            // Guard 2: Prevent old image from immediately re-checking the same ticket within 1.5s of camera start
+            if (
+              lastScannedRef.current.code &&
+              result.data === lastScannedRef.current.code &&
+              Date.now() - sessionStartRef.current < 1500
+            ) {
+              return
+            }
+
+            // Valid, fresh QR code detected!
+            canScanRef.current = false
+            lastScannedRef.current = { code: result.data, time: Date.now() }
+            setScanSuccess(true)
+            playScanSound()
+            triggerHaptic()
+
+            // Stop scanner and purge video buffer
+            try {
+              scanner.stop()
+            } catch {
+              // ignore scanner stop error
+            }
+            purgeVideoBuffer(videoEl)
+
+            setTimeout(() => {
+              setActive(false)
+              callback.current(result.data)
+            }, 120)
           },
           {
             preferredCamera: selectedCamera,
-            maxScansPerSecond: 6,
+            maxScansPerSecond: 25, // High frame rate for instant, snappy scanning
             returnDetailedScanResult: true,
-            highlightScanRegion: false, // We supply a custom non-clipping overlay guide
-            highlightCodeOutline: true,
+            highlightScanRegion: false,
+            highlightCodeOutline: false, // Prevents SVG overlay lag
+            // Generous scan region covering 90% of the viewport so users don't have to aim precisely at center
+            calculateScanRegion: (v) => {
+              const w = v.videoWidth || 1280
+              const h = v.videoHeight || 720
+              const size = Math.round(0.9 * Math.min(w, h))
+              return {
+                x: Math.round((w - size) / 2),
+                y: Math.round((h - size) / 2),
+                width: size,
+                height: size,
+                downScaledWidth: Math.min(size, 640),
+                downScaledHeight: Math.min(size, 640),
+              }
+            },
           }
         )
         scannerRef.current = scanner
+
+        // Scan both normal (dark on light) and inverted (light on dark) QRs for phone screens
+        try {
+          scanner.setInversionMode('both')
+        } catch {
+          // ignore inversion error if unsupported
+        }
 
         try {
           await scanner.start()
@@ -97,6 +236,30 @@ export default function TicketScanner({ onScan }) {
             scanner.destroy()
             return
           }
+
+          // Wait until the video is actually streaming NEW frames to prevent reading residual frames
+          let frameCounter = 0
+          const checkFreshFrame = () => {
+            if (cancelled) return
+            frameCounter++
+            if (frameCounter >= 2) {
+              canScanRef.current = true
+            } else if (videoEl && 'requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+              videoEl.requestVideoFrameCallback(checkFreshFrame)
+            } else {
+              setTimeout(checkFreshFrame, 100)
+            }
+          }
+
+          if (videoEl && 'requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+            videoEl.requestVideoFrameCallback(checkFreshFrame)
+          } else {
+            // Safe fallback timer for browsers without requestVideoFrameCallback
+            setTimeout(() => {
+              if (!cancelled) canScanRef.current = true
+            }, 300)
+          }
+
           await loadCameras(scanner)
         } catch {
           if (!cancelled) {
@@ -113,14 +276,25 @@ export default function TicketScanner({ onScan }) {
       })
 
     const hide = () => {
-      if (document.hidden) setActive(false)
+      if (document.hidden) {
+        canScanRef.current = false
+        setActive(false)
+      }
     }
     document.addEventListener('visibilitychange', hide)
 
     return () => {
       cancelled = true
+      canScanRef.current = false
       scannerRef.current = null
-      scanner?.destroy()
+      if (scanner) {
+        try {
+          scanner.destroy()
+        } catch {
+          // ignore cleanup error
+        }
+      }
+      purgeVideoBuffer(videoEl)
       document.removeEventListener('visibilitychange', hide)
     }
   }, [active, selectedCamera, loadCameras])
@@ -134,11 +308,17 @@ export default function TicketScanner({ onScan }) {
     }
 
     if (scannerRef.current) {
+      canScanRef.current = false
       try {
         await scannerRef.current.setCamera(deviceId)
         const flashAvailable = await scannerRef.current.hasFlash().catch(() => false)
         setHasFlash(flashAvailable)
         setFlashOn(false)
+
+        // Re-enable scanning after camera switch stabilizes
+        setTimeout(() => {
+          canScanRef.current = true
+        }, 350)
       } catch {
         setError('Could not switch to the selected camera. Try restarting the scanner.')
       }
@@ -163,64 +343,78 @@ export default function TicketScanner({ onScan }) {
     activeCameraObj?.label || (selectedCamera === 'environment' ? 'Rear Camera (Default)' : 'Selected Camera')
 
   return (
-    <div className="admin-camera">
-      {/* Active Scanner Top Toolbar */}
-      {active && (
-        <div className="admin-camera-toolbar">
-          <div className="flex items-center gap-2 min-w-0">
-            <span
-              className={`admin-camera-badge ${isDroidCam(currentCameraLabel) ? 'droidcam' : ''}`}
-              title={currentCameraLabel}
-            >
-              {isDroidCam(currentCameraLabel) ? <Smartphone size={12} /> : <Video size={12} />}
-              <span className="truncate max-w-[130px] sm:max-w-[180px]">{currentCameraLabel}</span>
-            </span>
+    <div className="admin-camera-native-container">
+      {/* Active State: Immersive Viewfinder with Floating Glass Controls */}
+      {active ? (
+        <div className="admin-camera-viewfinder">
+          <video
+            ref={video}
+            muted
+            playsInline
+            aria-label="Ticket QR camera"
+            className={`fit-${fitMode}`}
+          />
 
-            {/* In-view quick dropdown */}
-            {cameras.length > 1 && (
-              <select
-                aria-label="Quick camera switcher"
-                value={selectedCamera}
-                onChange={(e) => handleCameraChange(e.target.value)}
-                className="bg-[#0e1d13] text-[#d8e5cd] text-[11px] border border-[#263c2a] rounded-lg px-2 py-1 outline-none"
-              >
-                {cameras.map((cam, idx) => (
-                  <option key={cam.id} value={cam.id}>
-                    {cam.label || `Camera ${idx + 1}`}
-                  </option>
-                ))}
-              </select>
+          {/* Floating Top Glass Bar */}
+          <div className="admin-camera-glass-top">
+            {/* Device Switcher Pill */}
+            <button
+              type="button"
+              className={`admin-camera-glass-pill ${isDroidCam(currentCameraLabel) ? 'droidcam' : ''}`}
+              title="Select camera or virtual device"
+              onClick={() => {
+                loadCameras(scannerRef.current)
+                setSheetOpen(true)
+              }}
+            >
+              {isDroidCam(currentCameraLabel) ? <Smartphone size={13} /> : <Video size={13} />}
+              <span className="truncate max-w-[210px] sm:max-w-[320px]">{currentCameraLabel}</span>
+              <ChevronDown size={13} className="opacity-70 shrink-0" />
+            </button>
+
+            {/* Quick Actions Right (Flash when supported) */}
+            {hasFlash && (
+              <div className="admin-camera-glass-actions">
+                <button
+                  type="button"
+                  className={`admin-glass-circle-btn ${flashOn ? 'active' : ''}`}
+                  title={flashOn ? 'Turn off flash' : 'Turn on flash'}
+                  onClick={toggleFlash}
+                >
+                  {flashOn ? <ZapOff size={15} /> : <Zap size={15} />}
+                </button>
+              </div>
             )}
           </div>
 
-          <div className="admin-camera-actions">
-            {/* Fit mode toggle (contain vs cover) */}
+          {/* Native 4-Corner Targeting Reticle Overlay */}
+          <div className="admin-scan-overlay" aria-hidden="true">
+            <div className={`admin-native-reticle ${scanSuccess ? 'success' : ''}`}>
+              <span className="admin-reticle-corner tl" />
+              <span className="admin-reticle-corner tr" />
+              <span className="admin-reticle-corner bl" />
+              <span className="admin-reticle-corner br" />
+              {!scanSuccess && <div className="admin-scan-laser" />}
+            </div>
+
+            {/* Translucent Guidance Pill */}
+            <div className="admin-reticle-guide">
+              {scanSuccess ? (
+                <span className="text-[#89f5a2] font-medium flex items-center gap-1.5">
+                  <Check size={13} /> Ticket Code Detected
+                </span>
+              ) : (
+                <span>Align QR code inside frame</span>
+              )}
+            </div>
+          </div>
+
+          {/* Floating Bottom Glass Bar */}
+          <div className="admin-camera-glass-bottom">
             <button
               type="button"
-              className="admin-icon"
-              title={fitMode === 'contain' ? 'Switch to Crop/Fill' : 'Switch to Full Uncropped'}
-              onClick={() => setFitMode((m) => (m === 'contain' ? 'cover' : 'contain'))}
-            >
-              {fitMode === 'contain' ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
-            </button>
-
-            {/* Flashlight toggle */}
-            {hasFlash && (
-              <button
-                type="button"
-                className="admin-icon"
-                title={flashOn ? 'Turn off flash' : 'Turn on flash'}
-                onClick={toggleFlash}
-              >
-                {flashOn ? <ZapOff size={16} /> : <Zap size={16} />}
-              </button>
-            )}
-
-            {/* Open beUI BottomSheet */}
-            <button
-              type="button"
-              className="admin-icon"
-              title="Camera settings & devices"
+              className="admin-glass-circle-btn"
+              title="Camera devices & settings"
               onClick={() => {
                 loadCameras(scannerRef.current)
                 setSheetOpen(true)
@@ -228,76 +422,69 @@ export default function TicketScanner({ onScan }) {
             >
               <SlidersHorizontal size={16} />
             </button>
+
+            <button
+              type="button"
+              className="admin-glass-pause-btn"
+              onClick={() => {
+                setError('')
+                setActive(false)
+              }}
+            >
+              <CameraOff size={14} />
+              <span>Stop Camera</span>
+            </button>
+
+            <button
+              type="button"
+              className={`admin-glass-circle-btn ${fitMode === 'cover' ? 'active-fill' : ''}`}
+              title={fitMode === 'cover' ? 'Fit full frame (uncropped)' : 'Fill viewfinder'}
+              aria-label={fitMode === 'cover' ? 'Fit full frame' : 'Fill viewfinder'}
+              onClick={toggleFitMode}
+            >
+              {fitMode === 'cover' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
           </div>
         </div>
-      )}
-
-      {/* Viewfinder with uncropped container */}
-      <div className="admin-camera-viewfinder" hidden={!active}>
-        <video
-          ref={video}
-          muted
-          playsInline
-          aria-label="Ticket QR camera"
-          className={`fit-${fitMode}`}
-        />
-        <div className="admin-scan-overlay" aria-hidden="true">
-          <div className="admin-scan-box" />
-        </div>
-      </div>
-
-      {/* Inactive Placeholder */}
-      {!active && (
-        <div className="admin-camera-placeholder">
-          <Camera size={34} />
-          <p>Scan an attendee ticket QR</p>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-[#91a78a]">
-              {selectedCamera === 'environment'
-                ? 'Rear camera / Default'
-                : currentCameraLabel}
-            </span>
-            {cameras.length > 0 && (
-              <button
-                type="button"
-                className="text-xs text-[#b8dfb6] underline cursor-pointer"
-                onClick={() => setSheetOpen(true)}
-              >
-                Change
-              </button>
-            )}
+      ) : (
+        /* Inactive State: Sleek Native Ready Screen */
+        <div className="admin-camera-ready-card">
+          <div className="admin-camera-ready-halo">
+            <div className="admin-camera-ready-icon">
+              <Camera size={30} className="text-[#c0d8b0]" />
+            </div>
           </div>
-        </div>
-      )}
+          <div className="admin-camera-ready-info">
+            <h3>Camera Scanner Ready</h3>
+            <p>Point camera at attendee ticket QR code for automatic check-in</p>
+          </div>
 
-      {/* Action Controls */}
-      <div className="flex items-center justify-center gap-2 mt-2">
-        <button
-          type="button"
-          className="admin-button"
-          onClick={() => {
-            setError('')
-            setActive((value) => !value)
-          }}
-        >
-          {active ? <CameraOff size={18} /> : <Camera size={18} />}
-          {active ? 'Stop camera' : 'Start camera'}
-        </button>
-
-        {!active && (
           <button
             type="button"
-            className="admin-icon"
-            title="Choose camera device (DroidCam / Webcams)"
+            className="admin-camera-device-chip"
             onClick={() => {
               loadCameras()
               setSheetOpen(true)
             }}
           >
-            <SlidersHorizontal size={18} />
+            <Video size={13} />
+            <span className="truncate max-w-[190px]">{currentCameraLabel}</span>
+            <span className="text-[#b8dfb6] text-[11px] font-medium ml-1">Change</span>
           </button>
-        )}
-      </div>
+
+          <button
+            type="button"
+            className="admin-camera-start-btn"
+            onClick={() => {
+              setError('')
+              setActive(true)
+            }}
+          >
+            <Camera size={18} />
+            <span>Start Camera Scanner</span>
+          </button>
+        </div>
+      )}
 
       {error && (
         <p className="admin-error mt-3" role="alert">

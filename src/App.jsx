@@ -1,9 +1,11 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
+import { RefreshCw } from 'lucide-react'
 import { Button } from './components/ui/button.jsx'
 import { Loading, Notice } from './components/Feedback.jsx'
 import { supabase } from './utils/supabase.js'
 import { friendlyError } from './lib/tickets.js'
 import { navigateReservation, reservationRoutes } from './lib/reservationNavigation.js'
+import { adminRoutes, navigateAdmin } from './lib/adminNavigation.js'
 import LandingPage from './pages/LandingPage.jsx'
 import AuthLayout from './components/AuthLayout.jsx'
 import ReservationLayout from './components/ReservationLayout.jsx'
@@ -15,7 +17,7 @@ const AdminPage = lazy(() => import('./pages/AdminPage.jsx'))
 const AuthPage = lazy(() => import('./pages/AuthPage.jsx'))
 
 const currentPath = () => window.location.pathname.replace(/\/$/, '') || '/'
-const appRoutes = new Set(['/', '/refund-policy', '/privacy', '/terms', '/login', '/reset-password', '/auth/callback', '/admin/dashboard', ...reservationRoutes])
+const appRoutes = new Set(['/', '/refund-policy', '/privacy', '/terms', '/login', '/reset-password', '/auth/callback', ...adminRoutes, ...reservationRoutes])
 
 function LegalPage({ privacy }) {
   return <article className="panel stack narrow"><h1 className="page-heading">{privacy ? 'Your information' : 'Reservations and payments'}</h1>
@@ -33,7 +35,7 @@ function Callback({ user, error }) {
 
 export default function App() {
   const [path, setPath] = useState(currentPath)
-  const adminPath = path === '/admin/dashboard'
+  const adminPath = adminRoutes.has(path)
   const notFound = !appRoutes.has(path)
   useEffect(() => {
     const changed = () => setPath(currentPath())
@@ -42,9 +44,17 @@ export default function App() {
       const link = event.target.closest('a[href]')
       if (!link || link.target || link.hasAttribute('download')) return
       const url = new URL(link.href)
-      if (url.origin !== location.origin || url.search || url.hash || !reservationRoutes.has(currentPath()) || !reservationRoutes.has(url.pathname)) return
-      event.preventDefault()
-      navigateReservation(url.pathname)
+      if (url.origin !== location.origin || url.search || url.hash) return
+      if (reservationRoutes.has(currentPath()) && reservationRoutes.has(url.pathname)) {
+        event.preventDefault()
+        navigateReservation(url.pathname)
+        return
+      }
+      if (adminRoutes.has(url.pathname)) {
+        event.preventDefault()
+        navigateAdmin(url.pathname)
+        return
+      }
     }
     window.addEventListener('popstate', changed)
     document.addEventListener('click', clicked)
@@ -53,6 +63,7 @@ export default function App() {
 
   const [auth, setAuth] = useState({ loading: Boolean(supabase), user: null, error: '' })
   const [signingOut, setSigningOut] = useState(false)
+  const [adminRefreshing, setAdminRefreshing] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -80,6 +91,12 @@ export default function App() {
     } catch (err) { setError(friendlyError(err)); setSigningOut(false) }
   }
 
+  function triggerAdminRefresh() {
+    setAdminRefreshing(true)
+    window.dispatchEvent(new CustomEvent('admin:refresh'))
+    setTimeout(() => setAdminRefreshing(false), 650)
+  }
+
   let content
   if (notFound) content = <ErrorPage status={404} />
   else if (path === '/') content = <LandingPage user={auth.user} />
@@ -91,7 +108,7 @@ export default function App() {
   else if (path === '/reserve' || path === '/ticket') content = <ReservationPage key={auth.user?.id || 'guest'} user={auth.user} />
   else if (path === '/payment') content = <ReservationPage key={auth.user?.id || 'guest'} user={auth.user} view="payment" />
   else if (path === '/dashboard') content = <ReservationPage key={auth.user?.id || 'guest'} user={auth.user} view="dashboard" />
-  else if (adminPath) content = <Suspense fallback={<Loading>Opening the admin dashboard…</Loading>}><AdminPage key={auth.user?.id || 'guest'} user={auth.user} /></Suspense>
+  else if (adminPath) content = <Suspense fallback={<Loading>Opening the admin dashboard…</Loading>}><AdminPage key={auth.user?.id || 'guest'} user={auth.user} currentPath={path} /></Suspense>
   else content = <ErrorPage status={500} />
 
   if (path === '/') return <div className="app-shell landing-shell">
@@ -104,7 +121,31 @@ export default function App() {
 
   if (notFound) return <ErrorShell user={auth.user} onSignOut={signOut} signingOut={signingOut}>{content}</ErrorShell>
 
-  if (adminPath) return <div className="app-shell admin-shell"><a className="skip-link" href="#main">Skip to content</a><header className="admin-site-header"><a href="/" aria-label="Greens Heaven home"><img src="/images/greens-heaven-logo.png" alt="Greens Heaven" width="425" height="179" /></a>{auth.user && <Button variant="outline" onClick={signOut} disabled={signingOut}>{signingOut ? 'Signing out…' : 'Sign out'}</Button>}</header><main id="main" tabIndex={-1} className="admin-main"><Notice kind="error">{error || auth.error}</Notice>{content}</main></div>
+  if (adminPath) return <div className="app-shell admin-shell">
+    <a className="skip-link" href="#main">Skip to content</a>
+    <header className="admin-site-header">
+      <a href="/" aria-label="Greens Heaven home">
+        <img src="/images/greens-heaven-logo.png" alt="Greens Heaven" width="425" height="179" />
+      </a>
+      <div className="admin-header-actions">
+        <button
+          type="button"
+          className="admin-icon admin-header-refresh"
+          aria-label="Refresh admin data"
+          title="Refresh admin data"
+          onClick={triggerAdminRefresh}
+          disabled={adminRefreshing}
+        >
+          <RefreshCw size={18} className={adminRefreshing ? 'admin-spin' : ''} />
+        </button>
+        {auth.user && <Button variant="outline" onClick={signOut} disabled={signingOut}>{signingOut ? 'Signing out…' : 'Sign out'}</Button>}
+      </div>
+    </header>
+    <main id="main" tabIndex={-1} className="admin-main">
+      <Notice kind="error">{error || auth.error}</Notice>
+      {content}
+    </main>
+  </div>
 
   return <div className="app-shell">
     <a className="skip-link" href="#main">Skip to content</a>
