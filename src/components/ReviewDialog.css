@@ -1,0 +1,15 @@
+
+.micro-loader { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: inherit; }
+.gh-modal { width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px); margin: auto; padding: 0; overflow: auto; overscroll-behavior: contain; border: 1px solid #344a35; border-radius: 24px; background: #0c180f; color: #e8eee3; box-shadow: 0 24px 64px #0006; }
+.gh-modal::backdrop { background: #020704b8; backdrop-filter: blur(6px); }
+.gh-modal-inner { padding: 24px; }
+.gh-modal h2 { font: 500 32px/1.1 'Cormorant Garamond',serif; }
+.gh-modal-description, .gh-modal-saving p { margin-top: 12px; font-size: 13px; line-height: 1.7; color: #aabd9f; }
+.gh-modal-details { display: grid; gap: 16px; margin-block: 24px; }
+.gh-modal-details > div { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.7fr); gap: 12px; }
+.gh-modal-details dt { font-size: 12px; color: #aabd9f; }
+.gh-modal-details dd { font-size: 13px; overflow-wrap: anywhere; }
+.gh-modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.gh-modal-actions button { min-height: 48px; padding: 12px; border: 1px solid #3a5033; border-radius: 12px; font-size: 13px; }
+.gh-modal-actions .gh-modal-confirm { background: #bed6ae; color: #13230e; font-weight: 600; }
+.gh-modal-saving { padding-block: 32px; text-align: center; }

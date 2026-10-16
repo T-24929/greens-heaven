@@ -1,0 +1,15 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Greens Heaven//XXVI//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+UID:greens-heaven-2026@greensheavenxxvi.online
+DTSTAMP:20261016T000000Z
+DTSTART:20261031T120000Z
+SUMMARY:Greens Heaven XXVI
+LOCATION:Solis Hotel
+DESCRIPTION:Isipathana College 2023 O/L and 2026 A/L batch. 5:30 pm onwards.
+URL:https://greensheavenxxvi.online
+END:VEVENT
+END:VCALENDAR

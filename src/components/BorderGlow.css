@@ -1,0 +1,37 @@
+.border-glow {
+  --border-glow-angle: 45deg;
+  --border-glow-opacity: 0;
+  isolation: isolate;
+}
+.border-glow-edge, .border-glow-halo {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: var(--border-glow-opacity);
+  transition: opacity 200ms var(--landing-ease-out, ease-out);
+  mask-image: conic-gradient(from var(--border-glow-angle), #000 12%, transparent 32%, transparent 68%, #000 88%);
+}
+.border-glow-edge {
+  z-index: -1;
+  border: 1px solid transparent;
+  background: linear-gradient(#0b130e 0 100%) padding-box,
+    radial-gradient(at 80% 55%, #cde6b8, transparent 65%) border-box,
+    radial-gradient(at 8% 6%, #8cdb9e, transparent 60%) border-box,
+    linear-gradient(#3a9c72 0 100%) border-box;
+}
+.border-glow-halo {
+  z-index: -1;
+  inset: -20px;
+}
+.border-glow-halo::before {
+  content: '';
+  position: absolute;
+  inset: 20px;
+  border-radius: inherit;
+  box-shadow: inset 0 0 1px 1px #c5efb6, 0 0 6px rgb(147 214 143 / 35%), 0 0 20px rgb(91 187 121 / 20%);
+}
+.border-glow:focus-within { border-color: #95b48b; }
+@media (prefers-reduced-motion: reduce), (hover: none), (pointer: coarse) {
+  .border-glow-edge, .border-glow-halo { display: none; }
+}

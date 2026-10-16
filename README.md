@@ -27,6 +27,10 @@ Copy `.env.example` to `.env` if you do not already have one, then set the Supab
 
 The public landing and sign-in screens can be previewed before the database is set up. Reservations need the supplied migration; the application does not silently replace real Supabase requests with mock data.
 
+## Deploy with GitHub and Netlify
+
+Follow [Netlify deployment](docs/netlify-deployment.md). `netlify.toml` sets Node 22, verified builds, and `dist` output. Add the two public Supabase environment variables in Netlify before deploying. Skills, agent files, secrets and generated files are excluded from Git.
+
 ## Connect Supabase
 
 Follow the [beginner setup guide](docs/setup-guide.md) for step by step Dashboard and Google Cloud instructions. For technical database and email details, see [database setup](docs/database.md) and [domain and email setup](docs/email-setup.md).
@@ -76,3 +80,7 @@ Before opening live payments, run the hosted flow with two disposable attendee a
 
 The unused installed shadcn generator was removed from runtime dependencies after its transitive dependencies triggered an audit advisory. Local shadcn components and Base UI remain. A component generator is not required to run the site.
 # greens-heaven
+
+## Organizer and event-day desks
+
+The mobile admin panel includes reservation queues, confirmation dialogs, email delivery updates, and separate entrance and photo booth check-in. See [event-day setup](docs/event-day.md) for the required migration, access rules, camera checks and photographer workflow.

@@ -1,0 +1,7 @@
+project_id = "greens-heaven"
+
+[auth]
+minimum_password_length = 6
+
+[functions.send-reservation-email]
+verify_jwt = true

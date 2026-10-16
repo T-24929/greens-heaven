@@ -1,0 +1,12 @@
+
+.gh-toast-stack { top: max(12px, env(safe-area-inset-top)); width: min(360px, calc(100vw - 32px)); max-width: calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 24px); z-index: 200; gap: 8px; padding: 0; list-style: none; }
+.gh-toast-stack .gh-toast-surface { padding: 8px 8px 8px 12px; border-radius: 24px; background: #101c14; color: #e6efdf; border-color: #344b35; box-shadow: 0 8px 28px #02080455; backdrop-filter: none; }
+.gh-toast-stack .gh-toast-content { align-self: center; }
+.gh-toast-stack .gh-toast-title { font: 500 12px/1.5 'Montserrat',sans-serif; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.gh-toast-stack .gh-toast-description { font: 400 12px/1.5 'Montserrat',sans-serif; display: block; overflow: visible; -webkit-line-clamp: unset; color: #b3c4ac; }
+.gh-toast-stack .gh-toast-close { width: 44px; height: 44px; color: #c8d9bd; }
+.gh-toast-stack .gh-toast-icon { align-self: center; margin-top: 0; color: #c3dcb3; background: #253625; }
+.gh-toast-stack .gh-toast-item[data-status='error'] .gh-toast-icon { color: #ffc7b4; background: #40281f; }
+.gh-toast-stack .gh-toast-item { touch-action: pan-y pinch-zoom; }
+.gh-toast-close:focus-visible { outline: 2px solid #c3dcb3; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .gh-toast-stack .animate-spin { animation: none; } }

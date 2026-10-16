@@ -1,0 +1,12 @@
+[build]
+  command = "npm run check && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NPM_FLAGS = "--include=dev"
+
+# SPA rewrites and security headers live in public/_redirects and
+# public/_headers. Vite copies both into dist; do not duplicate them here.
+# Set the two VITE_SUPABASE_* values in Netlify's environment settings.
+# SMTP and service-role credentials belong in Supabase, never in this file.
