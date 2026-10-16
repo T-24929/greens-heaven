@@ -52,7 +52,7 @@ See [database setup](docs/database.md) for the exact update and verification que
 
 A separate repository is not needed. Access is checked by Supabase on every protected operation; a hidden route or subdomain is not the security boundary. If you later use an admin subdomain, open `/admin/dashboard` on it. Each origin has its own browser session, so sign in again there. Add that origin’s callback URLs to Supabase and include it in the email function’s `ALLOWED_ORIGINS`.
 
-Vercel routing/security headers are in `vercel.json`. Netlify-style equivalents are in `public/_redirects` and `public/_headers`. Other hosts must serve `index.html` for application routes and send equivalent headers. The CSP permits standard `*.supabase.co` project endpoints; update `connect-src` if you use a custom Supabase domain. Configure HTTPS on your host. Update the social image URL to an absolute production URL when the domain is known. The site currently uses `noindex` while configuration and testing are in progress.
+Vercel routing/security headers are in `vercel.json`. Netlify-style equivalents are in `public/_redirects` and `public/_headers`. Other hosts must serve `index.html` for application routes and send equivalent headers. The CSP permits standard `*.supabase.co` project endpoints; update `connect-src` and `img-src` if you use a custom Supabase domain. Configure HTTPS on your host. Update the social image URL to an absolute production URL when the domain is known. The site currently uses `noindex` while configuration and testing are in progress.
 
 ## Checks
 
