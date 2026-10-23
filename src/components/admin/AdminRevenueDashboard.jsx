@@ -104,10 +104,11 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
   }, [reservations])
 
   // Core Revenue Computations (based on derived 6,500 LKR ticket price)
-  const confirmedRevenue = approved.length * TICKET_PRICE
+  const VIP = 6500 * 1
+  const confirmedRevenue = approved.length * TICKET_PRICE - VIP
   const pendingRevenue = pending.length * TICKET_PRICE
   const awaitingRevenue = awaiting.length * TICKET_PRICE
-  const totalProjectedGross = (approved.length + pending.length + awaiting.length) * TICKET_PRICE
+  const totalProjectedGross = (approved.length + pending.length + awaiting.length) * TICKET_PRICE - VIP
   const realizationRate = totalProjectedGross > 0 ? Math.round((confirmedRevenue / totalProjectedGross) * 100) : 0
 
   // Date-based Analytics & Groupings
