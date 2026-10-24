@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ArrowDown } from 'lucide-react'
 import { EVENT, formatMoney } from '../lib/tickets.js'
+import { supabase } from '../utils/supabase.js'
 import FadeContent from '../components/FadeContent.jsx'
 import StarBorder from '../components/StarBorder.jsx'
 import VelocityBanner from '../components/VelocityBanner.jsx'
@@ -110,15 +111,107 @@ const questions = [
   ['Can I get a refund?', <>Personal cancellations are not refundable. Verified duplicate payments and organizer cancellation are covered, subject to applicable consumer rights. See the <a href="/refund-policy">refund policy</a> and contact the organizers directly.</>],
 ]
 
+function parseSriLankaTarget(value) {
+  if (!value) return new Date('2026-10-31T17:30:00+05:30')
+  if (value instanceof Date) return value
+  const raw = String(value).trim()
+  const withT = raw.includes(' ') && !raw.includes('T') ? raw.replace(' ', 'T') : raw
+  const hasTz = /(?:Z|[+-]\d{2}(?::?\d{2})?)$/i.test(withT)
+  const iso = hasTz ? withT : `${withT}+05:30`
+  const parsed = new Date(iso)
+  return isNaN(parsed.getTime()) ? new Date('2026-10-31T17:30:00+05:30') : parsed
+}
+
+function formatEventCountdown(dateInput) {
+  const targetDate = parseSriLankaTarget(dateInput)
+  const totalMs = Math.max(0, targetDate.getTime() - Date.now())
+  const days = Math.floor(totalMs / (1000 * 60 * 60 * 24))
+  const hours = Math.floor((totalMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+  const minutes = Math.floor((totalMs % (1000 * 60 * 60)) / (1000 * 60))
+  return {
+    days: String(days).padStart(2, '0'),
+    hours: String(hours).padStart(2, '0'),
+    minutes: String(minutes).padStart(2, '0'),
+    totalMs,
+  }
+}
+
 export default function LandingPage({ user }) {
   const brandRef = useRef(null)
   const phase = useLandingIntro(brandRef)
   const [imageSettled, setImageSettled] = useState(false)
+  const [ticketAvailability, setTicketAvailability] = useState({ total_tickets: 90, tickets_left: 90, approved_tickets: 0 })
+  const [eventSettings, setEventSettings] = useState(() => ({
+    starts_at: EVENT.starts_at,
+  }))
+  const [countdown, setCountdown] = useState(() => formatEventCountdown(EVENT.starts_at))
+
   useEffect(() => {
     if (phase !== 'ready') return
     const timer = setTimeout(() => setImageSettled(true), 1200)
     return () => clearTimeout(timer)
   }, [phase])
+
+  useEffect(() => {
+    if (!supabase) return
+    let active = true
+
+    async function fetchEventSettings() {
+      try {
+        const { data, error } = await supabase
+          .from('event_settings')
+          .select('starts_at')
+          .eq('id', 'greens-heaven-2026')
+          .maybeSingle()
+        if (active && data?.starts_at && !error) {
+          setEventSettings(prev => ({ ...prev, starts_at: data.starts_at }))
+        }
+      } catch {
+        // Fallback to static EVENT.starts_at
+      }
+    }
+
+    fetchEventSettings()
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    const updateCountdown = () => setCountdown(formatEventCountdown(eventSettings.starts_at))
+    updateCountdown()
+    const timer = window.setInterval(updateCountdown, 1000)
+    return () => window.clearInterval(timer)
+  }, [eventSettings.starts_at])
+
+  useEffect(() => {
+    let active = true
+
+    async function syncAvailability() {
+      if (!supabase) return
+      const { data, error } = await supabase.rpc('event_ticket_availability')
+      if (!active || error) return
+      if (data) setTicketAvailability(prev => ({ ...prev, ...data }))
+    }
+
+    syncAvailability()
+    const interval = window.setInterval(syncAvailability, 30000)
+
+    let channel = null
+    if (supabase) {
+      channel = supabase
+        .channel('public:ticket_availability')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => {
+          syncAvailability()
+        })
+        .subscribe()
+    }
+
+    return () => {
+      active = false
+      window.clearInterval(interval)
+      if (channel && supabase) supabase.removeChannel(channel)
+    }
+  }, [phase])
+
   const heroRef = useRef(null)
   useHeroScroll(heroRef, phase === 'ready')
   useSmoothScroll()
@@ -132,6 +225,17 @@ export default function LandingPage({ user }) {
         <HeroRipple src={assets.photo} enabled={phase === 'ready' && imageSettled} />
         <HeroRays enabled={phase === 'ready' && imageSettled} />
         <div className="landing-shade" aria-hidden="true" />
+
+        <aside className="landing-announcement-bar" aria-label="Ticket availability announcement">
+          <p className="landing-announcement-text">
+            <span key={ticketAvailability.tickets_left ?? 90} className="landing-announcement-count">
+              Only {ticketAvailability.tickets_left ?? 90} Tickets Left.
+            </span>{' '}
+            <a href="/reserve" className="landing-announcement-link">
+              Reserve Your Ticket Now.
+            </a>
+          </p>
+        </aside>
 
         <header className="landing-header">
           <a ref={brandRef} className="landing-brand" href="/" aria-label="Greens Heaven home" aria-current="page">
@@ -160,6 +264,28 @@ export default function LandingPage({ user }) {
 
         <FadeContent className="landing-event-details" trigger="mount" enabled={phase === 'ready'} duration={.8} delay={.8}>
           <img src={assets.details} width="706" height="167" alt="31 October 2026 · Solis Hotel · 5:30 pm onwards" />
+          <div className="landing-countdown" aria-live="polite" aria-label="Countdown to event">
+            <div className="landing-countdown-item">
+              <span key={`days-${countdown.days}`} className="landing-countdown-num">
+                {countdown.days}
+              </span>
+              <span className="landing-countdown-tag">Days</span>
+            </div>
+            <span className="landing-countdown-sep" aria-hidden="true">–</span>
+            <div className="landing-countdown-item">
+              <span key={`hours-${countdown.hours}`} className="landing-countdown-num">
+                {countdown.hours}
+              </span>
+              <span className="landing-countdown-tag">Hours</span>
+            </div>
+            <span className="landing-countdown-sep" aria-hidden="true">–</span>
+            <div className="landing-countdown-item">
+              <span key={`mins-${countdown.minutes}`} className="landing-countdown-num">
+                {countdown.minutes}
+              </span>
+              <span className="landing-countdown-tag">Minutes</span>
+            </div>
+          </div>
         </FadeContent>
       </section>
       </div>
