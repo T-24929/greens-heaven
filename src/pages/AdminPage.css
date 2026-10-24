@@ -2209,6 +2209,231 @@
   }
 }
 
+/* Admin-entered cash registrations */
+.admin-shell .admin-cash-registration-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid #203427;
+  border-radius: 16px;
+  background: #09110c;
+}
+.admin-shell .admin-cash-registration-bar > div { display: grid; gap: 3px; min-width: 0; }
+.admin-shell .admin-cash-registration-bar strong { color: #e2eadd; font-size: 13px; }
+.admin-shell .admin-cash-registration-bar span { color: #879b84; font-size: 11px; }
+.admin-shell .admin-cash-registration-bar .admin-button { min-height: 40px; flex-shrink: 0; }
+.admin-shell .admin-cash-registration-bar .admin-button:disabled { opacity: .52; cursor: not-allowed; }
+.admin-shell .admin-cash-schema-notice { margin: -8px 2px 0; color: #e3bc72; font: 500 11px/1.5 'Montserrat', sans-serif; }
+.admin-shell .admin-cash-row-badge {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 3px;
+  padding: 2px 6px;
+  border: 1px solid #285c35;
+  border-radius: 999px;
+  color: #83d798;
+  background: #102317;
+  font: 600 9px/1.25 'Montserrat', sans-serif;
+}
+.admin-shell .admin-cash-overlay {
+  position: fixed;
+  z-index: 150;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(18px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: rgba(0, 0, 0, .76);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.admin-shell .admin-cash-dialog {
+  width: min(100%, 570px);
+  max-height: min(88dvh, 820px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #2a4430;
+  border-radius: 22px;
+  background: #080e0a;
+  color: #e2eadd;
+  box-shadow: 0 28px 84px rgba(0, 0, 0, .62), inset 0 1px rgba(255,255,255,.035);
+  scrollbar-color: #34523a transparent;
+}
+.admin-shell .admin-cash-header {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 17px 20px;
+  border-bottom: 1px solid #1b2c20;
+  background: rgba(8, 14, 10, .96);
+  backdrop-filter: blur(12px);
+}
+.admin-shell .admin-cash-title-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #2a5534;
+  border-radius: 13px;
+  background: #102418;
+  color: #6bd984;
+}
+.admin-shell .admin-cash-header > div:nth-child(2) { flex: 1; min-width: 0; }
+.admin-shell .admin-cash-header .admin-eyebrow { margin: 0 0 3px; font-size: 9px; }
+.admin-shell .admin-cash-header h2 { margin: 0; color: #edf3e9; font: 600 17px/1.2 'Montserrat', sans-serif; }
+.admin-shell .admin-cash-form { display: grid; gap: 15px; padding: 18px 20px 20px; }
+.admin-shell .admin-cash-intro { margin: 0; color: #a1b19b; font-size: 12px; line-height: 1.55; }
+.admin-shell .admin-cash-dialog > .reserve-progress {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  list-style: none;
+  margin: 16px 20px 0;
+  padding: 0;
+  color: #83927d;
+  font: 500 10px/1.2 'Montserrat', sans-serif;
+}
+.admin-shell .admin-cash-dialog > .reserve-progress li { display: flex; align-items: center; gap: 7px; }
+.admin-shell .admin-cash-dialog > .reserve-progress li[aria-current] { color: #d0e2c5; }
+.admin-shell .admin-cash-dialog > .reserve-progress li > span {
+  position: relative;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  place-items: center;
+  border: 1px solid #334330;
+  border-radius: 50%;
+  font-size: 9px;
+}
+.admin-shell .admin-cash-dialog > .reserve-progress li[aria-current] > span { border-color: #c0d8af; background: #c0d8af; color: #13250f; }
+.admin-shell .admin-cash-dialog > .reserve-progress li[data-complete='true'] { color: #b7ddb0; }
+.admin-shell .admin-cash-dialog > .reserve-progress li[data-complete='true'] > span { border-color: #426f47; background: #254b2c; color: #c4edb9; }
+.admin-shell .admin-cash-dialog > .reserve-progress .reserve-step-focus { position: absolute; inset: -4px; border: 1px solid #96b28b; border-radius: 50%; pointer-events: none; }
+.admin-shell .admin-cash-step-heading h3 { margin: 0; color: #e5eee1; font: 600 15px/1.35 'Montserrat', sans-serif; }
+.admin-shell .admin-cash-step-heading p { margin: 4px 0 0; color: #96a993; font: 400 11px/1.5 'Montserrat', sans-serif; }
+.admin-shell .admin-cash-details-form fieldset { display: grid; gap: 13px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.admin-shell .admin-cash-dialog .reserve-field { display: grid; min-width: 0; gap: 0; }
+.admin-shell .admin-cash-dialog .reserve-field label,
+.admin-shell .admin-cash-dialog .reserve-field > span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0 0 7px;
+  color: #cbd8c7;
+  font: 600 11px/1.35 'Montserrat', sans-serif;
+}
+.admin-shell .admin-cash-dialog .reserve-field label > span { color: #93a58f; font-size: 9px; font-weight: 500; }
+.admin-shell .admin-cash-dialog .reserve-field input,
+.admin-shell .admin-cash-dialog .reserve-field select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #2a4030;
+  border-radius: 11px;
+  outline: 0;
+  background: #050907;
+  color: #e4ece0;
+  font: 500 12px 'Montserrat', sans-serif;
+}
+.admin-shell .admin-cash-dialog .reserve-field input::placeholder { color: #697868; }
+.admin-shell .admin-cash-dialog .reserve-field input:focus-visible,
+.admin-shell .admin-cash-dialog .reserve-field select:focus-visible { border-color: #398e4c; box-shadow: 0 0 0 3px rgba(54, 153, 75, .16); }
+.admin-shell .admin-detail-dialog .admin-cash-collector-field { display: grid; gap: 6px; min-width: 0; color: #cbd8c7; font: 500 11px 'Montserrat', sans-serif; }
+.admin-shell .admin-detail-dialog .admin-cash-collector-field select { width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid #29402d; border-radius: 11px; background: #08110a; color: #e2eadd; font: 500 12px 'Montserrat', sans-serif; }
+.admin-shell .admin-detail-dialog .admin-cash-collector-field select:focus-visible { outline: 2px solid #43a45a; outline-offset: 2px; }
+.admin-shell .admin-cash-dialog .reserve-field-hint { margin: 6px 0 0; color: #899c86; font: 400 9px/1.5 'Montserrat', sans-serif; }
+.admin-shell .admin-cash-dialog .reserve-field-error { margin: 6px 0 0; color: #ffb4ad; font: 500 10px/1.45 'Montserrat', sans-serif; }
+.admin-shell .admin-cash-dialog .reserve-school-fields { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 12px; }
+.admin-shell .admin-cash-dialog .identity-digits { position: relative; width: min(100%, 420px); min-width: 0; }
+.admin-shell .admin-cash-dialog .identity-digits[data-length='5'] { width: min(100%, 180px); }
+.admin-shell .admin-cash-dialog .identity-slots { display: grid; grid-template-columns: repeat(var(--digit-count), minmax(0,1fr)); gap: 3px; }
+.admin-shell .admin-cash-dialog .identity-slot { position: relative; display: grid; min-width: 0; height: 42px; place-items: center; border: 1px solid #344531; border-radius: 7px; background: #071009; color: #e4ece0; font: 500 13px/1 'Montserrat', sans-serif; font-variant-numeric: tabular-nums; }
+.admin-shell .admin-cash-dialog .identity-focus { position: absolute; inset: -1px; border: 2px solid #83d798; border-radius: inherit; }
+.admin-shell .admin-cash-dialog .identity-placeholder { color: #52664d; }
+.admin-shell .admin-cash-dialog .identity-digits input { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; opacity: 0; cursor: text; font-size: 16px; }
+.admin-shell .admin-cash-dialog .identity-digits:has(input:disabled) { opacity: .55; }
+.admin-shell .admin-cash-dialog .identity-digits[data-error='true'] .identity-slot { border-color: #bf8274; }
+.admin-shell .admin-cash-dialog .admin-cash-email-field > span { margin-bottom: 7px; }
+.admin-shell .admin-cash-dialog .admin-cash-actions { justify-content: space-between; }
+.admin-shell .admin-cash-dialog .admin-cash-actions .primary { margin-left: auto; }
+.admin-shell .admin-cash-amount {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px;
+  border: 1px solid #203527;
+  border-radius: 12px;
+  background: #0b150e;
+}
+.admin-shell .admin-cash-amount > span { display: inline-flex; align-items: center; gap: 8px; color: #a8b9a2; font-size: 11px; }
+.admin-shell .admin-cash-amount svg { color: #70d985; }
+.admin-shell .admin-cash-amount strong { color: #e1f2da; font-size: 14px; }
+.admin-shell .admin-cash-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #26432d;
+  border-radius: 13px;
+  background: #0b1710;
+  cursor: pointer;
+}
+.admin-shell .admin-cash-confirm input { width: 18px; height: 18px; margin: 1px 0 0; flex: 0 0 auto; accent-color: #31a34f; }
+.admin-shell .admin-cash-confirm span { display: grid; gap: 3px; }
+.admin-shell .admin-cash-confirm strong { color: #e1ebdc; font: 600 11px 'Montserrat', sans-serif; }
+.admin-shell .admin-cash-confirm small { color: #8da18a; font: 400 10px/1.45 'Montserrat', sans-serif; }
+.admin-shell .admin-cash-actions { display: flex; justify-content: flex-end; gap: 9px; padding-top: 2px; }
+.admin-shell .admin-cash-actions .admin-button { min-height: 42px; }
+.admin-shell .admin-cash-spinner { animation: admin-cash-spin .85s linear infinite; }
+@keyframes admin-cash-spin { to { transform: rotate(360deg); } }
+.admin-shell .admin-cash-success { display: grid; justify-items: center; gap: 11px; padding: 28px 22px 22px; text-align: center; }
+.admin-shell .admin-cash-success-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; border: 1px solid #2e7040; background: #102419; color: #78e091; }
+.admin-shell .admin-cash-success h3 { margin: 2px 0 0; color: #edf3e9; font: 600 17px 'Montserrat', sans-serif; }
+.admin-shell .admin-cash-reference { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; border: 1px solid #294330; border-radius: 9px; background: #0a140d; color: #bfe3b7; font: 600 12px ui-monospace, monospace; cursor: pointer; }
+.admin-shell .admin-cash-paid { display: inline-flex; align-items: center; gap: 7px; margin: 0; color: #8fce9b; font-size: 11px; }
+.admin-shell .admin-cash-account-state { display: flex; align-items: center; gap: 7px; width: min(100%, 420px); justify-content: center; padding: 10px 12px; border: 1px solid #24392a; border-radius: 11px; background: #0b140d; color: #acbdA5; font-size: 10px; overflow-wrap: anywhere; }
+.admin-shell .admin-cash-account-state.sent,
+.admin-shell .admin-cash-account-state.linked { color: #9fdda9; border-color: #2c5835; background: #0d1b11; }
+.admin-shell .admin-cash-account-state.failed { color: #f1b5a4; border-color: #58372d; background: #1a110e; }
+.admin-shell .admin-cash-account-state svg { flex: 0 0 auto; }
+.admin-shell .admin-cash-help { max-width: 390px; margin: 0; color: #899c86; font-size: 10px; line-height: 1.5; }
+.admin-shell .admin-cash-retry { min-height: 38px; }
+.admin-shell .admin-cash-done { min-width: 130px; min-height: 40px; margin-top: 5px; }
+
+@media (max-width: 640px) {
+  .admin-shell .admin-cash-registration-bar { align-items: flex-start; flex-direction: column; gap: 11px; padding: 13px; }
+  .admin-shell .admin-cash-registration-bar .admin-button { width: 100%; justify-content: center; }
+  .admin-shell .admin-cash-overlay { align-items: end; padding: 0; }
+  .admin-shell .admin-cash-dialog { width: 100%; max-height: min(92dvh, 820px); border-radius: 21px 21px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  .admin-shell .admin-cash-header { padding: 14px 16px; }
+  .admin-shell .admin-cash-form { gap: 13px; padding: 14px 16px 18px; }
+  .admin-shell .admin-cash-dialog > .reserve-progress { gap: 12px; margin: 13px 16px 0; font-size: 9px; }
+  .admin-shell .admin-cash-dialog > .reserve-progress li { gap: 5px; }
+  .admin-shell .admin-cash-dialog .reserve-school-fields { grid-template-columns: minmax(0, 1fr); gap: 13px; }
+  .admin-shell .admin-cash-dialog .reserve-field input,
+  .admin-shell .admin-cash-dialog .reserve-field select { min-height: 48px; font-size: 16px; }
+  .admin-shell .admin-cash-dialog .identity-slot { height: 44px; }
+  .admin-shell .admin-cash-actions { display: grid; grid-template-columns: 1fr 1.4fr; }
+  .admin-shell .admin-cash-actions .admin-button { justify-content: center; }
+  .admin-shell .admin-cash-success { padding-inline: 16px; }
+}
+
+@media (max-width: 360px) {
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell .admin-cash-spinner { animation-duration: 1.6s; }
+}
+
 /* ==========================================================================
    Admin Reservations Redesign (Matching Images 2 & 3)
    ========================================================================== */

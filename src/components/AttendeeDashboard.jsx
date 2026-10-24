@@ -16,16 +16,27 @@ const states = {
   approved: { label: 'Ticket confirmed', title: 'See you at Solis.', description: 'Your payment is approved. Turn your ticket over to show the QR, or save the code to your phone. Keep your reference handy for the organizers.', icon: ShieldCheck },
   rejected: { label: 'Receipt needs attention', title: 'One thing to sort out.', description: 'Read the organizer’s note and upload a corrected receipt. Check with the organizers before making another payment.', action: 'Update receipt', icon: AlertCircle },
 }
+const inPersonCashStates = {
+  awaiting_payment: { label: 'Physical cash due', title: 'Your place is reserved.', description: 'Your details are saved. Pay an organizer in person. Your ticket will be confirmed when the collector records the payment.', icon: Clock3 },
+  pending_review: { label: 'Physical cash recorded', title: 'Your payment is recorded.', description: 'An organizer recorded the cash payment. Your ticket status is being updated.', icon: Clock3 },
+  approved: states.approved,
+  rejected: { label: 'Cash payment needs attention', title: 'Please check with the organizers.', description: 'The cash record needs correction. Contact the organizers before paying again.', icon: AlertCircle },
+}
 
 export default function AttendeeDashboard({ user, reservation, event, error, onRefresh }) {
   const toast = useToast()
   const [refreshing, setRefreshing] = useState(false)
   const [copyMessage, setCopyMessage] = useState('')
-  const state = states[reservation?.status]
+  const inPersonCash = reservation?.registration_source === 'in_person' && reservation?.payment_method === 'cash'
+  const state = (inPersonCash ? inPersonCashStates : states)[reservation?.status]
   const StatusIcon = state?.icon || Ticket
   const name = reservation?.full_name?.trim()
   const confirmed = reservation?.status === 'approved'
-  const ticketMessage = reservation?.status === 'pending_review' ? 'Receipt received · Awaiting approval' : reservation?.status === 'rejected' ? 'Receipt needs attention · Not confirmed' : 'Awaiting payment receipt'
+  const ticketMessage = inPersonCash
+    ? reservation?.status === 'approved' ? 'Physical cash received · Ticket confirmed'
+      : reservation?.status === 'pending_review' ? 'Physical cash recorded'
+        : reservation?.status === 'rejected' ? 'Cash record needs attention · Not confirmed' : 'Physical cash due · Not confirmed'
+    : reservation?.status === 'pending_review' ? 'Receipt received · Awaiting approval' : reservation?.status === 'rejected' ? 'Receipt needs attention · Not confirmed' : 'Awaiting payment receipt'
   async function refresh() {
     if (refreshing) return
     setRefreshing(true)
@@ -58,7 +69,9 @@ export default function AttendeeDashboard({ user, reservation, event, error, onR
         />
         </TicketFlipCard>
         {!confirmed && <div className="dash-ticket-next">
-          <p>{reservation.status === 'pending_review' ? 'Your receipt is under review. No need to pay again.' : reservation.status === 'rejected' ? 'Check the organizer’s note before uploading a corrected receipt.' : 'Your details are saved. Transfer the payment and upload your receipt to continue.'}</p>
+          <p>{inPersonCash
+            ? reservation.status === 'pending_review' ? 'Your physical cash payment has been recorded.' : reservation.status === 'rejected' ? 'Check the organizer’s note before paying again.' : 'Your details are saved. Pay an organizer in person; your ticket is confirmed when the collector records the payment.'
+            : reservation.status === 'pending_review' ? 'Your receipt is under review. No need to pay again.' : reservation.status === 'rejected' ? 'Check the organizer’s note before uploading a corrected receipt.' : 'Your details are saved. Transfer the payment and upload your receipt to continue.'}</p>
         </div>}
         <p className="dash-copy-feedback" role="status">{copyMessage}</p>
       </FadeContent>
@@ -67,8 +80,8 @@ export default function AttendeeDashboard({ user, reservation, event, error, onR
           {reservation.review_note && <div className="dash-organizer-note"><span>FROM THE ORGANIZERS</span><p>{reservation.review_note}</p></div>}
           <ol className="dash-timeline" aria-label="Reservation progress">{[
             { title: 'Your details', detail: 'Reservation saved', done: true },
-            { title: 'Payment receipt', detail: reservation.status === 'rejected' ? 'A corrected receipt is needed' : reservation.status === 'awaiting_payment' ? 'Bank transfer and receipt upload' : 'Receipt submitted', done: ['pending_review', 'approved'].includes(reservation.status) },
-            { title: 'Ticket confirmation', detail: reservation.status === 'approved' ? 'Payment approved by the organizers' : 'After organizer approval', done: reservation.status === 'approved' },
+            { title: inPersonCash ? 'Physical cash' : 'Payment receipt', detail: inPersonCash ? reservation.status === 'rejected' ? 'Cash record needs correction' : reservation.status === 'awaiting_payment' ? 'Pay an organizer in person' : 'Collected by an organizer' : reservation.status === 'rejected' ? 'A corrected receipt is needed' : reservation.status === 'awaiting_payment' ? 'Bank transfer and receipt upload' : 'Receipt submitted', done: ['pending_review', 'approved'].includes(reservation.status) },
+            { title: 'Ticket confirmation', detail: reservation.status === 'approved' ? inPersonCash ? 'Physical cash confirmed' : 'Payment approved by the organizers' : inPersonCash ? 'After the collector records payment' : 'After organizer approval', done: reservation.status === 'approved' },
           ].map((step, i) => <li key={step.title} data-complete={step.done}><span className="dash-step-marker">{step.done ? <Check size={14} /> : `0${i + 1}`}</span><div><strong>{step.title}</strong><p>{step.detail}</p></div></li>)}</ol>
           {state?.action && <a className="dash-primary" href="/payment">{state.action}<ArrowRight size={18} /></a>}
           <p className="dash-auto-update">Status updates automatically while this page is open.</p>

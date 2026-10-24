@@ -4,7 +4,6 @@ import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
-  Camera,
   Check,
   CheckCircle2,
   FileText,
@@ -33,7 +32,7 @@ const time = (value) =>
   })
 
 export default function GateDesk({ initialGate = 'entrance', lockedGate = null, adminMap = {}, onChange, onSelectTicket }) {
-  const [gate, setGate] = useState(initialGate)
+  const [gate, setGate] = useState(lockedGate || initialGate)
   const [mobileView, setMobileView] = useState('scanner')
   const [ticketId, setTicketId] = useState('')
   const [ticket, setTicket] = useState(null)
@@ -55,12 +54,6 @@ export default function GateDesk({ initialGate = 'entrance', lockedGate = null, 
   ) || false
   const completionRecord = ticket?.attendance?.find((item) => item.gate === completedGate)
   const completedBy = completionRecord?.checked_in_by ? adminMap[completionRecord.checked_in_by] : null
-
-  useEffect(() => {
-    const nextGate = lockedGate || initialGate
-    setGate(nextGate === 'photobooth' ? 'photobooth' : 'entrance')
-    setCompletedGate(null)
-  }, [initialGate, lockedGate])
 
   function makePhotoImageFields(values = []) {
     const nextFields = values.length
@@ -217,7 +210,11 @@ export default function GateDesk({ initialGate = 'entrance', lockedGate = null, 
       toast.show({ status: 'success', title: 'Photo names saved' })
       return true
     } catch (saveError) {
-      setError(saveError.message || 'Photo names could not be saved.')
+      const missingImageRpc = ['PGRST202', 'PGRST203'].includes(saveError?.code)
+        || /could not find the function.*schema cache/i.test(saveError?.message || '')
+      setError(missingImageRpc
+        ? 'Photo-name saving is not available yet. Apply the latest attendance image migration, then refresh this page.'
+        : saveError.message || 'Photo names could not be saved.')
       toast.show({ status: 'error', title: 'Photo names could not be saved' })
       return false
     } finally {

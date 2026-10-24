@@ -145,11 +145,14 @@ export default function ReservationPage({ user, view = 'reserve' }) {
   const refresh = useCallback(() => {
     if (!supabase || !user) return Promise.resolve()
     const request = ++revision.current
-    return Promise.all([
-      supabase.from('reservations').select('*').eq('user_id', user.id).maybeSingle(),
-      supabase.from('bank_details').select('*').eq('event_id', EVENT_ID).maybeSingle(),
-      supabase.from('event_settings').select('*').eq('id', EVENT_ID).single(),
-    ]).then(results => {
+    return supabase.rpc('claim_in_person_reservation').then(({ error: claimError }) => {
+      if (claimError) throw claimError
+      return Promise.all([
+        supabase.from('reservations').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('bank_details').select('*').eq('event_id', EVENT_ID).maybeSingle(),
+        supabase.from('event_settings').select('*').eq('id', EVENT_ID).single(),
+      ])
+    }).then(results => {
       const failure = results.find(r => r.error)
       if (failure) throw failure.error
       if (alive.current && request === revision.current) {

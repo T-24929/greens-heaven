@@ -14,10 +14,10 @@ import {
   RefreshCw,
   CheckCircle2,
   GraduationCap,
+  CircleDollarSign,
 } from 'lucide-react'
 import { reservationWhatsappLink } from '../lib/admin-messages.js'
 import { supabase } from '../utils/supabase.js'
-import { getAdminsList, buildAdminMap } from '../lib/admins.js'
 
 import AdminWorkspace from '../components/admin/AdminWorkspace.jsx'
 import ErrorPage from '../components/ErrorPage.jsx'
@@ -30,12 +30,24 @@ function scannedTicket() {
     return TICKET_ID.test(saved || '') ? saved : null
   } catch { return null }
 }
-const RESERVATION_FIELDS = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,amount_lkr,status,receipt_path,review_note,created_at,updated_at,reviewed_at,reviewed_by'
+const RESERVATION_FIELDS = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,amount_lkr,status,receipt_path,review_note,created_at,updated_at,reviewed_at,reviewed_by,registration_source,payment_method,payment_received_at,payment_received_by,account_setup_sent_at,user_id,registered_by'
+const CASH_RESERVATION_FIELDS = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,amount_lkr,status,receipt_path,review_note,created_at,updated_at,reviewed_at,reviewed_by,registration_source,payment_method,payment_received_at,payment_received_by,account_setup_sent_at,user_id'
+const LEGACY_RESERVATION_FIELDS = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,amount_lkr,status,receipt_path,review_note,created_at,updated_at,reviewed_at,reviewed_by'
 const STATUS_LABELS = {
   awaiting_payment: 'Awaiting payment',
-  pending_review: 'Ready for review',
+  pending_review: 'Payment ready for review',
   approved: 'Approved',
-  rejected: 'Replacement receipt needed',
+  rejected: 'Needs correction',
+}
+const PAYMENT_EVENT_LABELS = {
+  cash_received: 'Physical cash received',
+  cash_approved: 'Cash review approved (legacy)',
+  cash_rejected: 'Cash review returned (legacy)',
+}
+
+function missingCashSchema(error) {
+  return ['PGRST202', 'PGRST204', '42703'].includes(error?.code)
+    || /schema cache|column .* does not exist|could not find .*column/i.test(error?.message || '')
 }
 const EMAIL_LABELS = {
   pending: 'Waiting to send',
@@ -70,10 +82,11 @@ async function sendEmail(notificationId) {
   }
 }
 
-function ReservationDetails({ reservationId, onReview, onClose }) {
+function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, admins = [], currentAdminId = '' }) {
   const [details, setDetails] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [loadNotice, setLoadNotice] = useState('')
   const [actionError, setActionError] = useState('')
   const [notice, setNotice] = useState('')
   const [revision, setRevision] = useState(0)
@@ -85,34 +98,37 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
   const [receiptLinks, setReceiptLinks] = useState({})
   const [receiptBusyId, setReceiptBusyId] = useState(null)
   const [copied, setCopied] = useState(false)
-  const [adminMap, setAdminMap] = useState({})
-
-  useEffect(() => {
-    let active = true
-    getAdminsList().then(admins => {
-      if (active) setAdminMap(buildAdminMap(admins))
-    })
-    return () => { active = false }
-  }, [])
+  const [cashCollectorId, setCashCollectorId] = useState('')
+  const selectedCashCollectorId = cashCollectorId || currentAdminId
 
   useEffect(() => {
     let active = true
     async function load() {
       setLoading(true)
       setLoadError('')
+      setLoadNotice('')
       try {
-        const [resRes, recRes, revRes, notRes, attRes] = await Promise.all([
-          supabase.from('reservations').select(RESERVATION_FIELDS).eq('id', reservationId).maybeSingle(),
+        let resRes = await supabase.from('reservations').select(RESERVATION_FIELDS).eq('id', reservationId).maybeSingle()
+        let usedCompatibilityFields = false
+        if (resRes.error && missingCashSchema(resRes.error)) {
+          usedCompatibilityFields = true
+          resRes = await supabase.from('reservations').select(CASH_RESERVATION_FIELDS).eq('id', reservationId).maybeSingle()
+          if (resRes.error && missingCashSchema(resRes.error)) {
+            resRes = await supabase.from('reservations').select(LEGACY_RESERVATION_FIELDS).eq('id', reservationId).maybeSingle()
+          }
+        }
+        const [recRes, revRes, notRes, attRes, payRes] = await Promise.all([
           supabase.from('receipt_submissions').select('id,receipt_path,submitted_at').eq('reservation_id', reservationId).order('submitted_at', { ascending: false }),
           supabase.from('review_history').select('id,decision,note,admin_id,created_at').eq('reservation_id', reservationId).order('created_at', { ascending: false }),
           supabase.from('notification_outbox').select('id,review_id,status,attempts,created_at,sent_at').eq('reservation_id', reservationId).order('created_at', { ascending: false }),
           supabase.from('ticket_attendance').select('gate,checked_in_at').eq('reservation_id', reservationId).order('checked_in_at', { ascending: false }).then(res => res, () => ({ data: [] })),
+          supabase.from('payment_events').select('id,event_type,payment_method,amount_lkr,admin_id,note,created_at').eq('reservation_id', reservationId).order('created_at', { ascending: false }).then(res => res, () => ({ data: [] })),
         ])
         if (!active) return
         if (resRes.error || !resRes.data) {
           if (resRes.error) console.error('Failed to load reservation:', resRes.error)
           setDetails(null)
-          setLoadError('Could not load this reservation. Refresh to try again.')
+          setLoadError(missingCashSchema(resRes.error) ? 'Cash payment fields are missing from the database. Apply the latest Supabase migrations, then refresh.' : 'Could not load this reservation. Refresh to try again.')
         } else {
           const receipts = recRes.data || []
           setDetails({
@@ -121,7 +137,9 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
             reviews: revRes.data || [],
             emails: notRes.data || [],
             attendance: attRes?.data || [],
+            payments: payRes?.data || [],
           })
+          if (usedCompatibilityFields) setLoadNotice('Some cash audit fields are not available yet. Apply both cash registration migrations to enable the full payment history.')
           if (receipts[0]?.receipt_path) {
             supabase.storage.from('receipts').createSignedUrl(receipts[0].receipt_path, 300)
               .then(({ data: signed }) => {
@@ -160,6 +178,30 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
     }
   }
 
+  async function recordCashReceived() {
+    if (busy) return
+    if (!selectedCashCollectorId) {
+      setActionError('Choose which admin collected the physical cash.')
+      return
+    }
+    setBusy(true)
+    setActionError('')
+    setNotice('')
+    try {
+      const { error } = await supabase.rpc('record_cash_received', { p_reservation_id: reservationId, p_payment_collector: selectedCashCollectorId })
+      if (error) throw error
+      setNotice('Physical cash recorded. The ticket is confirmed.')
+      setRevision(current => current + 1)
+      onReview?.()
+    } catch (recordError) {
+      setActionError(missingCashSchema(recordError)
+        ? 'Cash payment actions are unavailable until the latest Supabase migrations are applied.'
+        : recordError?.message || 'Could not record this cash payment. Refresh and try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function review(event) {
     if (event) event.preventDefault()
     if (busy || !decision || details?.reservation.status !== 'pending_review') return
@@ -178,16 +220,19 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
         p_decision: decision,
         p_note: decision === 'rejected' ? reason.trim() : null,
       })
-      if (error || !data?.reservation) throw new Error('Review failed')
+      if (error) throw error
+      if (!data?.reservation) throw new Error('The review response was incomplete. Refresh and check the reservation status.')
       saved = true
       setDecision(null)
       setReason('')
       setNotice(data.notification_id
         ? await sendEmail(data.notification_id)
         : 'Review saved. Email queued for sending.')
-    } catch {
+    } catch (reviewError) {
       if (saved) setNotice('Review saved. Check email delivery status below.')
-      else setActionError('Could not save review. The receipt may have already been reviewed.')
+      else if (missingCashSchema(reviewError)) setActionError('Payment review is unavailable until the latest Supabase migrations are applied.')
+      else if (/different admin/i.test(reviewError?.message || '')) setActionError(reviewError.message)
+      else setActionError(reviewError?.message || 'Could not save review. The payment may have already been reviewed.')
     } finally {
       setBusy(false)
       setRevision(current => current + 1)
@@ -222,9 +267,10 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
 
   const reservation = details?.reservation
   const whatsappUrl = reservationWhatsappLink(reservation)
+  const cashRegistration = reservation?.registration_source === 'in_person' && reservation?.payment_method === 'cash'
 
   const steps = [
-    { id: 'receipt', label: 'Slip', icon: Receipt, badge: reservation?.status === 'pending_review' },
+    { id: 'receipt', label: cashRegistration ? 'Payment' : 'Slip', icon: cashRegistration ? CircleDollarSign : Receipt, badge: !cashRegistration && reservation?.status === 'pending_review' },
     { id: 'info', label: 'Details', icon: User },
     { id: 'timeline', label: 'Logs', icon: Clock },
   ]
@@ -262,6 +308,7 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
       </div>
 
       {loadError && <p className="notice notice-error" role="alert">{loadError}</p>}
+      {loadNotice && <p className="notice notice-warning" role="status">{loadNotice}</p>}
       {actionError && <p className="notice notice-error" role="alert">{actionError}</p>}
       {notice && <p className="notice notice-success" role="status">{notice}</p>}
 
@@ -315,7 +362,14 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
           {/* Official Payment Receipt Card matching Image 3 */}
           <div className="admin-receipt-official-card">
             <div className="admin-receipt-card-header">
-              {reservation.status === 'approved' ? (
+                {cashRegistration ? (
+                  <span className={`admin-receipt-status-pill ${reservation.status === 'approved' ? 'paid' : reservation.status === 'pending_review' ? 'pending' : 'awaiting'}`}>
+                    {reservation.status === 'approved' ? <><Check size={12} />CASH CONFIRMED</>
+                      : reservation.status === 'pending_review' ? <><Clock size={12} />CASH RECORDED</>
+                        : reservation.status === 'rejected' ? <><AlertCircle size={12} />CASH NEEDS FIX</>
+                          : <><Clock size={12} />PHYSICAL CASH DUE</>}
+                  </span>
+                ) : reservation.status === 'approved' ? (
                 <span className="admin-receipt-status-pill paid">
                   <Check size={12} /> PAID
                 </span>
@@ -339,12 +393,20 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
 
             <div className="admin-receipt-title-group">
               <h4 className="admin-receipt-card-title">
-                Ticket reservation fee received (2026)
+              {cashRegistration ? 'Physical cash registration' : 'Ticket reservation fee received (2026)'}
               </h4>
               <span className="admin-receipt-card-sub">
-                {reservation.status === 'approved'
-                  ? `Confirmed on ${new Date(details.reviews?.[0]?.created_at || reservation.updated_at || reservation.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} · Gate Pass Active`
-                  : `Reserved on ${new Date(reservation.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} · Single Admission`}
+                {cashRegistration
+                  ? reservation.status === 'approved'
+                    ? `Physical cash collected by ${adminMap[reservation.payment_received_by] || 'organizer'} · ticket confirmed`
+                      : reservation.status === 'pending_review'
+                      ? `Physical cash collected by ${adminMap[reservation.payment_received_by] || 'admin'}`
+                      : reservation.status === 'rejected'
+                        ? `Physical cash record needs correction${reservation.review_note ? `: ${reservation.review_note}` : ''}`
+                        : `Registration entered by ${adminMap[reservation.registered_by] || 'admin not recorded'} · payment due`
+                  : reservation.status === 'approved'
+                    ? `Confirmed on ${new Date(details.reviews?.[0]?.created_at || reservation.updated_at || reservation.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} · Gate Pass Active`
+                    : `Reserved on ${new Date(reservation.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} · Single Admission`}
               </span>
             </div>
 
@@ -371,7 +433,9 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
               <div className="admin-receipt-cell">
                 <span className="admin-cell-label">Fee received</span>
                 <strong className="admin-cell-value">
-                  {reservation.status === 'approved' ? 'Yes (Bank Slip)' : reservation.status === 'pending_review' ? 'Slip Uploaded' : 'Pending'}
+                  {cashRegistration
+                    ? reservation.status === 'awaiting_payment' ? 'Not recorded yet' : reservation.status === 'pending_review' ? 'Received' : reservation.status === 'approved' ? 'Received · confirmed' : 'Received · correction needed'
+                    : reservation.status === 'approved' ? 'Yes (Bank Slip)' : reservation.status === 'pending_review' ? 'Slip Uploaded' : 'Pending'}
                 </strong>
               </div>
               <div className="admin-receipt-cell">
@@ -391,13 +455,15 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
             <div className="admin-receipt-card-footer">
               <ShieldCheck size={13} className="text-[#52e078]" />
               <span>
-                {reservation.status === 'approved' && (adminMap[reservation.reviewed_by] || reservation.reviewed_by)
-                  ? `Approved by: ${adminMap[reservation.reviewed_by] || reservation.reviewed_by}`
-                  : reservation.status === 'approved'
-                    ? 'Approved by: Organizer Admin'
-                    : reservation.status === 'rejected' && (adminMap[reservation.reviewed_by] || reservation.reviewed_by)
-                      ? `Reviewed by: ${adminMap[reservation.reviewed_by] || reservation.reviewed_by}`
-                      : 'Processed by: Organizer Desk · Single Gate Pass'}
+                {cashRegistration
+                  ? `Entered by ${adminMap[reservation.registered_by] || 'admin not recorded'} · ${reservation.payment_received_by ? `physical cash collected by ${adminMap[reservation.payment_received_by] || 'admin'}` : 'payment not collected yet'}`
+                  : reservation.status === 'approved' && (adminMap[reservation.reviewed_by] || reservation.reviewed_by)
+                    ? `Approved by: ${adminMap[reservation.reviewed_by] || reservation.reviewed_by}`
+                    : reservation.status === 'approved'
+                      ? 'Approved by: Organizer Admin'
+                      : reservation.status === 'rejected' && (adminMap[reservation.reviewed_by] || reservation.reviewed_by)
+                        ? `Reviewed by: ${adminMap[reservation.reviewed_by] || reservation.reviewed_by}`
+                        : 'Processed by: Organizer Desk · Single Gate Pass'}
               </span>
             </div>
           </div>
@@ -427,15 +493,32 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
           {/* Tab 1: Slip & Verification */}
           {step === 'receipt' && (
             <div className="space-y-3">
+              {cashRegistration && ['awaiting_payment', 'rejected'].includes(reservation.status) && (
+                <div className="rounded-xl border border-[#24432d] bg-[#0b1710] p-3.5">
+                  <strong className="block text-sm text-[#e2eadd]">
+                    {reservation.status === 'rejected' ? 'Cash record needs correction' : 'Cash has not been recorded'}
+                  </strong>
+                  <p className="mt-1 text-xs text-[#9eb598]">
+                    {reservation.status === 'rejected'
+                      ? 'After checking the record, select the admin who collected the physical cash.'
+                      : `Record ${amount(reservation)} when payment is collected. The ticket will be confirmed when you save it.`}
+                  </p>
+                  {reservation.status === 'rejected' && reservation.review_note && <p className="mt-2 text-xs text-[#f0b3a7]">Review note: {reservation.review_note}</p>}
+                  <label className="reserve-field admin-cash-collector-field mt-3"><span>Physical cash collected by</span><select value={selectedCashCollectorId} onChange={event => setCashCollectorId(event.target.value)} disabled={busy} required><option value="">Choose admin</option>{currentAdminId && !admins.some(admin => (admin.user_id || admin.id) === currentAdminId) && <option value={currentAdminId}>You</option>}{admins.map(admin => { const id = admin.user_id || admin.id; return id ? <option value={id} key={id}>{id === currentAdminId ? `${admin.full_name || admin.email || 'Admin'} (you)` : admin.full_name || admin.email || 'Admin'}</option> : null })}</select></label>
+                  <button type="button" className="admin-button primary mt-3 w-full justify-center text-xs" onClick={recordCashReceived} disabled={busy}>
+                    <CircleDollarSign size={15} />{busy ? 'Saving payment…' : reservation.status === 'rejected' ? 'Record physical cash' : 'Confirm cash received'}
+                  </button>
+                </div>
+              )}
               {/* Review Decision Box for pending_review */}
-              {reservation.status === 'pending_review' && (
+              {reservation.status === 'pending_review' && !cashRegistration && (
                 <div className="admin-review-box">
                   {!decision ? (
                     <div className="space-y-2.5">
                       <div className="p-3 rounded-xl bg-[#0b190f] border border-[#1f3624] text-center">
-                        <span className="text-xs text-[#9eb598] block">Review Payment Slip</span>
+                        <span className="text-xs text-[#9eb598] block">Review payment slip</span>
                         <strong className="text-sm text-[#e2eadd]">
-                          Verify {amount(reservation)} deposit for {reservation.full_name}
+                          {`Verify ${amount(reservation)} deposit for ${reservation.full_name}`}
                         </strong>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
@@ -446,7 +529,7 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
                           disabled={busy}
                         >
                           <CheckCircle2 size={15} />
-                          <span>Approve</span>
+                          <span>{cashRegistration ? 'Approve cash' : 'Approve'}</span>
                         </button>
                         <button
                           type="button"
@@ -455,13 +538,13 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
                           disabled={busy}
                         >
                           <AlertCircle size={15} />
-                          <span>Needs Fix</span>
+                          <span>{cashRegistration ? 'Reject cash' : 'Needs Fix'}</span>
                         </button>
                       </div>
                     </div>
                   ) : decision === 'approved' ? (
                     <div className="admin-inline-confirm-card approve">
-                      <h4>Confirm {amount(reservation)} for {reservation.full_name}?</h4>
+                      <h4>Confirm {amount(reservation)} {cashRegistration ? 'cash payment' : 'payment'} for {reservation.full_name}?</h4>
                       <p>Issues QR ticket and sends confirmation email.</p>
                       <div className="flex items-center gap-2 mt-3">
                         <button
@@ -484,12 +567,12 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
                     </div>
                   ) : (
                     <div className="admin-inline-confirm-card reject">
-                      <h4>Request Slip Correction</h4>
-                      <p>Explain what is missing or illegible so the attendee can re-upload:</p>
+                      <h4>{cashRegistration ? 'Reject cash record' : 'Request slip correction'}</h4>
+                      <p>{cashRegistration ? 'Explain what needs correcting before the cash record can be approved:' : 'Explain what is missing or illegible so the attendee can re-upload:'}</p>
                       <textarea
                         value={reason}
                         onChange={(e) => setReason(e.target.value)}
-                        placeholder="e.g. Transaction reference or bank seal is not legible"
+                        placeholder={cashRegistration ? 'e.g. Amount or collector details need checking' : 'e.g. Transaction reference or bank seal is not legible'}
                         rows={3}
                         maxLength={500}
                         className="admin-reason-textarea"
@@ -502,7 +585,7 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
                           onClick={review}
                           disabled={busy || !reason.trim()}
                         >
-                          {busy ? 'Sending…' : 'Send Correction Note'}
+                          {busy ? 'Saving…' : cashRegistration ? 'Send for correction' : 'Send Correction Note'}
                         </button>
                         <button
                           type="button"
@@ -531,7 +614,7 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
                   </div>
                 </div>
               )}
-              {reservation.status === 'rejected' && (
+              {reservation.status === 'rejected' && !cashRegistration && (
                 <div className="flex items-start gap-3 p-3.5 rounded-xl bg-[#261511] border border-[#593026]">
                   <AlertCircle size={18} className="text-[#f5a796] shrink-0 mt-0.5" />
                   <div>
@@ -544,7 +627,7 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
               )}
 
               {/* Uploaded Receipts */}
-              {details.receipts.length === 0 ? (
+              {!cashRegistration && (details.receipts.length === 0 ? (
                 <div className="admin-empty-card">
                   <Receipt size={26} className="mx-auto text-[#4d6951] mb-2" />
                   <p className="text-xs text-[#9eb598]">No payment slip uploaded yet.</p>
@@ -618,29 +701,39 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
                     )
                   })}
                 </div>
-              )}
+              ))}
             </div>
           )}
 
           {/* Tab 2: Attendee & School Information */}
           {step === 'info' && (
             <div className="space-y-3">
-              {reservation.reviewed_at && (
+              {(cashRegistration ? (reservation.registered_by || reservation.payment_received_by) : reservation.reviewed_at) && (
                 <div className="admin-table-card">
                   <div className="admin-table-card-header">
                     <ShieldCheck size={13} />
-                    <span>Review &amp; Verification</span>
+                    <span>{reservation.payment_method === 'cash' ? 'Physical cash audit' : 'Review &amp; Verification'}</span>
                   </div>
                   <table className="admin-kv-table">
                     <tbody>
+                      {cashRegistration && <tr>
+                        <th scope="row">Entered by</th>
+                        <td><strong className="text-[#e2eadd]">{adminMap[reservation.registered_by] || (reservation.registered_by ? `Admin (${reservation.registered_by.slice(0, 8)}…)` : 'Not recorded')}</strong></td>
+                      </tr>}
                       <tr>
-                        <th scope="row">Reviewed By</th>
+                        <th scope="row">{reservation.payment_method === 'cash' ? 'Physical cash collected by' : 'Reviewed By'}</th>
                         <td>
                           <strong className="text-[#e2eadd]">
-                            {adminMap[reservation.reviewed_by] || (reservation.reviewed_by ? `Admin (${reservation.reviewed_by.slice(0, 8)}…)` : 'Organizer Admin')}
+                            {reservation.payment_method === 'cash'
+                              ? reservation.payment_received_by ? adminMap[reservation.payment_received_by] || `Admin (${reservation.payment_received_by.slice(0, 8)}…)` : 'Not collected'
+                              : adminMap[reservation.reviewed_by] || (reservation.reviewed_by ? `Admin (${reservation.reviewed_by.slice(0, 8)}…)` : 'Organizer Admin')}
                           </strong>
                         </td>
                       </tr>
+                      {reservation.payment_method === 'cash' && <>
+                        <tr><th scope="row">Payment</th><td><strong className="text-[#64e082]">Physical cash · {amount(reservation)}</strong></td></tr>
+                        <tr><th scope="row">Received at</th><td className="text-xs text-[#a2b59d]">{reservation.payment_received_at ? dateTime(reservation.payment_received_at) : 'Not collected'}</td></tr>
+                      </>}
                       <tr>
                         <th scope="row">Outcome</th>
                         <td>
@@ -650,10 +743,10 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
                           </span>
                         </td>
                       </tr>
-                      <tr>
+                      {!cashRegistration && <tr>
                         <th scope="row">Review Date</th>
-                        <td className="text-xs text-[#a2b59d]">{dateTime(reservation.reviewed_at)}</td>
-                      </tr>
+                        <td className="text-xs text-[#a2b59d]">{reservation.reviewed_at ? dateTime(reservation.reviewed_at) : 'Not reviewed'}</td>
+                      </tr>}
                       {reservation.review_note && (
                         <tr>
                           <th scope="row">Review Note</th>
@@ -704,6 +797,14 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
                       <th scope="row">Reserved</th>
                       <td className="text-xs text-[#a2b59d]">{dateTime(reservation.created_at)}</td>
                     </tr>
+                    <tr>
+                      <th scope="row">Registration</th>
+                      <td>{reservation.registration_source === 'in_person' ? 'In person · physical cash' : 'Online'}</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Account</th>
+                      <td>{reservation.user_id ? 'Linked to attendee account' : reservation.account_setup_sent_at ? `Setup link sent ${dateTime(reservation.account_setup_sent_at)}` : 'Not claimed yet'}</td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -744,6 +845,17 @@ function ReservationDetails({ reservationId, onReview, onClose }) {
           {/* Tab 3: Gate & Delivery Logs */}
           {step === 'timeline' && (
             <div className="space-y-3">
+              {details.payments?.length > 0 && <div className="admin-table-card">
+                <div className="admin-table-card-header"><CircleDollarSign size={13} /><span>Payment audit</span></div>
+                <table className="admin-table-grid"><thead><tr><th>Payment activity</th><th>Admin</th><th>Amount</th><th>Time</th></tr></thead>
+                  <tbody>{details.payments.map(payment => <tr key={payment.id}>
+                    <td className="font-medium text-[#d8e5cd]">{PAYMENT_EVENT_LABELS[payment.event_type] || payment.event_type}</td>
+                    <td className="text-xs text-[#e2eadd]">{adminMap[payment.admin_id] || (payment.admin_id ? `Admin (${payment.admin_id.slice(0, 8)}…)` : 'Admin')}</td>
+                    <td className="text-xs text-[#64e082]">{amount({ amount_lkr: payment.amount_lkr })}</td>
+                    <td className="text-xs text-[#8ea488]">{dateTime(payment.created_at)}</td>
+                  </tr>)}</tbody>
+                </table>
+              </div>}
               <div className="admin-table-card">
                 <div className="admin-table-card-header">
                   <ShieldCheck size={13} />
@@ -930,5 +1042,5 @@ export default function AdminPage({ user, currentPath }) {
   if (access.userId !== user.id) return <p role="status">Checking admin access…</p>
   if (access.error) return <ErrorPage status={503} description={access.error} primaryAction={{ label: 'Try again', onClick: () => setRevision(current => current + 1) }} />
   if (!access.allowed) return <ErrorPage status={403} primaryAction={{ label: 'Check admin access again', onClick: () => setRevision(current => current + 1) }} />
-  return <AdminWorkspace key={user.id} Detail={ReservationDetails} initialTicket={scannedTicket()} currentPath={currentPath} />
+  return <AdminWorkspace key={user.id} Detail={ReservationDetails} initialTicket={scannedTicket()} currentPath={currentPath} currentAdminId={user.id} />
 }

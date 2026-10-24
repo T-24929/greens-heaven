@@ -33,10 +33,11 @@ import { useToast } from '../../lib/toasts.js'
 import { getAdminsList, buildAdminMap } from '../../lib/admins.js'
 import AdminNotificationBanner from './AdminNotificationBanner.jsx'
 import AdminBottomNav from './AdminBottomNav.jsx'
+import AdminCashRegistration from './AdminCashRegistration.jsx'
 import '../ReviewDialog.css'
 import '../../pages/AdminPage.css'
 
-const labels = { pending_review: 'Pending review', approved: 'Confirmed', awaiting_payment: 'Awaiting receipt', rejected: 'Needs correction' }
+const labels = { pending_review: 'Payment review', approved: 'Confirmed', awaiting_payment: 'Awaiting payment', rejected: 'Needs correction' }
 const tabs = [
   ['overview', 'Overview', LayoutDashboard],
   ['tickets', 'Tickets', Tickets],
@@ -46,8 +47,15 @@ const tabs = [
   ['updates', 'Updates', Bell],
 ]
 const pageSize = 20
-const listFields = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,status,amount_lkr,created_at,reviewed_by'
+const listFields = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,status,amount_lkr,created_at,reviewed_by,registration_source,payment_method,user_id,account_setup_sent_at,registered_by,payment_received_by,payment_received_at'
+const cashListFields = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,status,amount_lkr,created_at,reviewed_by,registration_source,payment_method,user_id,account_setup_sent_at,payment_received_by,payment_received_at'
+const legacyListFields = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,status,amount_lkr,created_at,reviewed_by'
 const BATCH_YEARS = Array.from({ length: 2026 - 2010 + 1 }, (_, i) => 2026 - i)
+
+function missingCashSchema(error) {
+  return ['PGRST202', 'PGRST204', '42703'].includes(error?.code)
+    || /schema cache|column .* does not exist|could not find .*column/i.test(error?.message || '')
+}
 
 function AttendanceGateChooser() {
   const gates = [
@@ -110,21 +118,28 @@ function AttendanceGateChooser() {
   )
 }
 
-export default function AdminWorkspace({ Detail, initialTicket, currentPath }) {
+export default function AdminWorkspace({ Detail, initialTicket, currentPath, currentAdminId }) {
   const toast = useToast()
   const activePath = currentPath || (typeof window !== 'undefined' ? window.location.pathname : '')
   const tab = getAdminTabFromPath(activePath, { hasInitialTicket: Boolean(initialTicket) }) || 'overview'
   const [selected, setSelected] = useState(initialTicket)
   const [adminMap, setAdminMap] = useState({})
+  const [adminDirectory, setAdminDirectory] = useState([])
 
   useEffect(() => {
     let active = true
     getAdminsList().then(admins => {
-      if (active) setAdminMap(buildAdminMap(admins))
+      if (active) {
+        setAdminDirectory(admins)
+        setAdminMap(buildAdminMap(admins))
+      }
     })
     const onRefresh = () => {
       getAdminsList(true).then(admins => {
-        if (active) setAdminMap(buildAdminMap(admins))
+        if (active) {
+          setAdminDirectory(admins)
+          setAdminMap(buildAdminMap(admins))
+        }
       })
     }
     window.addEventListener('admin:refresh', onRefresh)
@@ -162,6 +177,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [summaryError, setSummaryError] = useState('')
+  const [cashSchemaMissing, setCashSchemaMissing] = useState(false)
   const [revision, setRevision] = useState(0)
 
   const searchInputRef = useRef(null)
@@ -284,32 +300,36 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath }) {
         if (error) throw error
         setEmails(data || []); setEmailTotal(count || 0)
       } else {
-        let request = supabase.from('reservations').select(listFields, { count: 'exact' })
-        if (filter !== 'all') request = request.eq('status', filter)
-        if (batchFilter !== 'all') request = request.eq('school_joined_year', Number(batchFilter))
-
-        // Strip PostgREST operators from free text; multi-field server-side search
-        const term = query.replace(/[^\p{L}\p{N} -]/gu, '').trim().slice(0,80)
-        if (term) {
-          request = request.or(
-            `full_name.ilike.%${term}%,reference.ilike.%${term}%,nic_number.ilike.%${term}%,school_index_number.ilike.%${term}%,whatsapp.ilike.%${term}%,email.ilike.%${term}%`
-          )
+        const makeRequest = fields => {
+          let request = supabase.from('reservations').select(fields, { count: 'exact' })
+          if (filter !== 'all') request = request.eq('status', filter)
+          if (batchFilter !== 'all') request = request.eq('school_joined_year', Number(batchFilter))
+          const term = query.replace(/[^\p{L}\p{N} -]/gu, '').trim().slice(0, 80)
+          if (term) request = request.or(`full_name.ilike.%${term}%,reference.ilike.%${term}%,nic_number.ilike.%${term}%,school_index_number.ilike.%${term}%,whatsapp.ilike.%${term}%,email.ilike.%${term}%`)
+          request = request.order(sortField, { ascending: sortAsc, nullsFirst: false })
+          if (sortField !== 'id') request = request.order('id', { ascending: false })
+          return request
         }
 
-        request = request.order(sortField, { ascending: sortAsc, nullsFirst: false })
-        if (sortField !== 'id') {
-          request = request.order('id', { ascending: false })
+        let result = await makeRequest(listFields).range(page * pageSize, (page + 1) * pageSize - 1)
+        if (result.error && missingCashSchema(result.error)) {
+          setCashSchemaMissing(true)
+          result = await makeRequest(cashListFields).range(page * pageSize, (page + 1) * pageSize - 1)
+          if (result.error && missingCashSchema(result.error)) {
+            result = await makeRequest(legacyListFields).range(page * pageSize, (page + 1) * pageSize - 1)
+          }
+        } else if (!result.error) {
+          setCashSchemaMissing(false)
         }
-
-        const { data, error, count } = await request.range(page * pageSize, (page + 1) * pageSize - 1)
         if (!live || querySeq !== requestSeqRef.current) return
+        const { data, error, count } = result
         if (error) throw error
         if (!data.length && page > 0) setPage(Math.max(0,Math.ceil(count / pageSize)-1))
         setRows(data || []); setTotal(count || 0)
       }
       setLoading(false)
     }
-    load().catch(() => { if (live && querySeq === requestSeqRef.current) { setLoading(false); setError('Could not load the latest records. Refresh to try again.') } })
+    load().catch(loadError => { if (live && querySeq === requestSeqRef.current) { console.error('Admin records failed to load:', loadError); setLoading(false); setError(missingCashSchema(loadError) ? 'The admin registration database update is missing. Apply the latest Supabase migrations, then refresh.' : 'Could not load the latest records. Refresh to try again.') } })
     return () => { live = false }
   }, [tab,filter,batchFilter,query,sortField,sortAsc,page,emailPage,revision])
   useEffect(() => {
@@ -317,7 +337,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath }) {
     if (tabName) document.title = `${tabName} · Admin · Greens Heaven`
   }, [tab])
   function showTickets(status) { setFilter(status); setBatchFilter('all'); setPage(0); setTab('tickets'); setQuery(''); setSearch('') }
-  const stats = [['pending_review','To review'],['approved','Confirmed'],['awaiting_payment','Awaiting receipt'],['rejected','Needs correction']]
+  const stats = [['pending_review','To review'],['approved','Confirmed'],['awaiting_payment','Awaiting payment'],['rejected','Needs correction']]
 
   const totalReservations = (summary?.pending_review || 0) + (summary?.approved || 0) + (summary?.awaiting_payment || 0) + (summary?.rejected || 0)
   const pendingCount = summary?.pending_review || 0
@@ -411,10 +431,12 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath }) {
             <span className="admin-metric-pct-badge">{awaitingPct}%</span>
           </div>
           <strong className="admin-metric-number">{awaitingCount + rejectedCount}</strong>
-          <span className="admin-metric-label">Awaiting / Fix</span>
-          <span className="admin-metric-sub">Pending receipt</span>
+          <span className="admin-metric-label">Awaiting payment</span>
+          <span className="admin-metric-sub">Payment not recorded</span>
         </button>
       </div>
+
+      <AdminCashRegistration onCreated={refresh} schemaReady={!cashSchemaMissing} admins={adminDirectory} currentAdminId={currentAdminId} />
 
       {/* Filter pills with live counts */}
       <div className="admin-pill-group" role="tablist" aria-label="Status filters">
@@ -422,7 +444,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath }) {
           ['all', 'All', totalReservations || total],
           ['pending_review', 'Pending review', pendingCount],
           ['approved', 'Confirmed', approvedCount],
-          ['awaiting_payment', 'Awaiting receipt', awaitingCount],
+          ['awaiting_payment', 'Awaiting payment', awaitingCount],
           ['rejected', 'Needs correction', rejectedCount],
         ].map(([key, label, count]) => (
           <button
@@ -703,6 +725,13 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath }) {
                           by {(adminMap[row.reviewed_by] || 'admin').split('@')[0]}
                         </span>
                       )}
+                      {row.registration_source === 'in_person' && (
+                        <>
+                          <span className="admin-cash-row-badge">Physical cash</span>
+                          {row.registered_by && <span className="text-[10px] text-[#7f997a] truncate max-w-[130px]" title={`Entered by ${adminMap[row.registered_by] || row.registered_by}`}>Entered by {(adminMap[row.registered_by] || 'admin').split('@')[0]}</span>}
+                          {row.payment_received_by && <span className="text-[10px] text-[#7f997a] truncate max-w-[130px]" title={`Collected by ${adminMap[row.payment_received_by] || row.payment_received_by}`}>Collected by {(adminMap[row.payment_received_by] || 'admin').split('@')[0]}</span>}
+                        </>
+                      )}
                     </div>
                   </td>
                   <td className="text-right" onClick={e => e.stopPropagation()}>
@@ -726,6 +755,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath }) {
     {tab === 'attendance' && !getAdminGateFromPath(activePath) && <AttendanceGateChooser />}
     {tab === 'attendance' && getAdminGateFromPath(activePath) && (
       <GateDesk
+        key={getAdminGateFromPath(activePath)}
         initialGate={getAdminGateFromPath(activePath)}
         lockedGate={getAdminGateFromPath(activePath)}
         adminMap={adminMap}
@@ -756,6 +786,9 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath }) {
             reservationId={selected}
             onReview={refresh}
             onClose={() => setSelected(null)}
+            adminMap={adminMap}
+            admins={adminDirectory}
+            currentAdminId={currentAdminId}
           />
         )}
       </div>

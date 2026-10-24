@@ -31,6 +31,7 @@ export default function AuthPage({ user, recovery = false }) {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const adminLogin = new URLSearchParams(window.location.search).get('next') === 'admin'
+  const claimAccount = recovery && new URLSearchParams(window.location.search).get('claim') === '1'
   const isAdminUser = Boolean(user?.app_metadata?.role === 'admin' || user?.app_metadata?.is_admin)
   const destination = (adminLogin || isAdminUser) ? '/admin/dashboard' : '/dashboard'
   const newPassword = mode === 'signup' || mode === 'update'
@@ -53,6 +54,8 @@ export default function AuthPage({ user, recovery = false }) {
     busy.current = true
     setPending('email'); setError(''); setMessage('')
     let navigating = false
+    let accountClaimed = null
+    let claimFailed = false
     try {
       const email = values.email.trim()
       const password = values.password
@@ -61,7 +64,16 @@ export default function AuthPage({ user, recovery = false }) {
       if (mode === 'signup') result = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/auth/callback${adminLogin ? '?next=admin' : ''}` } })
       if (mode === 'forgot') result = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` })
       if (mode === 'link') result = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/auth/callback${adminLogin ? '?next=admin' : ''}` } })
-      if (mode === 'update') result = await supabase.auth.updateUser({ password })
+      if (mode === 'update') {
+        result = await supabase.auth.updateUser({ password })
+        if (!result.error && claimAccount) {
+          try {
+            const claim = await supabase.rpc('claim_in_person_reservation')
+            claimFailed = Boolean(claim.error)
+            accountClaimed = !claim.error && claim.data === true
+          } catch { claimFailed = true }
+        }
+      }
       if (result.error) {
         if (mode === 'link' && result.error.code === 'otp_disabled') {
           throw new Error('Email sign-in links are currently unavailable. Please sign in with your password.')
@@ -71,7 +83,13 @@ export default function AuthPage({ user, recovery = false }) {
       if (mode === 'forgot') setMessage('If an account exists for this email, you’ll receive a reset link. Open it in this browser to choose a new password.')
       else if (mode === 'link') setMessage('If an account exists for this email, you’ll receive a sign-in link. Open it in this browser to continue.')
       else if (mode === 'signup' && !result.data.session) setMessage('Check your inbox for a confirmation link. Open it in this browser to finish setting up your account.')
-      else if (mode === 'update') setMessage('Your password has been updated. Your dashboard is ready when you are.')
+      else if (mode === 'update') setMessage(claimAccount
+        ? accountClaimed
+          ? 'Your password is set and your ticket is linked. You can open your attendee dashboard now.'
+          : claimFailed
+            ? 'Your password is set. The dashboard will retry linking your ticket when you sign in.'
+            : 'Your password is set, but no unclaimed ticket was found for this email. Check the address in your setup email or contact an organizer.'
+        : 'Your password has been updated. Your dashboard is ready when you are.')
       else {
         navigating = true
         window.location.assign(destination)
@@ -97,11 +115,13 @@ export default function AuthPage({ user, recovery = false }) {
   if (user && !recovery) return <section className="auth-content"><p className="auth-eyebrow">YOUR EVENING STARTS HERE</p><h1>You’re signed in.</h1><p className="auth-description auth-email">{user.email}</p><a className="auth-primary" href={destination}>{adminLogin ? 'Open admin dashboard' : 'Open my dashboard'}<ArrowRight size={18} /></a></section>
   if (recovery && !user) return <section className="auth-content"><h1>A new link, please.</h1><Notice kind="error">This reset link has expired or is invalid. Request a new link and open it in the same browser.</Notice><a className="auth-primary" href="/login">Back to sign in<ArrowRight size={18} /></a></section>
 
-  const [title, description, action, loadingText] = copy[mode]
+  const [title, description, action, loadingText] = claimAccount
+    ? ['Set up your ticket account.', 'Choose a password you’ll use to sign in and view your Greens Heaven ticket.', 'Save password', 'Saving your password…']
+    : copy[mode]
   return <section className="auth-content" aria-labelledby="auth-title">
     <div className="auth-heading"><p className="auth-eyebrow">{adminLogin ? 'ORGANIZER ACCESS' : 'YOUR EVENING STARTS HERE'}</p><h1 id="auth-title">{title}</h1><p className="auth-description">{description}</p></div>
     <Notice kind="error">{error}</Notice>
-    {message ? <div className="auth-confirmation" role="status"><span className="auth-confirmation-icon"><Check size={24} aria-hidden="true" /></span><h2>{mode === 'update' ? 'All set.' : 'Check your inbox.'}</h2><p>{message}</p>{mode !== 'update' && <p className="auth-email">{values.email.trim()}</p>}{mode === 'update' ? <a className="auth-primary" href={destination}>Open my dashboard<ArrowRight size={18} /></a> : <button className="auth-secondary" onClick={() => switchMode('login')}>Back to sign in</button>}</div> : <>
+      {message ? <div className="auth-confirmation" role="status"><span className="auth-confirmation-icon"><Check size={24} aria-hidden="true" /></span><h2>{mode === 'update' ? 'All set.' : 'Check your inbox.'}</h2><p>{message}</p>{mode !== 'update' && <p className="auth-email">{values.email.trim()}</p>}{mode === 'update' ? <a className="auth-primary" href={destination}>Open my dashboard<ArrowRight size={18} /></a> : <button className="auth-secondary" onClick={() => switchMode('login')}>Back to sign in</button>}</div> : <>
       {(mode === 'login' || mode === 'signup') && <><button type="button" className="auth-google" disabled={Boolean(pending)} onClick={google}>{pending === 'google' ? <LoaderCircle size={20} className="auth-spinner" /> : <GoogleIcon />}{pending === 'google' ? 'Opening Google…' : 'Continue with Google'}</button><div className="auth-divider"><span>or with email</span></div></>}
       <form ref={formRef} onSubmit={submit} noValidate className="auth-form" aria-busy={Boolean(pending)}>
         {mode !== 'update' && <Input id="auth-email" name="email" label="Email address" type="email" autoComplete="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint={emailOnly ? 'send' : 'next'} required maxLength={254} placeholder="you@example.com" value={values.email} onChange={value => change('email', value)} onBlur={() => blur('email')} disabled={Boolean(pending)} error={touched.email ? fieldError('email') : ''} reserveErrorLine classNames={fieldStyles} leftIcon={<Mail aria-hidden="true" />} />}

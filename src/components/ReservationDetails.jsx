@@ -1,5 +1,5 @@
 import ReviewDialog from './ReviewDialog.jsx'
-import { OTPInput } from './motion/otp-input.jsx'
+import ReservationField from './ReservationField.jsx'
 import ReservationProgress from './ReservationProgress.jsx'
 import { useRef, useState } from 'react'
 import { ArrowRight, Check, LoaderCircle, LockKeyhole } from 'lucide-react'
@@ -9,12 +9,6 @@ import { EVENT, formatMoney, normalizeFullName, normalizePhone, normalizeNic, no
 
 const validators = { fullName: normalizeFullName, phone: normalizePhone, nic: normalizeNic, schoolIndex: normalizeSchoolIndex, schoolJoinedYear: normalizeJoinedYear }
 const initial = { fullName: '', phone: '', nic: '', schoolIndex: '', schoolJoinedYear: '' }
-
-function ReservationField({ name, label, hint, value, onChange, onBlur, error, children, digits, format, ...props }) {
-  const id = `reserve-${name}`
-  const shared = { id, name, value, onChange: e => onChange(name, e.target.value), onBlur: () => onBlur(name), 'aria-invalid': Boolean(error) || undefined, 'aria-describedby': [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ') || undefined, ...props }
-  return <div className="reserve-field"><label htmlFor={id}>{label}{name === 'schoolIndex' && <span>Optional</span>}</label>{digits ? <OTPInput {...shared} length={digits} format={format} error={error} onChange={value => onChange(name, value)} onBlur={() => onBlur(name)} /> : children ? <select {...shared}>{children}</select> : <input {...shared} />}{hint && <p id={`${id}-hint`} className="reserve-field-hint">{hint}</p>}{error && <p id={`${id}-error`} className="reserve-field-error" role="alert">{error}</p>}</div>
-}
 
 export default function ReservationDetails({ user, event = EVENT, bank, pending = false, error, onReserve }) {
   const [values, setValues] = useState(initial)

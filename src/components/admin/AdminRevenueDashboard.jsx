@@ -232,7 +232,6 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
               <span className="admin-metric-label">In Review</span>
               <span className="admin-metric-sub flex items-center gap-0.5 text-[#cca15c]">
                 <span>Needs approval</span>
-                <ChevronRight size={11} />
               </span>
             </div>
 
@@ -317,7 +316,6 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
             ) : (
               <div className="space-y-2 pt-1">
                 {dailyTimeline.map((day) => {
-                  const barWidthPct = Math.max(8, Math.round((day.revenue / maxDayRevenue) * 100))
                   return (
                     <div
                       key={day.dateKey}
@@ -343,19 +341,6 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
                         </div>
                       </div>
 
-                      {/* Visual Bar Indicator */}
-                      <div className="w-full h-1.5 rounded-full bg-[#102415] overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-linear-to-rrom-[#2e6d3c] to-[#52e078] transition-all duration-300"
-                          style={{ width: `${barWidthPct}%` }}
-                          title={`Day revenue: ${formatMoney(day.revenue)}`}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between text-[10px] text-[#698265] pt-0.5 font-mono">
-                        <span>Running Total</span>
-                        <span className="text-[#a4baa0] font-medium">{formatMoney(day.cumulativeRevenue)}</span>
-                      </div>
                     </div>
                   )
                 })}
@@ -382,7 +367,7 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
                   <select
                     value={selectedBatch}
                     onChange={(e) => setSelectedBatch(e.target.value)}
-                    className="bg-[#09150d] text-[#869f82] border border-[#1b3422] rounded-lg px-2 py-0.5 text-[11px] outline-none focus:border-[#4b7a53] transition-colors"
+                    className="bg-[#09150d] text-[#869f82] border border-[#1b3422] rounded-lg px-2 py-0.5 text-[11px] outline-none transition-colors"
                   >
                     <option value="all">All batches</option>
                     {batchOptions.map((b) => (

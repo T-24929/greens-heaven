@@ -5,3 +5,6 @@ minimum_password_length = 6
 
 [functions.send-reservation-email]
 verify_jwt = true
+
+[functions.send-account-setup]
+verify_jwt = true

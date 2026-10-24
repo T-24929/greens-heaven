@@ -110,3 +110,5 @@ revoke all on function private.save_ticket_images(uuid, text[]), public.save_tic
   from public, anon, authenticated, service_role;
 grant execute on function private.save_ticket_images(uuid, text[]), public.save_ticket_images(uuid, text[])
   to authenticated;
+
+notify pgrst, 'reload schema';

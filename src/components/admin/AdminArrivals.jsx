@@ -108,30 +108,30 @@ export default function AdminArrivals({ summary, summaryError, onSelectTicket })
       <section className="admin-arrivals-stats" aria-label="Attendance totals">
         <article className="admin-arrivals-stat">
           <span className="admin-arrivals-stat-icon"><Users size={17} /></span>
-          <span className="admin-stat-label">Confirmed expected</span>
+          <span className="admin-stat-label">Expected</span>
           <strong className="admin-stat-value">{formatCount(approved)}</strong>
           <span className="admin-arrivals-stat-note">Approved tickets</span>
         </article>
         <article className="admin-arrivals-stat is-highlighted">
           <span className="admin-arrivals-stat-icon"><ScanLine size={17} /></span>
-          <span className="admin-stat-label">Entrance admitted</span>
+          <span className="admin-stat-label">Entrance</span>
           <strong className="admin-stat-value">
             {formatCount(entrance)}
             <span className="admin-stat-sub">{approved > 0 ? ` ${arrivalRate}%` : ''}</span>
           </strong>
-          <span className="admin-arrivals-stat-note">Checked in at Gate 01</span>
+          <span className="admin-arrivals-stat-note">Checked at Entrance</span>
         </article>
         <article className="admin-arrivals-stat">
           <span className="admin-arrivals-stat-icon is-photo"><Camera size={17} /></span>
           <span className="admin-stat-label">Photo sessions</span>
           <strong className="admin-stat-value">{formatCount(photoSessions)}</strong>
-          <span className="admin-arrivals-stat-note">Recorded at Gate 02</span>
+          <span className="admin-arrivals-stat-note">Recorded at Booth</span>
         </article>
         <article className="admin-arrivals-stat">
           <span className="admin-arrivals-stat-icon is-pending"><Clock3 size={17} /></span>
-          <span className="admin-stat-label">Remaining to arrive</span>
+          <span className="admin-stat-label">Remaining</span>
           <strong className="admin-stat-value">{formatCount(remaining)}</strong>
-          <span className="admin-arrivals-stat-note">Confirmed without entry</span>
+          <span className="admin-arrivals-stat-note">Remaining to arrive</span>
         </article>
       </section>
 
