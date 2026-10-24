@@ -19,14 +19,16 @@ import {
   X,
   RotateCcw,
   CircleDollarSign,
+  Clock3,
 } from 'lucide-react'
 import FadeContent from '../FadeContent.jsx'
 import { supabase } from '../../utils/supabase.js'
 import { MorphingModal } from '../motion/morphing-modal.jsx'
 import { Loader } from '../motion/loader.jsx'
 import GateDesk from './GateDesk.jsx'
+import AdminArrivals from './AdminArrivals.jsx'
 import AdminRevenueDashboard from './AdminRevenueDashboard.jsx'
-import { getAdminTabFromPath, navigateAdmin } from '../../lib/adminNavigation.js'
+import { getAdminTabFromPath, getAdminGateFromPath, navigateAdmin } from '../../lib/adminNavigation.js'
 import { useToast } from '../../lib/toasts.js'
 import { getAdminsList, buildAdminMap } from '../../lib/admins.js'
 import AdminNotificationBanner from './AdminNotificationBanner.jsx'
@@ -39,13 +41,74 @@ const tabs = [
   ['overview', 'Overview', LayoutDashboard],
   ['tickets', 'Tickets', Tickets],
   ['revenue', 'Revenue', CircleDollarSign],
-  ['entrance', 'Entrance', ScanLine],
-  ['photobooth', 'Photos', Camera],
+  ['attendance', 'Attendance', ScanLine],
+  ['arrivals', 'Arrivals', Clock3],
   ['updates', 'Updates', Bell],
 ]
 const pageSize = 20
 const listFields = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,status,amount_lkr,created_at,reviewed_by'
 const BATCH_YEARS = Array.from({ length: 2026 - 2010 + 1 }, (_, i) => 2026 - i)
+
+function AttendanceGateChooser() {
+  const gates = [
+    {
+      id: 'entrance',
+      name: 'Entrance',
+      number: 'GATE 01',
+      description: 'Scan tickets at the main entrance.',
+      image: '/images/attendance-entrance.jpg',
+      Icon: ScanLine,
+    },
+    {
+      id: 'photobooth',
+      name: 'Photo booth',
+      number: 'GATE 02',
+      description: 'Verify a guest, then open their photo session.',
+      image: '/images/hero-grass.png',
+      Icon: Camera,
+    },
+  ]
+
+  return (
+    <section className="admin-attendance-home" aria-labelledby="admin-attendance-home-title">
+      <header className="admin-attendance-heading">
+        <div>
+          <p className="admin-eyebrow">GATE OPERATIONS</p>
+          <h2 id="admin-attendance-home-title">Attendance</h2>
+          <p className="muted">Choose a gate to start scanning.</p>
+        </div>
+      </header>
+      <nav className="admin-attendance-gate-grid" aria-label="Attendance gates">
+        {gates.map(({ id, name, number, description, image, Icon }) => (
+          <a
+            key={id}
+            className="admin-attendance-gate-card"
+            data-gate={id}
+            href={`/admin/dashboard/attendance/${id}`}
+            aria-label={`Open ${name} scanner`}
+          >
+            <span className="admin-attendance-gate-art" aria-hidden="true">
+              <img src={image} alt="" loading="lazy" decoding="async" />
+            </span>
+            <span className="admin-attendance-gate-card-top">
+              <span className="admin-attendance-gate-number"><span aria-hidden="true" />{number}</span>
+            </span>
+            <span className="admin-attendance-gate-card-body">
+              <span className="admin-attendance-gate-icon"><Icon size={20} aria-hidden="true" /></span>
+              <span className="admin-attendance-gate-copy">
+                <strong>{name}</strong>
+                <span>{description}</span>
+              </span>
+              <span className="admin-attendance-gate-arrow" aria-hidden="true">
+                <ChevronRight size={19} />
+              </span>
+            </span>
+          </a>
+        ))}
+      </nav>
+    </section>
+  )
+}
 
 export default function AdminWorkspace({ Detail, initialTicket, currentPath }) {
   const toast = useToast()
@@ -273,7 +336,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath }) {
     {tab === 'overview' && <FadeContent trigger="mount" duration={.18} className="stack">
       <section className="admin-overview-banner"><p className="admin-eyebrow">BEFORE THE DOORS OPEN</p><h2>Keep the evening<br /><em>moving.</em></h2><p>Review receipts, follow delivery and welcome your batch.</p><button className="admin-button primary" onClick={() => showTickets('pending_review')}>Review pending receipts<ChevronRight size={17} /></button></section>
       <section className="admin-stats" aria-label="Reservation totals">{stats.map(([key,label]) => <button key={key} className={`admin-stat-card ${key}`} onClick={() => showTickets(key)}><span>{label}</span><strong>{summary?.[key] ?? '—'}</strong><ChevronRight size={16} /></button>)}</section>
-      <div className="admin-two-up">{[['entrance','Entrance desk','Admit confirmed guests',ScanLine],['photobooth','Photo booth desk','Check ID and record the session',Camera]].map(([key,title,copy,Icon]) => <button key={key} className="admin-panel admin-gate-shortcut" onClick={() => setTab(key)}><Icon size={22} /><h3>{title}</h3><p>{copy}</p><strong>{summary?.[key] ?? '—'} recorded</strong></button>)}</div>
+      <div className="admin-two-up">{[['entrance','Entrance desk','Admit confirmed guests',ScanLine],['photobooth','Photo booth desk','Check ID and record the session',Camera]].map(([key,title,copy,Icon]) => <button key={key} className="admin-panel admin-gate-shortcut" onClick={() => navigateAdmin(`/admin/dashboard/attendance/${key}`)}><Icon size={22} /><h3>{title}</h3><p>{copy}</p><strong>{summary?.[key] ?? '—'} recorded</strong></button>)}</div>
       <div className="admin-two-up">
         <button className="admin-panel admin-updates-shortcut" onClick={() => setTab('revenue')}>
           <CircleDollarSign size={21} className="text-[#7ce698]" />
@@ -660,7 +723,19 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath }) {
       )}
       <Pagination page={page} total={total} busy={loading} onPage={setPage} />
     </section>}
-    {['entrance','photobooth'].includes(tab) && <GateDesk key={tab} gate={tab} onChange={refresh} onSelectTicket={setSelected} />}
+    {tab === 'attendance' && !getAdminGateFromPath(activePath) && <AttendanceGateChooser />}
+    {tab === 'attendance' && getAdminGateFromPath(activePath) && (
+      <GateDesk
+        initialGate={getAdminGateFromPath(activePath)}
+        lockedGate={getAdminGateFromPath(activePath)}
+        adminMap={adminMap}
+        onChange={refresh}
+        onSelectTicket={setSelected}
+      />
+    )}
+    {tab === 'arrivals' && (
+      <AdminArrivals summary={summary} summaryError={summaryError} onSelectTicket={setSelected} />
+    )}
     {tab === 'revenue' && (
       <AdminRevenueDashboard
         adminMap={adminMap}

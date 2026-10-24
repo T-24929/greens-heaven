@@ -263,14 +263,14 @@ export default function TicketScanner({ onScan }) {
           await loadCameras(scanner)
         } catch {
           if (!cancelled) {
-            setError('Camera unavailable. Allow camera access, or enter the ticket reference below.')
+            setError('Camera unavailable. Allow camera access or enter the ticket ID below.')
             setActive(false)
           }
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setError('Could not start the scanner. Enter the ticket reference below.')
+          setError('Could not start the scanner. Enter the ticket ID below.')
           setActive(false)
         }
       })
@@ -447,42 +447,40 @@ export default function TicketScanner({ onScan }) {
           </div>
         </div>
       ) : (
-        /* Inactive State: Sleek Native Ready Screen */
+        /* Inactive State: Focused camera viewfinder and actions */
         <div className="admin-camera-ready-card">
-          <div className="admin-camera-ready-halo">
-            <div className="admin-camera-ready-icon">
-              <Camera size={30} className="text-[#c0d8b0]" />
+          <div className="admin-camera-ready-preview" aria-hidden="true">
+            <div className="admin-camera-ready-halo" aria-hidden="true">
+              <Camera size={23} />
             </div>
           </div>
-          <div className="admin-camera-ready-info">
-            <h3>Camera Scanner Ready</h3>
-            <p>Point camera at attendee ticket QR code for automatic check-in</p>
+          <div className="admin-camera-ready-actions">
+            <button
+              type="button"
+              className="admin-camera-device-chip"
+              aria-label={`Change camera. Current camera: ${currentCameraLabel}`}
+              title={`Change camera · ${currentCameraLabel}`}
+              onClick={() => {
+                loadCameras()
+                setSheetOpen(true)
+              }}
+            >
+              <Video size={15} />
+              <span>Change camera</span>
+            </button>
+
+            <button
+              type="button"
+              className="admin-camera-start-btn"
+              onClick={() => {
+                setError('')
+                setActive(true)
+              }}
+            >
+              <Camera size={17} />
+              <span>Start scanner</span>
+            </button>
           </div>
-
-          <button
-            type="button"
-            className="admin-camera-device-chip"
-            onClick={() => {
-              loadCameras()
-              setSheetOpen(true)
-            }}
-          >
-            <Video size={13} />
-            <span className="truncate max-w-[190px]">{currentCameraLabel}</span>
-            <span className="text-[#b8dfb6] text-[11px] font-medium ml-1">Change</span>
-          </button>
-
-          <button
-            type="button"
-            className="admin-camera-start-btn"
-            onClick={() => {
-              setError('')
-              setActive(true)
-            }}
-          >
-            <Camera size={18} />
-            <span>Start Camera Scanner</span>
-          </button>
         </div>
       )}
 

@@ -1,12 +1,12 @@
-import { motion, useReducedMotion } from 'motion/react'
+import { LayoutGroup, motion, useReducedMotion } from 'motion/react'
 import { getPathForAdminTab } from '../../lib/adminNavigation.js'
 
-// Apple/beUI fluid spring curve: snappy start, natural momentum, clean settle
-const SPRING_TRANSITION = {
+// A short, interruptible spring gives the active circle a fluid handoff.
+const NAV_SPRING = {
   type: 'spring',
-  stiffness: 420,
-  damping: 32,
-  mass: 0.8,
+  stiffness: 520,
+  damping: 34,
+  mass: 0.72,
 }
 
 export default function AdminBottomNav({ tabs, activeTab, onSelectTab, attentionCount = 0 }) {
@@ -14,7 +14,8 @@ export default function AdminBottomNav({ tabs, activeTab, onSelectTab, attention
 
   return (
     <nav className="admin-bottom-nav" aria-label="Admin navigation">
-      <div className="admin-bottom-nav-grid">
+      <div className="admin-bottom-nav-capsule">
+        <LayoutGroup id="admin-bottom-nav">
         {tabs.map(([key, label, Icon]) => {
           const isActive = activeTab === key
           const showBadge = key === 'updates' && attentionCount > 0
@@ -23,73 +24,40 @@ export default function AdminBottomNav({ tabs, activeTab, onSelectTab, attention
             <motion.a
               key={key}
               href={getPathForAdminTab(key)}
-              role="tab"
-              aria-selected={isActive}
               aria-current={isActive ? 'page' : undefined}
-              className={`admin-bottom-nav-tab ${isActive ? 'is-active' : ''}`}
-              whileTap={shouldReduceMotion ? undefined : { scale: 0.93 }}
-              transition={{ duration: 0.1 }}
+              aria-label={label}
+              title={label}
+              className={`admin-bottom-nav-dot-btn ${isActive ? 'is-active' : ''}`}
+              whileHover={shouldReduceMotion ? undefined : { scale: 1.04 }}
+              whileTap={shouldReduceMotion ? undefined : { scale: 0.92 }}
+              transition={shouldReduceMotion ? { duration: 0 } : NAV_SPRING}
               onClick={(e) => {
                 if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
                 e.preventDefault()
                 onSelectTab(key)
               }}
             >
-              {/* Fluid Sliding Spring Pill Indicator */}
+              {/* Fluid Sliding Spring Pill for Active Dot */}
               {isActive && (
                 <motion.div
-                  layoutId="admin-bottom-nav-active-pill"
-                  className="admin-bottom-nav-pill"
-                  transition={shouldReduceMotion ? { duration: 0 } : SPRING_TRANSITION}
+                  layoutId="active-bubble"
+                  initial={false}
+                  className="admin-bottom-nav-active-bubble"
+                  transition={shouldReduceMotion ? { duration: 0 } : NAV_SPRING}
                 />
               )}
 
-              {/* Tab Contents: Icon + Label */}
-              <div className="admin-bottom-nav-tab-body">
-                <div className="admin-bottom-nav-icon-box">
-                  <motion.div
-                    animate={
-                      shouldReduceMotion
-                        ? {}
-                        : {
-                            scale: isActive ? 1.1 : 1,
-                            y: isActive ? -1 : 0,
-                          }
-                    }
-                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
-                  >
-                    <Icon size={20} className="admin-bottom-nav-icon" />
-                  </motion.div>
+              <div className="admin-bottom-nav-dot-inner">
+                <Icon size={18} className="admin-bottom-nav-dot-icon" />
 
-                  {showBadge && (
-                    <motion.span
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-                      className="admin-bottom-nav-badge"
-                      aria-label={`${attentionCount} notifications`}
-                    >
-                      {attentionCount > 9 ? '9+' : attentionCount}
-                    </motion.span>
-                  )}
-                </div>
-
-                <span className="admin-bottom-nav-label">
-                  {label}
-                </span>
-
-                {/* Subtle active pip under label */}
-                {isActive && (
-                  <motion.span
-                    layoutId="admin-bottom-nav-active-pip"
-                    className="admin-bottom-nav-pip"
-                    transition={shouldReduceMotion ? { duration: 0 } : SPRING_TRANSITION}
-                  />
+                {showBadge && (
+                  <span className="admin-bottom-nav-dot-badge" aria-hidden="true" />
                 )}
               </div>
             </motion.a>
           )
         })}
+        </LayoutGroup>
       </div>
     </nav>
   )

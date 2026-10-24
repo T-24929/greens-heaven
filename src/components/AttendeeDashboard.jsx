@@ -1,10 +1,11 @@
 import { useToast } from '../lib/toasts.js'
 import ReservationProgress from './ReservationProgress.jsx'
 import { useState } from 'react'
-import { ArrowUpRight, ArrowRight, Check, Clock3, Copy, RefreshCw, CalendarDays, MapPin, ShieldCheck, Ticket, AlertCircle, LockKeyhole } from 'lucide-react'
+import { ArrowUpRight, ArrowRight, Check, Clock3, RefreshCw, CalendarDays, MapPin, ShieldCheck, Ticket, AlertCircle, LockKeyhole } from 'lucide-react'
 import FadeContent from './FadeContent.jsx'
 import BorderGlow from './BorderGlow.jsx'
 import TicketFlipCard from './TicketFlipCard.jsx'
+import TicketPass from './TicketPass.jsx'
 import { Notice } from './Feedback.jsx'
 import { formatMoney } from '../lib/tickets.js'
 import '../pages/Dashboard.css'
@@ -46,13 +47,15 @@ export default function AttendeeDashboard({ user, reservation, event, error, onR
         <TicketFlipCard key={`${reservation.id}-${reservation.status}`} reservation={reservation} actions={<><button title="Refresh ticket status" className="dash-refresh dash-refresh-icon" onClick={refresh} disabled={refreshing} aria-label="Refresh ticket status"><RefreshCw size={16} className={refreshing ? 'dash-spin' : ''} /></button>
           <a className="dash-calendar" href="/greens-heaven.ics" download><CalendarDays size={16} />Save the date</a>
         </>}>
-        <article className={`dash-ticket ${reservation.status === 'approved' ? 'dash-ticket-confirmed' : 'dash-ticket-unconfirmed'}`} aria-label={confirmed ? 'Your confirmed ticket' : 'Your reservation — not an entry ticket'}>
-          {!confirmed && <div className="dash-ticket-unconfirmed-label"><LockKeyhole size={16} /><span>{ticketMessage}</span></div>}
-          <div className="dash-ticket-frost" aria-hidden="true"><i /><i /></div><img className="dash-ticket-photo" src="/images/hero-grass.png" alt="" width="1080" height="1350" /><div className="dash-ticket-art"><div className="dash-ticket-art-content"><div className="dash-ticket-top"><span>ISIPATHANA COLLEGE</span><span>XXVI</span></div><div className="dash-ticket-pass"><Ticket size={14} aria-hidden="true" /><span>{confirmed ? 'DIGITAL ENTRY PASS' : 'RESERVATION RECORD'}</span></div><img className="dash-ticket-logo" src="/images/greens-heaven-logo.png" alt="Greens Heaven" width="425" height="179" /><p>One evening. The whole batch.</p><div className="dash-ticket-date"><strong>31 <span>OCT / 2026</span></strong><span>SOLIS HOTEL<br />5:30 PM ONWARDS</span></div></div></div>
-          <div className="dash-ticket-owner"><div><span className="dash-eyebrow">RESERVED FOR</span><h2 className="dash-attendee-name" data-length={name.length > 55 ? 'long' : name.length > 28 ? 'medium' : 'short'}>{reservation.full_name}</h2><p>2023 O/L & 2026 A/L batch</p></div>{confirmed && <span className="dash-admit">01<small>PERSON</small></span>}</div>
-          <div className="dash-ticket-stub"><div><span className="dash-eyebrow">{reservation.status === 'approved' ? 'TICKET REFERENCE' : 'RESERVATION REFERENCE'}</span><strong>{reservation.reference}</strong></div><button onClick={copyReference} className="dash-copy" aria-label="Copy reservation reference"><Copy size={18} /></button><div className="dash-ticket-price"><span>ONE TICKET</span><strong>{formatMoney(reservation.amount_lkr)}</strong></div></div>
-          <div className="dash-ticket-caption"><StatusIcon size={15} /><span>{reservation.status === 'approved' ? 'Confirmed · Turn over for your ticket QR.' : 'Entry QR unlocks after organizer approval.'}</span></div>
-        </article>
+        <TicketPass
+          reservation={reservation}
+          confirmed={confirmed}
+          ariaLabel={confirmed ? 'Your confirmed ticket' : 'Your reservation — not an entry ticket'}
+          statusIcon={StatusIcon}
+          onCopyReference={copyReference}
+          ticketNotice={<><LockKeyhole size={16} /><span>{ticketMessage}</span></>}
+          caption={reservation.status === 'approved' ? 'Confirmed · Turn over for your ticket QR.' : 'Entry QR unlocks after organizer approval.'}
+        />
         </TicketFlipCard>
         {!confirmed && <div className="dash-ticket-next">
           <p>{reservation.status === 'pending_review' ? 'Your receipt is under review. No need to pay again.' : reservation.status === 'rejected' ? 'Check the organizer’s note before uploading a corrected receipt.' : 'Your details are saved. Transfer the payment and upload your receipt to continue.'}</p>
