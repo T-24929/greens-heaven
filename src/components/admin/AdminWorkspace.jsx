@@ -173,6 +173,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
   const [emails, setEmails] = useState([])
   const [emailPage, setEmailPage] = useState(0)
   const [emailTotal, setEmailTotal] = useState(0)
+  const [emailRetryId, setEmailRetryId] = useState(null)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -184,6 +185,28 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
   const requestSeqRef = useRef(0)
 
   const refresh = useCallback(() => setRevision(v => v + 1), [])
+
+  async function retryOutboxNotification(item) {
+    if (emailRetryId || !['pending', 'failed'].includes(item.status) || item.attempts >= 5) return
+    setEmailRetryId(item.id)
+    try {
+      const setup = item.notification_type === 'account_setup'
+      const { data, error: sendError } = await supabase.functions.invoke(
+        setup ? 'send-account-setup' : 'send-reservation-email',
+        { body: { notification_id: item.id } },
+      )
+      if (sendError || data?.status !== 'sent') {
+        toast.show({ status: data?.status === 'unknown' ? 'warning' : 'error', title: setup ? 'Setup invitation not confirmed' : 'Email not sent', description: data?.error || 'Check the notification status before trying again.' })
+      } else {
+        toast.show({ status: 'success', title: setup ? 'Setup invitation sent' : 'Email sent', description: `Sent to ${item.reservations?.full_name || 'the attendee'}.` })
+      }
+    } catch {
+      toast.show({ status: 'error', title: 'Delivery could not be checked', description: 'Refresh the outbox and verify its status before retrying.' })
+    } finally {
+      setEmailRetryId(null)
+      refresh()
+    }
+  }
 
   // Debounced search input handler
   useEffect(() => {
@@ -295,7 +318,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
     async function load() {
       setLoading(true); setError('')
       if (tab === 'updates') {
-        const { data, error, count } = await supabase.from('notification_outbox').select('id,reservation_id,status,created_at,sent_at,attempts,reservations(reference,full_name)', { count: 'exact' }).order('created_at', { ascending: false }).order('id', { ascending: false }).range(emailPage * pageSize, (emailPage + 1) * pageSize - 1)
+        const { data, error, count } = await supabase.from('notification_outbox').select('id,reservation_id,notification_type,status,created_at,sent_at,attempts,last_error,reservations(reference,full_name)', { count: 'exact' }).order('created_at', { ascending: false }).order('id', { ascending: false }).range(emailPage * pageSize, (emailPage + 1) * pageSize - 1)
         if (!live || querySeq !== requestSeqRef.current) return
         if (error) throw error
         setEmails(data || []); setEmailTotal(count || 0)
@@ -764,7 +787,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
         onNavigateTab={setTab}
       />
     )}
-    {tab === 'updates' && <section className="admin-panel stack"><h2>Delivery updates</h2><p className="muted">Approval and receipt-correction emails. Open a ticket to check delivery or retry a failed send.</p>{error && <p role="alert" className="admin-error">{error}</p>}{loading ? <Loader label="Loading delivery updates" /> : <ul className="admin-ticket-list">{emails.map(email => <li key={email.id}><button onClick={() => setSelected(email.reservation_id)}><Bell size={18} /><span className="admin-ticket-summary"><strong>{email.reservations?.full_name || 'Reservation update'}</strong><small>{email.reservations?.reference} · {new Date(email.created_at).toLocaleString('en-GB',{timeZone:'Asia/Colombo'})}</small><span className={`admin-badge ${email.status}`}>{email.status === 'unknown' ? 'Check provider logs' : email.status === 'pending' ? 'Waiting to send' : email.status}</span></span><ChevronRight size={18} /></button></li>)}</ul>}{!loading && !emails.length && !error && <p className="admin-empty">No delivery updates yet.</p>}<Pagination page={emailPage} total={emailTotal} busy={loading} onPage={setEmailPage} /></section>}
+    {tab === 'updates' && <section className="admin-panel stack"><h2>Delivery updates</h2><p className="muted">Ticket decisions, receipt corrections, and account setup invitations.</p>{error && <p role="alert" className="admin-error">{error}</p>}{loading ? <Loader label="Loading delivery updates" /> : <ul className="admin-ticket-list admin-outbox-list">{emails.map(email => { const retryable = ['pending', 'failed'].includes(email.status) && email.attempts < 5; const setup = email.notification_type === 'account_setup'; return <li className="admin-outbox-item" key={email.id}><button type="button" className="admin-outbox-open" onClick={() => setSelected(email.reservation_id)}><Bell size={18} /><span className="admin-ticket-summary"><strong>{email.reservations?.full_name || 'Reservation update'} <small className="admin-outbox-type">{setup ? 'Account setup' : 'Ticket update'}</small></strong><small>{email.reservations?.reference} · {new Date(email.created_at).toLocaleString('en-GB',{timeZone:'Asia/Colombo'})}</small><span className={`admin-badge ${email.status}`}>{email.status === 'unknown' ? (setup ? 'Check Auth logs' : 'Check provider logs') : email.status === 'pending' ? 'Waiting to send' : email.status === 'failed' ? 'Failed' : email.status === 'sending' ? 'Sending' : 'Sent'}</span>{email.last_error && <small className="admin-outbox-error">{email.last_error}</small>}</span><ChevronRight size={18} /></button>{retryable && <button type="button" className="admin-outbox-retry" onClick={() => retryOutboxNotification(email)} disabled={Boolean(emailRetryId)}>{emailRetryId === email.id ? 'Sending…' : 'Retry'}</button>}</li> })}</ul>}{!loading && !emails.length && !error && <p className="admin-empty">No delivery updates yet.</p>}<Pagination page={emailPage} total={emailTotal} busy={loading} onPage={setEmailPage} /></section>}
     <MorphingModal
       viewId={selected ? 'ticket-details' : null}
       titleId="reservation-detail-heading"

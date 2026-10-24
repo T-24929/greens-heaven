@@ -24,7 +24,7 @@ export function OTPInput({ length = 6, value = '', onChange, onBlur, name, id, d
     <div className="identity-slots" ref={slots} aria-hidden="true" style={{ '--digit-count': length }}>
       {Array.from({ length }, (_, index) => <span className="identity-slot" key={index}>
         {focused && active === index && <motion.span className="identity-focus" layoutId={uid} transition={{ duration: reduce ? 0 : .18, ease: [.23, 1, .32, 1] }} />}
-        <motion.span key={value[index] || 'empty'} initial={reduce ? false : { opacity: .4, transform: 'translateY(4px)' }} animate={{ opacity: 1, transform: 'translateY(0)' }} transition={{ duration: .15 }}>{value[index] || <span className="identity-placeholder">{placeholder.replace(/\s/g, '')[index] || '0'}</span>}</motion.span>
+        <motion.span key={value[index] || 'empty'} initial={reduce ? false : { opacity: .4, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .15 }}>{value[index] || <span className="identity-placeholder">{placeholder.replace(/\s/g, '')[index] || '0'}</span>}</motion.span>
       </span>)}
     </div>
     <input ref={input} id={id} name={name} type="text" inputMode={inputMode} autoComplete={autoComplete} autoCapitalize="none" spellCheck={false}

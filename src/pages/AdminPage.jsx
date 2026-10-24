@@ -67,18 +67,21 @@ function amount(reservation) {
   return `Rs. ${new Intl.NumberFormat('en-LK', { maximumFractionDigits: 0 }).format(reservation.amount_lkr)}`
 }
 
-async function sendEmail(notificationId) {
+async function sendEmail(notificationId, notificationType = 'reservation_decision') {
+  const setup = notificationType === 'account_setup'
   try {
-    const { data, error } = await supabase.functions.invoke('send-reservation-email', {
+    const { data, error } = await supabase.functions.invoke(setup ? 'send-account-setup' : 'send-reservation-email', {
       body: { notification_id: notificationId },
     })
     if (error || data?.status !== 'sent') {
-      return 'The review is saved. Check the email status below before retrying delivery.'
+      return setup
+        ? 'Check the account setup invitation status below before retrying delivery.'
+        : 'The review is saved. Check the email status below before retrying delivery.'
     }
-    return 'The review is saved and the email has been sent.'
+    return setup ? 'The account setup invitation has been sent.' : 'The review is saved and the email has been sent.'
   } catch (err) {
-    console.warn('send-reservation-email edge function call could not be completed:', err?.message || err)
-    return 'The review is saved. Check the email delivery status below.'
+    console.warn(`${setup ? 'send-account-setup' : 'send-reservation-email'} edge function call could not be completed:`, err?.message || err)
+    return setup ? 'Check the account setup invitation status below.' : 'The review is saved. Check the email delivery status below.'
   }
 }
 
@@ -120,7 +123,7 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
         const [recRes, revRes, notRes, attRes, payRes] = await Promise.all([
           supabase.from('receipt_submissions').select('id,receipt_path,submitted_at').eq('reservation_id', reservationId).order('submitted_at', { ascending: false }),
           supabase.from('review_history').select('id,decision,note,admin_id,created_at').eq('reservation_id', reservationId).order('created_at', { ascending: false }),
-          supabase.from('notification_outbox').select('id,review_id,status,attempts,created_at,sent_at').eq('reservation_id', reservationId).order('created_at', { ascending: false }),
+          supabase.from('notification_outbox').select('id,review_id,notification_type,status,attempts,created_at,sent_at,last_error').eq('reservation_id', reservationId).order('created_at', { ascending: false }),
           supabase.from('ticket_attendance').select('gate,checked_in_at').eq('reservation_id', reservationId).order('checked_in_at', { ascending: false }).then(res => res, () => ({ data: [] })),
           supabase.from('payment_events').select('id,event_type,payment_method,amount_lkr,admin_id,note,created_at').eq('reservation_id', reservationId).order('created_at', { ascending: false }).then(res => res, () => ({ data: [] })),
         ])
@@ -246,7 +249,7 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
     setActionError('')
     setNotice('')
     try {
-      setNotice(await sendEmail(email.id))
+      setNotice(await sendEmail(email.id, email.notification_type))
     } catch {
       setActionError('The email request did not finish. Refresh status before retrying.')
     } finally {
@@ -906,6 +909,7 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
                   <table className="admin-table-grid">
                     <thead>
                       <tr>
+                        <th>Email</th>
                         <th>Status</th>
                         <th>Sent Time</th>
                         <th>Action</th>
@@ -914,10 +918,12 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
                     <tbody>
                       {details.emails.map((email) => (
                         <tr key={email.id}>
+                          <td className="text-xs text-[#c8d8c2]">{email.notification_type === 'account_setup' ? 'Account setup' : 'Ticket update'}</td>
                           <td>
                             <span className={`admin-badge ${email.status}`}>
                               {EMAIL_LABELS[email.status] || email.status}
                             </span>
+                            {email.last_error && <small className="admin-outbox-error">{email.last_error}</small>}
                           </td>
                           <td className="text-xs text-[#8ea488]">
                             {dateTime(email.sent_at || email.created_at)}

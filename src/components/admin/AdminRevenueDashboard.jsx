@@ -193,7 +193,7 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
       ) : (
         <>
           {/* Main 4-up Metrics Grid - Compact, Sleek, Low Height */}
-          <div className="admin-metrics-grid" role="region" aria-label="Revenue summary cards">
+          <div className="admin-metrics-grid admin-revenue-metrics" role="region" aria-label="Revenue summary cards">
             {/* Confirmed Collected Revenue */}
             <div className="admin-metric-card all active">
               <div className="admin-metric-card-top">
@@ -316,7 +316,7 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
                   return (
                     <div
                       key={day.dateKey}
-                      className="p-2.5 rounded-xl bg-[#07130b] border border-[#193320] flex flex-col gap-1.5"
+                      className="p-2.5 rounded-xl bg-[#31343211] border border-[#193320] flex flex-col gap-1.5"
                     >
                       <div className="flex items-center justify-between text-[11px]">
                         <div className="flex items-center gap-1.5 font-medium text-[#edf5ea]">

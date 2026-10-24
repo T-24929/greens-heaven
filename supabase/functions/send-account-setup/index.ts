@@ -46,9 +46,11 @@ Deno.serve(async request => {
     const raw = await request.text()
     if (raw.length > 1024) throw new Error('invalid_body')
     body = JSON.parse(raw)
-    if (!body || Array.isArray(body) || typeof body !== 'object' || Object.keys(body).length !== 1 || !ID.test((body as Record<string, unknown>).reservation_id as string || '')) throw new Error('invalid_body')
+    const fields = body && typeof body === 'object' && !Array.isArray(body) ? Object.keys(body) : []
+    const value = body as Record<string, unknown>
+    if (fields.length !== 1 || !['reservation_id', 'notification_id'].includes(fields[0]) || !ID.test(String(value[fields[0]] || ''))) throw new Error('invalid_body')
   } catch {
-    return respond({ error: 'Supply a valid reservation_id.' }, 400)
+    return respond({ error: 'Supply a valid reservation_id or notification_id.' }, 400)
   }
 
   const env = Deno.env.toObject()
@@ -69,36 +71,107 @@ Deno.serve(async request => {
   const service = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
-  const reservationId = (body as Record<string, string>).reservation_id
-  const { data: reservation, error: lookupError } = await service.from('reservations')
-    .select('id,email,registration_source,user_id')
-    .eq('id', reservationId)
-    .maybeSingle()
-  if (lookupError) return respond({ error: 'Could not load this registration.' }, 503)
-  if (!reservation || reservation.registration_source !== 'in_person') return respond({ error: 'In-person registration not found.' }, 404)
-  if (reservation.user_id) return respond({ status: 'already_linked' })
+  const value = body as Record<string, string>
+  let notificationId = value.notification_id
+
+  if (value.reservation_id) {
+    const { data: reservation, error: lookupError } = await service.from('reservations')
+      .select('id,registration_source,user_id')
+      .eq('id', value.reservation_id)
+      .maybeSingle()
+    if (lookupError) return respond({ error: 'Could not load this registration.' }, 503)
+    if (!reservation || reservation.registration_source !== 'in_person') return respond({ error: 'In-person registration not found.' }, 404)
+    if (reservation.user_id) return respond({ status: 'already_linked' })
+
+    const { data: queued, error: queueError } = await service.rpc('queue_account_setup_notification', {
+      p_reservation_id: reservation.id,
+    })
+    if (queueError) {
+      console.error('Could not queue account setup notification:', queueError.message)
+      return respond({ error: 'Could not queue the account setup email.' }, 503)
+    }
+    const item = queued?.[0]
+    if (!item) return respond({ error: 'Could not queue the account setup email.' }, 503)
+    if (item.status === 'already_linked') return respond({ status: 'already_linked' })
+    notificationId = item.notification_id
+    if (!notificationId) return respond({ error: 'The setup notification is missing its ID.' }, 503)
+    if (['sent', 'sending', 'unknown'].includes(item.status)) return respond({ status: item.status, already_sent: item.status === 'sent' })
+    if (item.status === 'failed' && item.attempts >= 5) return respond({ status: 'failed', error: 'Retry limit reached. Check the delivery logs.' }, 429)
+  } else {
+    const { data: item, error: lookupError } = await service.from('notification_outbox')
+      .select('id,notification_type,status,attempts')
+      .eq('id', notificationId)
+      .maybeSingle()
+    if (lookupError) return respond({ error: 'Could not load this notification.' }, 503)
+    if (!item || item.notification_type !== 'account_setup') return respond({ error: 'Account setup notification not found.' }, 404)
+    if (['sent', 'sending', 'unknown'].includes(item.status)) return respond({ status: item.status, already_sent: item.status === 'sent' })
+    if (item.status === 'failed' && item.attempts >= 5) return respond({ status: 'failed', error: 'Retry limit reached. Check the delivery logs.' }, 429)
+  }
+
+  const { data: claimed, error: claimError } = await service.rpc('claim_account_setup_notification', {
+    p_notification_id: notificationId,
+  })
+  if (claimError) {
+    console.error('Could not claim account setup notification:', claimError.message)
+    return respond({ error: 'Could not start account setup delivery.' }, 503)
+  }
+  const notification = claimed?.[0]
+  if (!notification) return respond({ status: 'not_pending' }, 409)
+
+  const finish = async (status: 'sent' | 'failed' | 'unknown', error: string | null = null) => {
+    try {
+      const result = await service.rpc('finish_notification', {
+        p_notification_id: notificationId,
+        p_claim_token: notification.claim_token,
+        p_status: status,
+        p_error: error,
+      })
+      return !result.error && result.data === true
+    } catch { return false }
+  }
+  const finishFailure = async (code: string) => {
+    if (!await finish('failed', code)) {
+      await finish('unknown', 'outbox_status_not_saved')
+      return respond({ status: 'unknown', error: 'The email status could not be saved. Check delivery before retrying.' }, 503)
+    }
+    return respond({ status: 'failed', error: 'Could not send the account setup email. Check SMTP settings and retry.' }, 502)
+  }
 
   const redirectTo = new URL('/reset-password?claim=1', config.site).href
   let delivery: 'invite' | 'reset' = 'invite'
-  const { error: inviteError } = await service.auth.admin.inviteUserByEmail(reservation.email, { redirectTo })
-  if (inviteError) {
-    if (!/already registered|already exists|user.*exists/i.test(inviteError.message || '')) {
-      console.error('Account invitation failed:', inviteError.message)
-      return respond({ error: 'Could not send the account setup email. Try again later.' }, 502)
+  try {
+    const { error: inviteError } = await service.auth.admin.inviteUserByEmail(notification.recipient_email, { redirectTo })
+    if (inviteError) {
+      if (!/already registered|already exists|user.*exists/i.test(inviteError.message || '')) {
+        console.error('Account invitation failed:', inviteError.message)
+        return await finishFailure('auth_invite_failed')
+      }
+      delivery = 'reset'
+      const { error: resetError } = await service.auth.resetPasswordForEmail(notification.recipient_email, { redirectTo })
+      if (resetError) {
+        console.error('Account password setup email failed:', resetError.message)
+        return await finishFailure('auth_reset_failed')
+      }
     }
-    delivery = 'reset'
-    const { error: resetError } = await service.auth.resetPasswordForEmail(reservation.email, { redirectTo })
-    if (resetError) {
-      console.error('Account password setup email failed:', resetError.message)
-      return respond({ error: 'Could not send the account setup email. Ask the attendee to use the sign-in page.' }, 502)
+  } catch (deliveryError) {
+    console.error('Account setup delivery result is uncertain:', deliveryError?.message || deliveryError)
+    if (!await finish('unknown', 'auth_delivery_unconfirmed')) {
+      return respond({ status: 'unknown', error: 'Delivery is unconfirmed. Check Auth logs before retrying.' }, 503)
     }
+    return respond({ status: 'unknown', error: 'Delivery is unconfirmed. Check Auth logs before retrying.' }, 502)
+  }
+
+  if (!await finish('sent')) {
+    await finish('unknown', 'auth_accepted_outbox_status_not_saved')
+    return respond({ status: 'unknown', error: 'Auth accepted the email, but its status could not be saved. Check delivery before retrying.' }, 503)
   }
 
   const { error: updateError } = await service.from('reservations')
     .update({ account_setup_sent_at: new Date().toISOString() })
-    .eq('id', reservationId)
+    .eq('id', notification.reservation_id)
     .eq('registration_source', 'in_person')
     .is('user_id', null)
   if (updateError) console.error('Could not store account setup timestamp:', updateError.message)
+
   return respond({ status: 'sent', delivery })
 })
