@@ -806,7 +806,7 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
                     </tr>
                     <tr>
                       <th scope="row">Account</th>
-                      <td>{reservation.user_id ? 'Linked to attendee account' : reservation.account_setup_sent_at ? `Setup link sent ${dateTime(reservation.account_setup_sent_at)}` : 'Not claimed yet'}</td>
+                      <td>{reservation.user_id ? 'Linked to attendee account' : reservation.account_setup_sent_at ? `Setup email sent ${dateTime(reservation.account_setup_sent_at)}` : 'Not claimed yet'}</td>
                     </tr>
                   </tbody>
                 </table>

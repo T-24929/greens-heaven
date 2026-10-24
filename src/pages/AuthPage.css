@@ -24,6 +24,7 @@
 .auth-form-side { min-width: 0; display: flex; flex-direction: column; padding: 24px clamp(24px, 4vw, 72px) 0; }
 .auth-form-content { margin: auto; padding-block: 24px 48px; width: 100%; max-width: 420px; }
 .auth-content { display: flex; flex-direction: column; gap: 24px; }
+.auth-code-content { gap: 20px; }
 .auth-content h1 { font-family: 'Cormorant Garamond', serif; font-size: 56px; line-height: 1.04; font-weight: 500; letter-spacing: -.04em; text-wrap: initial; }
 .auth-eyebrow { font-size: 10px; letter-spacing: .18em; color: #9bb591; font-weight: 500; margin-bottom: 16px; }
 .auth-description { font-size: 14px; line-height: 1.7; color: var(--auth-muted); margin-top: 12px; max-width: 360px; }
@@ -39,6 +40,7 @@
 .auth-shell .auth-password-toggle { min-width: 48px; min-height: 48px; color: #a5b2a7; border-radius: 10px; }
 .auth-password-toggle:focus-visible { outline-offset: -5px; }
 .auth-hint { font-size: 12px; color: var(--auth-muted); line-height: 1.6; margin: 0 0 8px; }
+.auth-code-help { margin: -2px 0 4px; padding: 12px 14px; border: 1px solid #2c3c30; border-radius: 12px; background: #0a120c; color: var(--auth-muted); font-size: 12px; line-height: 1.6; }
 .auth-forgot { display: flex; justify-content: flex-end; margin-top: -8px; }
 .auth-forgot button, .auth-switch button, .auth-switch a { color: #c3d9b9; font-size: 12px; font-weight: 500; min-height: 44px; text-underline-offset: 4px; }
 .auth-primary, .auth-google, .auth-secondary { width: 100%; min-height: 52px; padding: 12px 20px; display: flex; align-items: center; justify-content: center; gap: 12px; border-radius: 12px; font-size: 14px; font-weight: 600; text-decoration: none; transition: background 160ms var(--auth-ease), transform 120ms var(--auth-ease); }
@@ -46,7 +48,7 @@
 .auth-primary svg { flex: 0 0 auto; }
 .auth-google, .auth-secondary { background: #101812; color: #e0e8dd; border: 1px solid #354238; font-weight: 500; }
 .auth-primary:active, .auth-google:active, .auth-secondary:active { transform: scale(.985); }
-.auth-shell button { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.auth-shell button { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
 .auth-shell button:disabled { opacity: .6; cursor: wait; }
 .auth-divider { display: flex; align-items: center; gap: 16px; font-size: 11px; color: #91a08f; margin-block: -4px; }
 .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: #263329; }

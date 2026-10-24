@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { ArrowRight, Check, Eye, EyeOff, LockKeyhole, Mail, LoaderCircle } from 'lucide-react'
+import { ArrowRight, Check, Eye, EyeOff, KeyRound, LockKeyhole, Mail, LoaderCircle } from 'lucide-react'
 import { Input } from '../components/motion/input.jsx'
 import { Notice, SetupNotice } from '../components/Feedback.jsx'
 import { supabase } from '../utils/supabase.js'
@@ -10,7 +10,7 @@ const fieldStyles = { root: 'auth-field', label: 'auth-label', field: 'auth-inpu
 const copy = {
   login: ['Welcome back.', 'Sign in to reserve your place and keep your ticket close.', 'Sign in', 'Signing in…'],
   signup: ['Join the evening.', 'Create your account. Your reservation comes next.', 'Create account', 'Creating your account…'],
-  forgot: ['Let’s get you back.', 'Enter your email and we’ll send a password reset link.', 'Send reset link', 'Sending your link…'],
+  forgot: ['Let’s get you back.', 'Enter your email and we’ll send a password reset code.', 'Send reset code', 'Sending your code…'],
   link: ['Your inbox is the way in.', 'We’ll email a sign-in link to your existing account.', 'Email me a sign-in link', 'Sending your link…'],
   update: ['A fresh start.', 'Choose a new password to get back to your ticket.', 'Save new password', 'Saving your password…'],
 }
@@ -30,8 +30,14 @@ export default function AuthPage({ user, recovery = false }) {
   const formRef = useRef(null)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
-  const adminLogin = new URLSearchParams(window.location.search).get('next') === 'admin'
-  const claimAccount = recovery && new URLSearchParams(window.location.search).get('claim') === '1'
+  const params = new URLSearchParams(window.location.search)
+  const adminLogin = params.get('next') === 'admin'
+  const claimAccount = recovery && params.get('claim') === '1'
+  const otpType = params.get('flow') === 'recovery' ? 'recovery' : 'invite'
+  const codeFlow = recovery && (claimAccount || params.get('flow') === 'recovery')
+  const [activationEmail, setActivationEmail] = useState('')
+  const [activationCode, setActivationCode] = useState('')
+  const [activationVerified, setActivationVerified] = useState(false)
   const isAdminUser = Boolean(user?.app_metadata?.role === 'admin' || user?.app_metadata?.is_admin)
   const destination = (adminLogin || isAdminUser) ? '/admin/dashboard' : '/dashboard'
   const newPassword = mode === 'signup' || mode === 'update'
@@ -44,6 +50,35 @@ export default function AuthPage({ user, recovery = false }) {
   }
   function change(field, value) { setValues(v => ({ ...v, [field]: value })); setError('') }
   function blur(field) { setTouched(v => ({ ...v, [field]: true })); if (field === 'password') setCapsLock(false) }
+
+  async function verifyActivationCode(event) {
+    event.preventDefault()
+    if (!supabase || busy.current) return
+    const email = activationEmail.trim().toLowerCase()
+    const emailError = validateAuthField('email', email, 'link')
+    const token = activationCode.replace(/\D/g, '')
+    if (emailError) { setError(emailError); return }
+    if (!/^\d{6,8}$/.test(token)) { setError('Enter the 6–8 digit code from your latest email.'); return }
+
+    busy.current = true
+    setPending('verify')
+    setError('')
+    try {
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({ email, token, type: otpType })
+      if (verifyError) throw verifyError
+      if (!data?.session) throw new Error('Verification completed without opening your account. Please request a new code.')
+      setValues(current => ({ ...current, email }))
+      setActivationVerified(true)
+      setActivationCode('')
+    } catch (verifyError) {
+      if (['otp_expired', 'invite_not_found'].includes(verifyError?.code)) {
+        setError('That code has expired or was already used. Ask an organizer to send a new setup email.')
+      } else setError(friendlyError(verifyError))
+    } finally {
+      busy.current = false
+      setPending('')
+    }
+  }
 
   async function submit(e) {
     e.preventDefault()
@@ -62,7 +97,7 @@ export default function AuthPage({ user, recovery = false }) {
       let result
       if (mode === 'login') result = await supabase.auth.signInWithPassword({ email, password })
       if (mode === 'signup') result = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/auth/callback${adminLogin ? '?next=admin' : ''}` } })
-      if (mode === 'forgot') result = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` })
+      if (mode === 'forgot') result = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password?flow=recovery` })
       if (mode === 'link') result = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/auth/callback${adminLogin ? '?next=admin' : ''}` } })
       if (mode === 'update') {
         result = await supabase.auth.updateUser({ password })
@@ -80,7 +115,7 @@ export default function AuthPage({ user, recovery = false }) {
         }
         throw result.error
       }
-      if (mode === 'forgot') setMessage('If an account exists for this email, you’ll receive a reset link. Open it in this browser to choose a new password.')
+      if (mode === 'forgot') setMessage('If an account exists for this email, you’ll receive a reset code. Enter it on the next page to choose a new password.')
       else if (mode === 'link') setMessage('If an account exists for this email, you’ll receive a sign-in link. Open it in this browser to continue.')
       else if (mode === 'signup' && !result.data.session) setMessage('Check your inbox for a confirmation link. Open it in this browser to finish setting up your account.')
       else if (mode === 'update') setMessage(claimAccount
@@ -113,7 +148,20 @@ export default function AuthPage({ user, recovery = false }) {
 
   if (!supabase) return <section className="auth-content"><h1>See you soon.</h1><SetupNotice /></section>
   if (user && !recovery) return <section className="auth-content"><p className="auth-eyebrow">YOUR EVENING STARTS HERE</p><h1>You’re signed in.</h1><p className="auth-description auth-email">{user.email}</p><a className="auth-primary" href={destination}>{adminLogin ? 'Open admin dashboard' : 'Open my dashboard'}<ArrowRight size={18} /></a></section>
-  if (recovery && !user) return <section className="auth-content"><h1>A new link, please.</h1><Notice kind="error">This reset link has expired or is invalid. Request a new link and open it in the same browser.</Notice><a className="auth-primary" href="/login">Back to sign in<ArrowRight size={18} /></a></section>
+  if (recovery && !user && !activationVerified && !codeFlow) return <section className="auth-content"><h1>A new code, please.</h1><Notice kind="error">This older reset link is expired or invalid. Request a fresh reset code from sign in.</Notice><a className="auth-primary" href="/login">Back to sign in<ArrowRight size={18} /></a></section>
+
+  if (codeFlow && !user && !activationVerified) return <section className="auth-content auth-code-content" aria-labelledby="auth-title">
+    <div className="auth-heading"><p className="auth-eyebrow">{claimAccount ? 'TICKET ACCOUNT' : 'PASSWORD RESET'}</p><h1 id="auth-title">{claimAccount ? 'Enter your email code.' : 'Enter your reset code.'}</h1><p className="auth-description">Use the code in the latest Greens Heaven email. The code confirms your email without relying on a one-time link.</p></div>
+    <Notice kind="error">{error}</Notice>
+    <form className="auth-form" onSubmit={verifyActivationCode} noValidate aria-busy={Boolean(pending)}>
+      <Input id="activation-email" name="email" label="Email address" type="email" autoComplete="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="next" required maxLength={254} placeholder="you@example.com" value={activationEmail} onChange={value => { setActivationEmail(value); setError('') }} disabled={Boolean(pending)} classNames={fieldStyles} leftIcon={<Mail aria-hidden="true" />} />
+      <Input id="activation-code" name="token" label="Email code" type="text" autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]*" enterKeyHint="go" required maxLength={8} placeholder="Enter the code" value={activationCode} onChange={value => { setActivationCode(value.replace(/\D/g, '').slice(0, 8)); setError('') }} disabled={Boolean(pending)} classNames={fieldStyles} leftIcon={<KeyRound aria-hidden="true" />} />
+      <p className="auth-code-help" id="activation-code-help">If it has expired, ask an organizer to send a new setup email. Use the newest code only.</p>
+      <button className="auth-primary" type="submit" disabled={Boolean(pending)}>{pending === 'verify' ? 'Verifying code…' : 'Verify email'}{pending === 'verify' ? <LoaderCircle size={18} className="auth-spinner" aria-hidden="true" /> : <ArrowRight size={18} aria-hidden="true" />}</button>
+    </form>
+    <a className="auth-secondary" href="/login">Back to sign in<ArrowRight size={18} aria-hidden="true" /></a>
+    <p className="auth-privacy">Your account keeps your reservation and payment updates together. <a href="/privacy">How we use your information</a></p>
+  </section>
 
   const [title, description, action, loadingText] = claimAccount
     ? ['Set up your ticket account.', 'Choose a password you’ll use to sign in and view your Greens Heaven ticket.', 'Save password', 'Saving your password…']

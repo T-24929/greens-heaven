@@ -48,7 +48,10 @@ Deno.serve(async request => {
     body = JSON.parse(raw)
     const fields = body && typeof body === 'object' && !Array.isArray(body) ? Object.keys(body) : []
     const value = body as Record<string, unknown>
-    if (fields.length !== 1 || !['reservation_id', 'notification_id'].includes(fields[0]) || !ID.test(String(value[fields[0]] || ''))) throw new Error('invalid_body')
+    const validInitial = fields.length === 1 && fields[0] === 'reservation_id' && ID.test(String(value.reservation_id || ''))
+    const validRetry = fields.length === 1 && fields[0] === 'notification_id' && ID.test(String(value.notification_id || ''))
+    const validResend = fields.length === 2 && fields.includes('notification_id') && fields.includes('resend') && value.resend === true && ID.test(String(value.notification_id || ''))
+    if (!validInitial && !validRetry && !validResend) throw new Error('invalid_body')
   } catch {
     return respond({ error: 'Supply a valid reservation_id or notification_id.' }, 400)
   }
@@ -71,13 +74,36 @@ Deno.serve(async request => {
   const service = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
-  const value = body as Record<string, string>
-  let notificationId = value.notification_id
+  const value = body as Record<string, unknown>
+  let notificationId = typeof value.notification_id === 'string' ? value.notification_id : ''
+
+  if (value.resend === true) {
+    const { data: previous, error: previousError } = await service.from('notification_outbox')
+      .select('id,reservation_id,notification_type')
+      .eq('id', notificationId)
+      .maybeSingle()
+    if (previousError) return respond({ error: 'Could not load this setup email.' }, 503)
+    if (!previous || previous.notification_type !== 'account_setup') return respond({ error: 'Account setup notification not found.' }, 404)
+
+    const { data: queued, error: queueError } = await service.rpc('queue_account_setup_resend', {
+      p_reservation_id: previous.reservation_id,
+    })
+    if (queueError) {
+      console.error('Could not queue a replacement setup email:', queueError.message)
+      return respond({ error: 'Could not queue a new setup email.' }, 503)
+    }
+    const replacement = queued?.[0]
+    if (!replacement) return respond({ error: 'Could not queue a new setup email.' }, 503)
+    if (replacement.status === 'already_linked') return respond({ status: 'already_linked' })
+    if (['sending', 'unknown'].includes(replacement.status)) return respond({ status: replacement.status, error: 'Check the latest delivery status before sending another email.' }, 409)
+    if (replacement.status === 'failed' && replacement.attempts >= 5) return respond({ status: 'failed', error: 'Retry limit reached. Check the delivery logs.' }, 429)
+    notificationId = replacement.notification_id
+  }
 
   if (value.reservation_id) {
     const { data: reservation, error: lookupError } = await service.from('reservations')
       .select('id,registration_source,user_id')
-      .eq('id', value.reservation_id)
+      .eq('id', String(value.reservation_id))
       .maybeSingle()
     if (lookupError) return respond({ error: 'Could not load this registration.' }, 503)
     if (!reservation || reservation.registration_source !== 'in_person') return respond({ error: 'In-person registration not found.' }, 404)
@@ -97,7 +123,7 @@ Deno.serve(async request => {
     if (!notificationId) return respond({ error: 'The setup notification is missing its ID.' }, 503)
     if (['sent', 'sending', 'unknown'].includes(item.status)) return respond({ status: item.status, already_sent: item.status === 'sent' })
     if (item.status === 'failed' && item.attempts >= 5) return respond({ status: 'failed', error: 'Retry limit reached. Check the delivery logs.' }, 429)
-  } else {
+  } else if (value.resend !== true) {
     const { data: item, error: lookupError } = await service.from('notification_outbox')
       .select('id,notification_type,status,attempts')
       .eq('id', notificationId)
@@ -137,17 +163,18 @@ Deno.serve(async request => {
     return respond({ status: 'failed', error: 'Could not send the account setup email. Check SMTP settings and retry.' }, 502)
   }
 
-  const redirectTo = new URL('/reset-password?claim=1', config.site).href
+  const inviteRedirectTo = new URL('/reset-password?claim=1&flow=invite', config.site).href
+  const recoveryRedirectTo = new URL('/reset-password?claim=1&flow=recovery', config.site).href
   let delivery: 'invite' | 'reset' = 'invite'
   try {
-    const { error: inviteError } = await service.auth.admin.inviteUserByEmail(notification.recipient_email, { redirectTo })
+    const { error: inviteError } = await service.auth.admin.inviteUserByEmail(notification.recipient_email, { redirectTo: inviteRedirectTo })
     if (inviteError) {
       if (!/already registered|already exists|user.*exists/i.test(inviteError.message || '')) {
         console.error('Account invitation failed:', inviteError.message)
         return await finishFailure('auth_invite_failed')
       }
       delivery = 'reset'
-      const { error: resetError } = await service.auth.resetPasswordForEmail(notification.recipient_email, { redirectTo })
+      const { error: resetError } = await service.auth.resetPasswordForEmail(notification.recipient_email, { redirectTo: recoveryRedirectTo })
       if (resetError) {
         console.error('Account password setup email failed:', resetError.message)
         return await finishFailure('auth_reset_failed')

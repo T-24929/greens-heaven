@@ -185,15 +185,15 @@ export default function AdminCashRegistration({ onCreated, schemaReady = true, a
               ? `${formatMoney(created.amount_lkr)} · physical cash recorded`
               : `${formatMoney(created.amount_lkr)} · physical cash received · ticket confirmed`}</p>
           <div className={`admin-cash-account-state ${setupStatus}`}>
-            {setupStatus === 'sending' ? <><LoaderCircle size={15} className="admin-cash-spinner" />Sending account setup link…</>
-              : setupStatus === 'sent' ? <><Mail size={15} />Setup link sent to {created.email}</>
+            {setupStatus === 'sending' ? <><LoaderCircle size={15} className="admin-cash-spinner" />Sending account setup email…</>
+              : setupStatus === 'sent' ? <><Mail size={15} />Setup code sent to {created.email}</>
                 : setupStatus === 'linked' ? <><CheckCircle2 size={15} />Linked to an existing account</>
                   : setupStatus === 'failed' ? <><Mail size={15} />Ticket saved. Setup email could not be sent.</>
                     : <><CheckCircle2 size={15} />Ticket saved</>}
           </div>
-          {setupStatus === 'failed' && <button type="button" className="admin-button primary admin-cash-retry" onClick={() => sendSetup(created)}><Mail size={15} />Try setup link again</button>}
+          {setupStatus === 'failed' && <button type="button" className="admin-button primary admin-cash-retry" onClick={() => sendSetup(created)}><Mail size={15} />Try setup email again</button>}
           {setupStatus === 'linked' && <p className="admin-cash-help">They can sign in with their existing account to view the ticket.</p>}
-          {setupStatus === 'sent' && <p className="admin-cash-help">They’ll verify their email and choose their own password.</p>}
+          {setupStatus === 'sent' && <p className="admin-cash-help">They’ll enter the email code and choose their own password.</p>}
           <button type="button" className="admin-button admin-cash-done" onClick={close}>Done</button>
         </div> : <>
           <ReservationProgress step={review ? 3 : step} completed={review ? 2 : step - 1} />

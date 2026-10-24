@@ -186,19 +186,21 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
 
   const refresh = useCallback(() => setRevision(v => v + 1), [])
 
-  async function retryOutboxNotification(item) {
-    if (emailRetryId || !['pending', 'failed'].includes(item.status) || item.attempts >= 5) return
+  async function retryOutboxNotification(item, { resend = false } = {}) {
+    const retryable = ['pending', 'failed'].includes(item.status) && item.attempts < 5
+    const resendable = resend && item.notification_type === 'account_setup' && item.status === 'sent'
+    if (emailRetryId || (!retryable && !resendable)) return
     setEmailRetryId(item.id)
     try {
       const setup = item.notification_type === 'account_setup'
       const { data, error: sendError } = await supabase.functions.invoke(
         setup ? 'send-account-setup' : 'send-reservation-email',
-        { body: { notification_id: item.id } },
+        { body: resendable ? { notification_id: item.id, resend: true } : { notification_id: item.id } },
       )
       if (sendError || data?.status !== 'sent') {
-        toast.show({ status: data?.status === 'unknown' ? 'warning' : 'error', title: setup ? 'Setup invitation not confirmed' : 'Email not sent', description: data?.error || 'Check the notification status before trying again.' })
+        toast.show({ status: ['unknown', 'sending'].includes(data?.status) ? 'warning' : 'error', title: setup ? 'Setup email not confirmed' : 'Email not sent', description: data?.error || 'Check the notification status before trying again.' })
       } else {
-        toast.show({ status: 'success', title: setup ? 'Setup invitation sent' : 'Email sent', description: `Sent to ${item.reservations?.full_name || 'the attendee'}.` })
+        toast.show({ status: 'success', title: resendable ? 'New setup code sent' : setup ? 'Setup email sent' : 'Email sent', description: `Sent to ${item.reservations?.full_name || 'the attendee'}.` })
       }
     } catch {
       toast.show({ status: 'error', title: 'Delivery could not be checked', description: 'Refresh the outbox and verify its status before retrying.' })
@@ -789,7 +791,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
     )}
     {tab === 'updates' && <section className="admin-panel stack admin-delivery-panel">
       <div className="admin-delivery-heading">
-        <div><h2>Delivery updates</h2><p className="muted">Email activity and setup links</p></div>
+        <div><h2>Delivery updates</h2><p className="muted">Email activity and account codes</p></div>
         <span className="admin-delivery-count" aria-label={`${emailTotal} email updates`}>{emailTotal}</span>
       </div>
       {error && <p role="alert" className="admin-error">{error}</p>}
@@ -797,6 +799,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
         {emails.map(email => {
           const retryable = ['pending', 'failed'].includes(email.status) && email.attempts < 5
           const setup = email.notification_type === 'account_setup'
+          const resendable = setup && email.status === 'sent'
           const status = email.status === 'unknown' ? 'Needs check' : email.status === 'pending' ? 'Queued' : email.status === 'failed' ? 'Failed' : email.status === 'sending' ? 'Sending' : 'Sent'
           const date = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Colombo' }).format(new Date(email.sent_at || email.created_at))
           return <li className="admin-outbox-item" key={email.id}>
@@ -809,8 +812,8 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
               </span>
               <ChevronRight className="admin-outbox-chevron" size={15} aria-hidden="true" />
             </button>
-            {retryable && <button type="button" className="admin-outbox-retry" onClick={() => retryOutboxNotification(email)} disabled={Boolean(emailRetryId)} aria-label={`${emailRetryId === email.id ? 'Retrying' : 'Retry'} email to ${email.reservations?.full_name || 'attendee'}`}>
-              <RotateCcw size={13} aria-hidden="true" /><span>{emailRetryId === email.id ? 'Sending' : 'Retry'}</span>
+            {(retryable || resendable) && <button type="button" className="admin-outbox-retry" onClick={() => retryOutboxNotification(email, { resend: resendable })} disabled={Boolean(emailRetryId)} aria-label={`${emailRetryId === email.id ? 'Sending' : resendable ? 'Send a new setup code to' : 'Retry email to'} ${email.reservations?.full_name || 'attendee'}`}>
+              <RotateCcw size={13} aria-hidden="true" /><span>{emailRetryId === email.id ? 'Sending' : resendable ? 'New code' : 'Retry'}</span>
             </button>}
           </li>
         })}

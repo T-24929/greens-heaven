@@ -3,6 +3,14 @@ project_id = "greens-heaven"
 [auth]
 minimum_password_length = 6
 
+[auth.email.template.invite]
+subject = "Your Greens Heaven account is ready"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.recovery]
+subject = "Your Greens Heaven password reset code"
+content_path = "./supabase/templates/reset-password.html"
+
 [functions.send-reservation-email]
 verify_jwt = true
 
