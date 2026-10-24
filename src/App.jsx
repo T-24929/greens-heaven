@@ -5,19 +5,19 @@ import { supabase } from './utils/supabase.js'
 import { friendlyError } from './lib/tickets.js'
 import { navigateReservation, reservationRoutes } from './lib/reservationNavigation.js'
 import { adminRoutes, navigateAdmin } from './lib/adminNavigation.js'
-import LandingPage from './pages/LandingPage.jsx'
-import AuthLayout from './components/AuthLayout.jsx'
-import ReservationLayout from './components/ReservationLayout.jsx'
-import ReservationPage from './pages/ReservationPage.jsx'
-import RefundPolicyPage from './pages/RefundPolicyPage.jsx'
 import ErrorPage, { ErrorShell } from './components/ErrorPage.jsx'
-import AdminsDrawer from './components/admin/AdminsDrawer.jsx'
-import AdminHeader from './components/admin/AdminHeader.jsx'
 import { registerServiceWorker } from './lib/pwa.js'
 import { subscribeToReceiptAlerts } from './lib/adminNotifications.js'
 
+const LandingPage = lazy(() => import('./pages/LandingPage.jsx'))
+const AuthLayout = lazy(() => import('./components/AuthLayout.jsx'))
+const ReservationLayout = lazy(() => import('./components/ReservationLayout.jsx'))
+const ReservationPage = lazy(() => import('./pages/ReservationPage.jsx'))
+const RefundPolicyPage = lazy(() => import('./pages/RefundPolicyPage.jsx'))
 const AdminPage = lazy(() => import('./pages/AdminPage.jsx'))
 const AuthPage = lazy(() => import('./pages/AuthPage.jsx'))
+const AdminsDrawer = lazy(() => import('./components/admin/AdminsDrawer.jsx'))
+const AdminHeader = lazy(() => import('./components/admin/AdminHeader.jsx'))
 
 const currentPath = () => window.location.pathname.replace(/\/$/, '') || '/'
 const appRoutes = new Set(['/', '/refund-policy', '/privacy', '/terms', '/login', '/reset-password', '/auth/callback', ...adminRoutes, ...reservationRoutes])
@@ -138,15 +138,15 @@ export default function App() {
 
   if (path === '/') return <div className="app-shell landing-shell">
     <a className="skip-link" href="#main">Skip to content</a>
-    {content}
+    <Suspense fallback={<Loading>Opening the event…</Loading>}>{content}</Suspense>
   </div>
 
-  if (path === '/login' || path === '/reset-password') return <AuthLayout><Notice kind="error">{auth.error}</Notice>{content}</AuthLayout>
-  if (reservationRoutes.has(path)) return <ReservationLayout user={auth.user} dashboard={path === '/dashboard'} onSignOut={signOut} signingOut={signingOut}><Notice kind="error">{error || auth.error}</Notice>{content}</ReservationLayout>
+  if (path === '/login' || path === '/reset-password') return <Suspense fallback={<Loading>Opening sign in…</Loading>}><AuthLayout><Notice kind="error">{auth.error}</Notice>{content}</AuthLayout></Suspense>
+  if (reservationRoutes.has(path)) return <Suspense fallback={<Loading>Opening your ticket…</Loading>}><ReservationLayout user={auth.user} dashboard={path === '/dashboard'} onSignOut={signOut} signingOut={signingOut}><Notice kind="error">{error || auth.error}</Notice>{content}</ReservationLayout></Suspense>
 
   if (notFound) return <ErrorShell user={auth.user} onSignOut={signOut} signingOut={signingOut}>{content}</ErrorShell>
 
-  if (adminPath) return <div className="app-shell admin-shell p-3">
+  if (adminPath) return <Suspense fallback={<Loading>Opening the admin dashboard…</Loading>}><div className="app-shell admin-shell p-3">
     <a className="skip-link" href="#main">Skip to content</a>
     <AdminHeader
       user={auth.user}
@@ -165,7 +165,7 @@ export default function App() {
       open={showAdmins}
       onClose={() => setShowAdmins(false)}
     />
-  </div>
+  </div></Suspense>
 
   return <div className="app-shell">
     <a className="skip-link" href="#main">Skip to content</a>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
   AlertCircle,
@@ -32,7 +32,7 @@ const time = (value) =>
   })
 
 export default function GateDesk({ initialGate = 'entrance', lockedGate = null, adminMap = {}, onChange, onSelectTicket }) {
-  const [gate, setGate] = useState(lockedGate || initialGate)
+  const gate = lockedGate || initialGate || 'entrance'
   const [mobileView, setMobileView] = useState('scanner')
   const [ticketId, setTicketId] = useState('')
   const [ticket, setTicket] = useState(null)

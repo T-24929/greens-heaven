@@ -115,7 +115,7 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
   const todayKey = useMemo(() => getColomboDateKey(new Date(referenceTime).toISOString()), [referenceTime])
   const yesterdayKey = useMemo(() => getColomboDateKey(new Date(referenceTime - 86400000).toISOString()), [referenceTime])
 
-  const { dailyTimeline, todayRevenue, yesterdayRevenue, maxDayRevenue } = useMemo(() => {
+  const { dailyTimeline, todayRevenue, yesterdayRevenue } = useMemo(() => {
     const map = new Map()
 
     for (const r of approved) {
@@ -131,10 +131,8 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
 
     const withCumulative = []
     let running = 0
-    let maxRev = 0
     for (const day of sortedAsc) {
       running += day.revenue
-      if (day.revenue > maxRev) maxRev = day.revenue
       withCumulative.push({
         ...day,
         cumulativeRevenue: running,
@@ -149,7 +147,6 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
       dailyTimeline: withCumulative,
       todayRevenue: todayEntry ? todayEntry.revenue : 0,
       yesterdayRevenue: yesterdayEntry ? yesterdayEntry.revenue : 0,
-      maxDayRevenue: maxRev || 1,
     }
   }, [approved, todayKey, yesterdayKey])
 

@@ -215,13 +215,14 @@ select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000003'
 select test_support.denied($sql$select public.check_in_ticket(current_setting('test.other_reservation_id')::uuid,'entrance')$sql$,'22023','unapproved ticket cannot check in');
 select test_support.denied($sql$select public.check_in_ticket(current_setting('test.reservation_id')::uuid,'other')$sql$,'22023','unknown gate rejected');
 select test_support.denied($sql$select public.check_in_ticket(current_setting('test.reservation_id')::uuid,'photobooth',false)$sql$,'22023','photo booth requires ID check');
+select test_support.denied($sql$select public.check_in_ticket(current_setting('test.reservation_id')::uuid,'photobooth',true)$sql$,'22023','photo booth requires verified entrance first');
 select test_support.ok((public.lookup_event_ticket(current_setting('test.reservation_id'))->>'status')='approved','desk reads authoritative approval');
 select test_support.ok(not (public.lookup_event_ticket(current_setting('test.reservation_id')) ? 'nic_number'),'desk lookup does not expose NIC');
-select test_support.ok((public.check_in_ticket(current_setting('test.reservation_id')::uuid,'photobooth',true)->>'already_recorded')='false','photo booth can record independently of entrance');
-select test_support.ok((select count(*)=0 from public.ticket_attendance where gate='entrance'),'photo session does not mark entrance');
-select test_support.ok((public.check_in_ticket(current_setting('test.reservation_id')::uuid,'entrance')->>'already_recorded')='false','entrance recorded separately');
+select test_support.ok((public.check_in_ticket(current_setting('test.reservation_id')::uuid,'entrance',true)->>'already_recorded')='false','entrance records verified attendee identity');
+select test_support.ok((public.check_in_ticket(current_setting('test.reservation_id')::uuid,'photobooth',true)->>'already_recorded')='false','photo booth opens after verified entrance');
+select test_support.ok((select count(*)=1 from public.ticket_attendance where gate='entrance'),'photo session keeps entrance attendance');
 select set_config('test.entrance_time',(select checked_in_at::text from public.ticket_attendance where gate='entrance'),true);
-select test_support.ok((public.check_in_ticket(current_setting('test.reservation_id')::uuid,'entrance')->>'already_recorded')='true','duplicate entrance is idempotent');
+select test_support.ok((public.check_in_ticket(current_setting('test.reservation_id')::uuid,'entrance',true)->>'already_recorded')='true','duplicate entrance is idempotent');
 select test_support.ok((select checked_in_at::text=current_setting('test.entrance_time') from public.ticket_attendance where gate='entrance'),'repeat scan preserves first timestamp');
 select test_support.ok((select count(*)=2 from public.ticket_attendance),'one immutable record per gate');
 select test_support.ok((select bool_and(checked_in_by=auth.uid()) from public.ticket_attendance),'check-in staff recorded from auth context');
@@ -244,6 +245,33 @@ select test_support.ok((select count(*) >= 2 from public.get_admins()),'admin ca
 select test_support.ok((select exists (select 1 from public.get_admins() where user_id is not null and email is not null and in_private_admins is true)),'get_admins returns user_id, email, in_private_admins');
 select test_support.ok((select exists (select 1 from public.review_history where admin_id = '10000000-0000-4000-8000-000000000003'::uuid)),'review_history records reviewer admin_id uuid');
 select test_support.ok((select exists (select 1 from public.reservations where reviewed_by = '10000000-0000-4000-8000-000000000003'::uuid)),'reservations records reviewed_by uuid');
+
+-- Physical cash can be due at entry, then collected later. Retrying the same
+-- request after a lost response must confirm payment once without duplicating a ticket.
+select set_config('test.cash_request_id','20000000-0000-4000-8000-000000000001',true);
+select set_config('test.cash_reservation_id', (public.create_cash_registration(
+  current_setting('test.cash_request_id')::uuid, 'Cash Attendee', 'cash-attendee@example.test',
+  '+94770000001', '200000000001', null, 2014, false, null
+)).id::text, true);
+select test_support.ok((select status = 'awaiting_payment' and registration_source = 'in_person'
+  and registered_by = auth.uid() and payment_received_by is null
+  from public.reservations where id = current_setting('test.cash_reservation_id')::uuid),
+  'physical-cash registration can be saved with payment due and entrant recorded');
+select test_support.ok((public.create_cash_registration(
+  current_setting('test.cash_request_id')::uuid, 'Cash Attendee', 'cash-attendee@example.test',
+  '+94770000001', '200000000001', null, 2014, true, auth.uid()
+)).status = 'approved', 'retry can record physical cash after initial payment-due save');
+select test_support.ok((select status = 'approved' and payment_received_by = auth.uid()
+  and payment_received_at is not null and registered_by = auth.uid()
+  from public.reservations where id = current_setting('test.cash_reservation_id')::uuid),
+  'cash collection and registration actors are recorded');
+select test_support.ok((select count(*) = 1 from public.payment_events
+  where reservation_id = current_setting('test.cash_reservation_id')::uuid and event_type = 'cash_received'),
+  'cash retry creates exactly one collection audit event');
+select test_support.denied($sql$select public.create_cash_registration(
+  current_setting('test.cash_request_id')::uuid, 'Different Attendee', 'cash-attendee@example.test',
+  '+94770000001', '200000000001', null, 2014, true, auth.uid())$sql$,
+  '22023', 'request id cannot be reused for different details');
 
 reset role;
 rollback;
