@@ -787,7 +787,37 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
         onNavigateTab={setTab}
       />
     )}
-    {tab === 'updates' && <section className="admin-panel stack"><h2>Delivery updates</h2><p className="muted">Ticket decisions, receipt corrections, and account setup invitations.</p>{error && <p role="alert" className="admin-error">{error}</p>}{loading ? <Loader label="Loading delivery updates" /> : <ul className="admin-ticket-list admin-outbox-list">{emails.map(email => { const retryable = ['pending', 'failed'].includes(email.status) && email.attempts < 5; const setup = email.notification_type === 'account_setup'; return <li className="admin-outbox-item" key={email.id}><button type="button" className="admin-outbox-open" onClick={() => setSelected(email.reservation_id)}><Bell size={18} /><span className="admin-ticket-summary"><strong>{email.reservations?.full_name || 'Reservation update'} <small className="admin-outbox-type">{setup ? 'Account setup' : 'Ticket update'}</small></strong><small>{email.reservations?.reference} · {new Date(email.created_at).toLocaleString('en-GB',{timeZone:'Asia/Colombo'})}</small><span className={`admin-badge ${email.status}`}>{email.status === 'unknown' ? (setup ? 'Check Auth logs' : 'Check provider logs') : email.status === 'pending' ? 'Waiting to send' : email.status === 'failed' ? 'Failed' : email.status === 'sending' ? 'Sending' : 'Sent'}</span>{email.last_error && <small className="admin-outbox-error">{email.last_error}</small>}</span><ChevronRight size={18} /></button>{retryable && <button type="button" className="admin-outbox-retry" onClick={() => retryOutboxNotification(email)} disabled={Boolean(emailRetryId)}>{emailRetryId === email.id ? 'Sending…' : 'Retry'}</button>}</li> })}</ul>}{!loading && !emails.length && !error && <p className="admin-empty">No delivery updates yet.</p>}<Pagination page={emailPage} total={emailTotal} busy={loading} onPage={setEmailPage} /></section>}
+    {tab === 'updates' && <section className="admin-panel stack admin-delivery-panel">
+      <div className="admin-delivery-heading">
+        <div><h2>Delivery updates</h2><p className="muted">Email activity and setup links</p></div>
+        <span className="admin-delivery-count" aria-label={`${emailTotal} email updates`}>{emailTotal}</span>
+      </div>
+      {error && <p role="alert" className="admin-error">{error}</p>}
+      {loading ? <Loader label="Loading delivery updates" /> : <ul className="admin-ticket-list admin-outbox-list">
+        {emails.map(email => {
+          const retryable = ['pending', 'failed'].includes(email.status) && email.attempts < 5
+          const setup = email.notification_type === 'account_setup'
+          const status = email.status === 'unknown' ? 'Needs check' : email.status === 'pending' ? 'Queued' : email.status === 'failed' ? 'Failed' : email.status === 'sending' ? 'Sending' : 'Sent'
+          const date = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Colombo' }).format(new Date(email.sent_at || email.created_at))
+          return <li className="admin-outbox-item" key={email.id}>
+            <button type="button" className="admin-outbox-open" onClick={() => setSelected(email.reservation_id)} aria-label={`Open ${email.reservations?.full_name || 'reservation'} delivery details`}>
+              <span className="admin-outbox-avatar" aria-hidden="true">{email.reservations?.full_name?.trim()?.charAt(0)?.toUpperCase() || 'G'}</span>
+              <span className="admin-outbox-summary">
+                <span className="admin-outbox-main"><strong>{email.reservations?.full_name || 'Reservation update'}</strong><span className={`admin-outbox-status ${email.status}`}><i aria-hidden="true" />{status}</span></span>
+                <span className="admin-outbox-meta"><span>{email.reservations?.reference || 'Reservation'}</span><span className="admin-outbox-separator" aria-hidden="true">·</span><span className="admin-outbox-type">{setup ? 'Account setup' : 'Ticket update'}</span><time dateTime={email.sent_at || email.created_at}>{date}</time></span>
+                {email.last_error && <span className="admin-outbox-error" title={email.last_error}>{email.last_error}</span>}
+              </span>
+              <ChevronRight className="admin-outbox-chevron" size={15} aria-hidden="true" />
+            </button>
+            {retryable && <button type="button" className="admin-outbox-retry" onClick={() => retryOutboxNotification(email)} disabled={Boolean(emailRetryId)} aria-label={`${emailRetryId === email.id ? 'Retrying' : 'Retry'} email to ${email.reservations?.full_name || 'attendee'}`}>
+              <RotateCcw size={13} aria-hidden="true" /><span>{emailRetryId === email.id ? 'Sending' : 'Retry'}</span>
+            </button>}
+          </li>
+        })}
+      </ul>}
+      {!loading && !emails.length && !error && <p className="admin-empty">No delivery updates yet.</p>}
+      <Pagination page={emailPage} total={emailTotal} busy={loading} onPage={setEmailPage} />
+    </section>}
     <MorphingModal
       viewId={selected ? 'ticket-details' : null}
       titleId="reservation-detail-heading"

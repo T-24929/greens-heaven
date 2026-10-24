@@ -4936,7 +4936,8 @@
 .admin-outbox-item > .admin-outbox-open > svg { flex: 0 0 auto; }
 .admin-outbox-type {
   display: inline-flex;
-  margin-left: 6px;
+  margin-left: 6px; width: fit-content;
+  align-items: center;
   padding: 3px 6px;
   border: 1px solid #24452c;
   border-radius: 999px;
@@ -4960,10 +4961,76 @@
 .admin-outbox-item > .admin-outbox-retry:active { transform: scale(.97); }
 .admin-outbox-error {
   display: block;
+  max-width: 100%;
   margin-top: 3px;
   color: #d8a28e;
   font-size: 10px;
-  line-height: 1.4;
+  line-height: 1.3;
   overflow-wrap: anywhere;
+}
+
+.admin-delivery-panel { gap: 12px; }
+.admin-delivery-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-delivery-heading h2 { margin: 0; }
+.admin-delivery-heading p { margin: 3px 0 0; font-size: 10px; line-height: 1.35; }
+.admin-delivery-count { display: grid; place-items: center; min-width: 30px; height: 30px; padding: 0 8px; border: 1px solid #263d2b; border-radius: 999px; background: #0b160e; color: #bfd4b3; font: 600 11px/1 'Montserrat', sans-serif; font-variant-numeric: tabular-nums; }
+.admin-outbox-list { border: 1px solid #1d3022; border-radius: 14px; overflow: hidden; background: #080e09; }
+.admin-outbox-list li + li { border-top-color: #17271b; }
+.admin-outbox-item { min-width: 0; gap: 8px; padding: 0 10px; }
+.admin-outbox-item > .admin-outbox-open {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 15px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 58px;
+  padding: 8px 0;
+  border-radius: 9px;
+  color: inherit;
+  transition: background-color .16s ease;
+}
+.admin-outbox-avatar { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid #31513a; border-radius: 50%; background: #14251a; color: #c0d8b0; font: 500 15px/1 'Cormorant Garamond', serif; }
+.admin-outbox-summary { display: grid; min-width: 0; gap: 3px; }
+.admin-outbox-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.admin-outbox-main strong { overflow: hidden; color: #e0e9dc; font: 600 11px/1.3 'Montserrat', sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+.admin-outbox-status { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; padding: 4px 7px; border: 1px solid #29432f; border-radius: 999px; background: #101d13; color: #abc4a7; font: 500 8px/1 'Montserrat', sans-serif; white-space: nowrap; }
+.admin-outbox-status i { width: 6px; height: 6px; border-radius: 50%; background: #8aa18a; }
+.admin-outbox-status.sent { border-color: #21452c; background: #102418; color: #9fe0aa; }
+.admin-outbox-status.sent i { background: #52d27b; }
+.admin-outbox-status.pending,.admin-outbox-status.sending { border-color: #4e3a1b; background: #21190d; color: #efc56d; }
+.admin-outbox-status.pending i,.admin-outbox-status.sending i { background: #f4b740; }
+.admin-outbox-status.failed,.admin-outbox-status.unknown { border-color: #53332c; background: #241713; color: #efb3a2; }
+.admin-outbox-status.failed i,.admin-outbox-status.unknown i { background: #e5917d; }
+.admin-outbox-meta { display: flex; align-items: center; gap: 6px; min-width: 0; color: #8fa18a; font: 500 9px/1.25 'Montserrat', sans-serif; white-space: nowrap; }
+.admin-outbox-meta > span:first-child { overflow: hidden; text-overflow: ellipsis; }
+.admin-outbox-meta time { margin-left: 6px; color: #778878; font-variant-numeric: tabular-nums; }
+.admin-outbox-separator { color: #526354; }
+.admin-outbox-type { display: inline-flex; flex: 0 0 auto; align-items: center; width: fit-content; margin: 0; padding: 2px 6px; border: 1px solid #213b29; border-radius: 999px; color: #a3c59e; font: 500 8px/1.2 'Montserrat', sans-serif; vertical-align: middle; }
+.admin-outbox-item > .admin-outbox-open .admin-outbox-error { display: block; max-width: 100%; overflow: hidden; margin: 0; color: #d8a28e; font: 500 9px/1.3 'Montserrat', sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+.admin-outbox-chevron { color: #778d79; }
+.admin-outbox-item > .admin-outbox-retry { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 30px; padding: 0 9px; border-radius: 9px; font-size: 9px; }
+.admin-outbox-item > .admin-outbox-open:active { background: #0d1710; }
+.admin-outbox-item > .admin-outbox-open:focus-visible,.admin-outbox-item > .admin-outbox-retry:focus-visible { outline: 2px solid #55b86d; outline-offset: 2px; }
+
+@media (max-width: 640px) {
+  .admin-delivery-panel { gap: 10px; }
+  .admin-delivery-heading p { font-size: 9px; }
+  .admin-delivery-count { min-width: 27px; height: 27px; }
+  .admin-outbox-item { gap: 5px; padding: 0 8px; }
+  .admin-outbox-item > .admin-outbox-open { grid-template-columns: 30px minmax(0, 1fr) 12px; gap: 7px; min-height: 52px; padding: 6px 0; }
+  .admin-outbox-avatar { width: 29px; height: 29px; font-size: 14px; }
+  .admin-outbox-summary { gap: 3px; }
+  .admin-outbox-main { gap: 5px; }
+  .admin-outbox-main strong { min-width: 0; font-size: 10px; }
+  .admin-outbox-status { gap: 4px; padding: 3px 6px; font-size: 7px; }
+  .admin-outbox-meta { gap: 4px; font-size: 8px; }
+  .admin-outbox-meta time { margin-left: 3px; }
+  .admin-outbox-chevron { width: 12px; }
+  .admin-outbox-item > .admin-outbox-retry { min-height: 30px; padding: 0 8px; }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .admin-outbox-item > .admin-outbox-open:hover { background: #0d1710; }
+  .admin-outbox-item > .admin-outbox-retry:hover:not(:disabled) { border-color: #397a48; background: #13291a; }
 }
 
