@@ -715,22 +715,13 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
                     </span>
                   </td>
                   <td>
-                    <div className="flex flex-col gap-1 items-start">
+                    <div className="admin-ticket-status-cell">
                       <span className={`admin-status-dot-badge ${row.status}`}>
                         <span className="admin-dot" />
                         <span>{labels[row.status] || row.status}</span>
                       </span>
-                      {row.reviewed_by && (
-                        <span className="text-[10px] text-[#7f997a] truncate max-w-[130px]" title={`Reviewed by ${adminMap[row.reviewed_by] || row.reviewed_by}`}>
-                          by {(adminMap[row.reviewed_by] || 'admin').split('@')[0]}
-                        </span>
-                      )}
                       {row.registration_source === 'in_person' && (
-                        <>
-                          <span className="admin-cash-row-badge">Physical cash</span>
-                          {row.registered_by && <span className="text-[10px] text-[#7f997a] truncate max-w-[130px]" title={`Entered by ${adminMap[row.registered_by] || row.registered_by}`}>Entered by {(adminMap[row.registered_by] || 'admin').split('@')[0]}</span>}
-                          {row.payment_received_by && <span className="text-[10px] text-[#7f997a] truncate max-w-[130px]" title={`Collected by ${adminMap[row.payment_received_by] || row.payment_received_by}`}>Collected by {(adminMap[row.payment_received_by] || 'admin').split('@')[0]}</span>}
-                        </>
+                        <span className="admin-cash-row-badge" title="Physical cash registration">Cash</span>
                       )}
                     </div>
                   </td>
