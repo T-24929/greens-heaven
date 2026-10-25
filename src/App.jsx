@@ -20,7 +20,7 @@ const AdminsDrawer = lazy(() => import('./components/admin/AdminsDrawer.jsx'))
 const AdminHeader = lazy(() => import('./components/admin/AdminHeader.jsx'))
 
 const currentPath = () => window.location.pathname.replace(/\/$/, '') || '/'
-const appRoutes = new Set(['/', '/refund-policy', '/privacy', '/terms', '/login', '/reset-password', '/auth/callback', ...adminRoutes, ...reservationRoutes])
+const appRoutes = new Set(['/', '/refund-policy', '/privacy', '/terms', '/login', '/reset-password', '/auth/callback', '/auth/confirm', ...adminRoutes, ...reservationRoutes])
 
 function LegalPage({ privacy }) {
   return <article className="panel stack narrow"><h1 className="page-heading">{privacy ? 'Your information' : 'Reservations and payments'}</h1>
@@ -36,7 +36,46 @@ function Callback({ user, error }) {
   if (user) return <Loading>Taking you to your reservation…</Loading>
   const urlError = params.get('error_description') || params.get('error')
   const resolvedError = error || (urlError ? friendlyError({ message: urlError }) : '')
-  return <section className="panel stack narrow"><h1 className="page-heading">Finish signing in</h1><Notice kind="error">{resolvedError || 'This sign in link has expired or was opened in a different browser. Sign in again or request a new link.'}</Notice><a className="button-link" href="/login">Back to sign in</a></section>
+  return <section className="panel stack narrow"><h1 className="page-heading">Finish signing in</h1><Notice kind="error">{resolvedError || 'This sign-in link could not be completed. It may have expired or already been used. Sign in again or request a fresh link.'}</Notice><a className="button-link" href="/login">Back to sign in</a></section>
+}
+
+function AuthConfirm() {
+  const [link] = useState(() => {
+    const params = new URLSearchParams(window.location.search)
+    return { tokenHash: params.get('token_hash') || '', type: params.get('type') || '', next: params.get('next') || '' }
+  })
+  const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
+  const [expired, setExpired] = useState(false)
+  const valid = Boolean(supabase && link.tokenHash && ['email', 'invite'].includes(link.type))
+
+  async function confirmLink() {
+    if (!valid || pending) return
+    setPending(true)
+    setError('')
+    try {
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({ token_hash: link.tokenHash, type: link.type })
+      if (verifyError) throw verifyError
+      if (!data?.session) throw new Error('Verification completed without opening the account.')
+      window.history.replaceState(null, '', '/auth/confirm')
+      const next = link.type === 'invite'
+        ? '/reset-password?claim=1&flow=invite'
+        : link.next === 'admin' ? '/admin/dashboard' : '/dashboard'
+      window.location.replace(next)
+    } catch (verifyError) {
+      const expiredLink = ['otp_expired', 'invite_not_found', 'token_expired'].includes(verifyError?.code)
+      setExpired(expiredLink)
+      setError(expiredLink
+        ? link.type === 'invite'
+          ? 'This setup link expired or was already used. Ask an organizer to send a new setup email.'
+          : 'This sign-in link expired or was already used. Return to sign in and request a fresh link.'
+        : friendlyError(verifyError))
+      setPending(false)
+    }
+  }
+
+  if (!valid || expired) return <section className="panel stack narrow"><h1 className="page-heading">That link didn’t work</h1><Notice kind="error">{error || 'This sign-in link is incomplete. Return to sign in and request a fresh link.'}</Notice><a className="button-link" href="/login">Back to sign in</a></section>
+  return <section className="panel stack narrow"><h1 className="page-heading">{link.type === 'invite' ? 'Set up your ticket account' : 'Finish signing in'}</h1><p>{link.type === 'invite' ? 'Continue to verify your email and choose a password.' : 'Continue to securely verify your email and open your ticket.'}</p><Notice kind="error">{error}</Notice><button className="button-link" type="button" onClick={confirmLink} disabled={pending}>{pending ? 'Verifying…' : error ? 'Try again' : link.type === 'invite' ? 'Continue to password setup' : 'Sign in securely'}</button><a href="/login">Back to sign in</a></section>
 }
 
 export default function App() {
@@ -130,6 +169,7 @@ export default function App() {
   else if (auth.loading) content = <Loading>Checking your sign in…</Loading>
   else if (path === '/login' || path === '/reset-password') content = <Suspense fallback={<Loading>Opening sign in…</Loading>}><AuthPage user={auth.user} recovery={path === '/reset-password'} /></Suspense>
   else if (path === '/auth/callback') content = <Callback user={auth.user} error={auth.error} />
+  else if (path === '/auth/confirm') content = <AuthConfirm />
   else if (path === '/reserve' || path === '/ticket') content = <ReservationPage key={auth.user?.id || 'guest'} user={auth.user} />
   else if (path === '/payment') content = <ReservationPage key={auth.user?.id || 'guest'} user={auth.user} view="payment" />
   else if (path === '/dashboard') content = <ReservationPage key={auth.user?.id || 'guest'} user={auth.user} view="dashboard" />

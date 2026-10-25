@@ -35,7 +35,7 @@ These three files set up the initial bank payment flow. For the current app, con
 
 ## 3. Set the website sign in and email links
 
-The website sends people back to the same browser page after Google sign in, email confirmation, and password reset. Supabase only accepts addresses added to its redirect allow list.
+Supabase only accepts addresses added to its redirect allow list. Email confirmation and sign-in links use a same-site confirmation page; Google sign-in still returns through its configured callback.
 
 1. In Supabase, go to **Authentication → URL Configuration**.
 2. Set **Site URL** to your website's base address, without a page path. While using this computer's current preview, enter:
@@ -49,12 +49,15 @@ The website sends people back to the same browser page after Google sign in, ema
 3. In **Redirect URLs**, add these complete addresses for the current local preview:
 
    ~~~text
+   http://localhost:5173/auth/confirm
+   http://localhost:5173/auth/confirm?next=attendee
+   http://localhost:5173/auth/confirm?next=admin
    http://localhost:5173/auth/callback
    http://localhost:5173/auth/callback?next=admin
    http://localhost:5173/reset-password
    ~~~
 
-   If your development server shows a different address or port, replace http://localhost:5173 with the address it actually shows. For the production site, add the same three paths using the real HTTPS domain. For example, https://greensheavenxxvi.online/auth/callback. Each one is a complete URL. localhost and 127.0.0.1 count as different addresses; add the one you actually open.
+   If your development server shows a different address or port, replace http://localhost:5173 with the address it actually shows. Add the same paths using the real HTTPS domain in production. Each one is a complete URL. localhost and 127.0.0.1 count as different addresses; add the one you actually open.
 
 4. Click **Save URL configuration**.
 
@@ -64,7 +67,7 @@ If you later use https://admin.your-real-domain.com as a second address, add tha
 
 1. Open **Authentication → Sign In / Providers → Email**. Make sure email sign in is enabled and **Confirm email** is enabled.
 2. Set the minimum password length to **6** if the setting is available. The website also asks new users for at least 6 characters.
-3. Follow [email setup for greensheavenxxvi.online](email-setup.md) to authenticate the domain in Brevo, connect custom SMTP, and paste the three branded Auth templates. It includes exact fields and return URLs.
+3. Follow [email setup for greensheavenxxvi.online](email-setup.md) to authenticate the domain in Brevo, connect custom SMTP, and paste the branded Auth templates. It includes exact fields and return URLs.
 4. Test confirmation, email sign-in and password reset using your own test account. The local app accepts six-character new passwords; the hosted minimum also needs to be set to six in the Dashboard.
 
 Auth SMTP sends account emails. Reservation approval/rejection emails use the separate function settings in the same email guide.
@@ -113,7 +116,7 @@ The dashboard lets an authorised organiser approve payments. Creating a regular 
 
 1. Start the website with npm run dev and open its address.
 2. Click **Sign in → Create an account**. Create the organiser's account using their email and a new website password. Do not enter their Gmail password.
-3. Open the confirmation email and click its link in the same browser. This confirms the address. If Google sign in will be the admin's only sign in method, use Google once instead; a Google-confirmed account is ready without an email link. Do not add an unverified email/password account to the admin list: the database only grants admin access to verified accounts.
+3. Open the confirmation email and follow its link. The confirmation page verifies the account before continuing. If Google sign in will be the admin's only sign in method, use Google once instead; a Google-confirmed account is ready without an email link. Do not add an unverified email/password account to the admin list: the database only grants admin access to verified accounts.
 4. In the Supabase Dashboard, open **Authentication → Users**. Find the organiser by email and copy their **User UID**.
 5. Go to **SQL Editor → New query** and paste this SQL. Replace the sample words inside the quotes with the copied User UID. Keep the single quotes:
 

@@ -200,7 +200,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
       if (sendError || data?.status !== 'sent') {
         toast.show({ status: ['unknown', 'sending'].includes(data?.status) ? 'warning' : 'error', title: setup ? 'Setup email not confirmed' : 'Email not sent', description: data?.error || 'Check the notification status before trying again.' })
       } else {
-        toast.show({ status: 'success', title: resendable ? 'New setup code sent' : setup ? 'Setup email sent' : 'Email sent', description: `Sent to ${item.reservations?.full_name || 'the attendee'}.` })
+        toast.show({ status: 'success', title: resendable ? 'New setup link sent' : setup ? 'Setup email sent' : 'Email sent', description: `Sent to ${item.reservations?.full_name || 'the attendee'}.` })
       }
     } catch {
       toast.show({ status: 'error', title: 'Delivery could not be checked', description: 'Refresh the outbox and verify its status before retrying.' })
@@ -812,8 +812,8 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
               </span>
               <ChevronRight className="admin-outbox-chevron" size={15} aria-hidden="true" />
             </button>
-            {(retryable || resendable) && <button type="button" className="admin-outbox-retry" onClick={() => retryOutboxNotification(email, { resend: resendable })} disabled={Boolean(emailRetryId)} aria-label={`${emailRetryId === email.id ? 'Sending' : resendable ? 'Send a new setup code to' : 'Retry email to'} ${email.reservations?.full_name || 'attendee'}`}>
-              <RotateCcw size={13} aria-hidden="true" /><span>{emailRetryId === email.id ? 'Sending' : resendable ? 'New code' : 'Retry'}</span>
+            {(retryable || resendable) && <button type="button" className="admin-outbox-retry" onClick={() => retryOutboxNotification(email, { resend: resendable })} disabled={Boolean(emailRetryId)} aria-label={`${emailRetryId === email.id ? 'Sending' : resendable ? 'Send a new setup link to' : 'Retry email to'} ${email.reservations?.full_name || 'attendee'}`}>
+              <RotateCcw size={13} aria-hidden="true" /><span>{emailRetryId === email.id ? 'Sending' : resendable ? 'New link' : 'Retry'}</span>
             </button>}
           </li>
         })}

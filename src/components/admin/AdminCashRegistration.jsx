@@ -138,8 +138,8 @@ export default function AdminCashRegistration({ onCreated, schemaReady = true, a
       })
       if (saveError || !data) throw saveError || new Error('Registration could not be saved.')
       setCreated(data)
+      setSetupStatus(data.user_id ? 'linked' : 'idle')
       onCreated?.()
-      await sendSetup(data)
     } catch (saveError) {
       const message = saveError?.message || ''
       if (['PGRST202', 'PGRST204', '42703'].includes(saveError?.code) || /schema cache|create_cash_registration.*does not exist/i.test(message)) setError('Cash registration is not connected to the database yet. Apply the latest Supabase migrations, then refresh the admin panel.')
@@ -186,14 +186,18 @@ export default function AdminCashRegistration({ onCreated, schemaReady = true, a
               : `${formatMoney(created.amount_lkr)} · physical cash received · ticket confirmed`}</p>
           <div className={`admin-cash-account-state ${setupStatus}`}>
             {setupStatus === 'sending' ? <><LoaderCircle size={15} className="admin-cash-spinner" />Sending account setup email…</>
-              : setupStatus === 'sent' ? <><Mail size={15} />Setup code sent to {created.email}</>
+              : setupStatus === 'sent' ? <><Mail size={15} />Setup link sent to {created.email}</>
                 : setupStatus === 'linked' ? <><CheckCircle2 size={15} />Linked to an existing account</>
-                  : setupStatus === 'failed' ? <><Mail size={15} />Ticket saved. Setup email could not be sent.</>
-                    : <><CheckCircle2 size={15} />Ticket saved</>}
+            : setupStatus === 'failed' ? <><Mail size={15} />Ticket saved. Setup email could not be sent.</>
+                    : <><CheckCircle2 size={15} />Ticket saved · account setup is optional</>}
           </div>
+          {setupStatus === 'idle' && !created.user_id && <>
+            <p className="admin-cash-help">The ticket QR will be emailed after approval. No account is needed at the entrance.</p>
+            <button type="button" className="admin-button primary admin-cash-retry" onClick={() => sendSetup(created)}><Mail size={15} />Send optional password setup link</button>
+          </>}
           {setupStatus === 'failed' && <button type="button" className="admin-button primary admin-cash-retry" onClick={() => sendSetup(created)}><Mail size={15} />Try setup email again</button>}
-          {setupStatus === 'linked' && <p className="admin-cash-help">They can sign in with their existing account to view the ticket.</p>}
-          {setupStatus === 'sent' && <p className="admin-cash-help">They’ll enter the email code and choose their own password.</p>}
+          {setupStatus === 'linked' && <p className="admin-cash-help">They can use their existing account if they want. The emailed ticket QR works without signing in.</p>}
+          {setupStatus === 'sent' && <p className="admin-cash-help">They can set a password from the email link. The ticket QR will arrive after approval.</p>}
           <button type="button" className="admin-button admin-cash-done" onClick={close}>Done</button>
         </div> : <>
           <ReservationProgress step={review ? 3 : step} completed={review ? 2 : step - 1} />

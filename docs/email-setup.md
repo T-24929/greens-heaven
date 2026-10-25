@@ -73,15 +73,21 @@ https://greensheavenxxvi.online
 Add these **Redirect URLs**:
 
 ```text
+https://greensheavenxxvi.online/auth/confirm
+https://greensheavenxxvi.online/auth/confirm?next=attendee
+https://greensheavenxxvi.online/auth/confirm?next=admin
 https://greensheavenxxvi.online/auth/callback
 https://greensheavenxxvi.online/auth/callback?next=admin
 https://greensheavenxxvi.online/reset-password
+http://localhost:5173/auth/confirm
+http://localhost:5173/auth/confirm?next=attendee
+http://localhost:5173/auth/confirm?next=admin
 http://localhost:5173/auth/callback
 http://localhost:5173/auth/callback?next=admin
 http://localhost:5173/reset-password
 ```
 
-Use the actual local port if it changes. If you use `www` or an admin subdomain, also allow the exact URLs for that origin. Email links use PKCE: open them in the same browser that requested them.
+Use the actual local port if it changes. If you use `www` or an admin subdomain, also allow the exact URLs for that origin.
 
 ## 6. Paste the branded Auth templates
 
@@ -90,10 +96,13 @@ In **Authentication → Emails → Templates**, open each template below. Copy t
 | Supabase template | File | Subject |
 | --- | --- | --- |
 | Confirm signup | [confirm-signup.html](../supabase/templates/confirm-signup.html) | Confirm your email · Greens Heaven XXVI |
+| Invite user | [invite.html](../supabase/templates/invite.html) | Your Greens Heaven account is ready |
 | Magic Link | [magic-link.html](../supabase/templates/magic-link.html) | Your sign-in link · Greens Heaven XXVI |
 | Reset Password | [reset-password.html](../supabase/templates/reset-password.html) | Reset your password · Greens Heaven XXVI |
 
-Keep `{{ .ConfirmationURL }}` exactly as written. Supabase replaces it with the secure link; do not replace it with your homepage. These are email-link templates, not six-digit OTP templates. The sign-in page now has **Email me a sign-in link instead** for existing accounts. New attendees still use **Create an account**. [Supabase email sign-in](https://supabase.com/docs/guides/auth/auth-email-passwordless)
+For Confirm signup and Magic Link, keep the `{{ .RedirectTo }}` and `{{ .TokenHash }}` variables in the secure link. The link opens `/auth/confirm`, where the attendee taps once to verify; this avoids PKCE's same-browser requirement. The Invite user template uses `{{ .SiteURL }}`, `{{ .TokenHash }}`, and `type=invite`, then takes the attendee to password setup. Keep the existing Reset Password template and its code flow unchanged. Local files and `config.toml` do not update hosted Auth templates: paste each matching file in **Authentication → Emails → Templates** and save. [Supabase email templates](https://supabase.com/docs/guides/auth/auth-email-templates), [PKCE flow](https://supabase.com/docs/guides/auth/sessions/pkce-flow)
+
+After saving the hosted templates, request a fresh sign-in link or resend the optional account setup link. Previously delivered links keep their old format.
 
 ## 7. Connect ticket confirmation emails
 
@@ -121,14 +130,14 @@ npx supabase functions deploy send-reservation-email --project-ref dqpuhrsytwibe
 
 Confirm the project reference before running the deploy command. Keep JWT verification enabled. The function uses SMTP over TLS on port 465 and builds the QR locally; it does not send attendee data to an external QR website.
 
-When an admin approves a receipt, the review queues and attempts the confirmation email. It includes the attendee's reference, event details and a QR image. A definite send failure can be retried from the admin dashboard. Rejection emails explain the next step and have no ticket QR.
+When an admin approves a receipt or confirms physical cash, the review queues and attempts the confirmation email. It includes the attendee's reference, event details and a QR image. No attendee login is needed at the entrance; an optional account is only for managing the reservation online. A definite send failure can be retried from the admin dashboard. Rejection emails explain the next step and have no ticket QR.
 
 The QR opens that reservation in `/admin/dashboard?ticket=...`. Only signed-in organizers with admin rights can read it. It checks current approval status; it is **not a single-use entry/check-in system**. The decorative tear preview does not affect a real reservation.
 
 ## 8. Test before inviting attendees
 
 1. Register your own test account with a six-character website password. Confirm the branded email arrives and its link works.
-2. Sign out and request an email sign-in link. Open it in the same browser.
+2. Sign out and request an email sign-in link. Open it from the email app, tap the confirmation button, and confirm the ticket dashboard opens.
 3. Use **Forgot password?**, follow the reset email, then sign in with the new password.
 4. Reserve a test ticket and upload a sample receipt. Approve it from an organizer account. Verify the ticket email and visible QR in your inbox, including on a phone.
 5. Scan the QR as an organizer: it should open the right reservation. Signed-out viewers must sign in; ordinary attendee accounts must not see admin details.

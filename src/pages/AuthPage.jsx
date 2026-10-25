@@ -34,7 +34,7 @@ export default function AuthPage({ user, recovery = false }) {
   const adminLogin = params.get('next') === 'admin'
   const claimAccount = recovery && params.get('claim') === '1'
   const otpType = params.get('flow') === 'recovery' ? 'recovery' : 'invite'
-  const codeFlow = recovery && (claimAccount || params.get('flow') === 'recovery')
+  const codeFlow = recovery && params.get('flow') === 'recovery'
   const [activationEmail, setActivationEmail] = useState('')
   const [activationCode, setActivationCode] = useState('')
   const [activationVerified, setActivationVerified] = useState(false)
@@ -96,9 +96,9 @@ export default function AuthPage({ user, recovery = false }) {
       const password = values.password
       let result
       if (mode === 'login') result = await supabase.auth.signInWithPassword({ email, password })
-      if (mode === 'signup') result = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/auth/callback${adminLogin ? '?next=admin' : ''}` } })
+      if (mode === 'signup') result = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/auth/confirm?next=${adminLogin ? 'admin' : 'attendee'}` } })
       if (mode === 'forgot') result = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password?flow=recovery` })
-      if (mode === 'link') result = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/auth/callback${adminLogin ? '?next=admin' : ''}` } })
+      if (mode === 'link') result = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/auth/confirm?next=${adminLogin ? 'admin' : 'attendee'}` } })
       if (mode === 'update') {
         result = await supabase.auth.updateUser({ password })
         if (!result.error && claimAccount) {
@@ -116,8 +116,8 @@ export default function AuthPage({ user, recovery = false }) {
         throw result.error
       }
       if (mode === 'forgot') setMessage('If an account exists for this email, you’ll receive a reset code. Enter it on the next page to choose a new password.')
-      else if (mode === 'link') setMessage('If an account exists for this email, you’ll receive a sign-in link. Open it in this browser to continue.')
-      else if (mode === 'signup' && !result.data.session) setMessage('Check your inbox for a confirmation link. Open it in this browser to finish setting up your account.')
+      else if (mode === 'link') setMessage('If an account exists for this email, you’ll receive a sign-in link. Open it to continue.')
+      else if (mode === 'signup' && !result.data.session) setMessage('Check your inbox for a confirmation link to finish setting up your account.')
       else if (mode === 'update') setMessage(claimAccount
         ? accountClaimed
           ? 'Your password is set and your ticket is linked. You can open your attendee dashboard now.'
@@ -148,6 +148,7 @@ export default function AuthPage({ user, recovery = false }) {
 
   if (!supabase) return <section className="auth-content"><h1>See you soon.</h1><SetupNotice /></section>
   if (user && !recovery) return <section className="auth-content"><p className="auth-eyebrow">YOUR EVENING STARTS HERE</p><h1>You’re signed in.</h1><p className="auth-description auth-email">{user.email}</p><a className="auth-primary" href={destination}>{adminLogin ? 'Open admin dashboard' : 'Open my dashboard'}<ArrowRight size={18} /></a></section>
+  if (recovery && claimAccount && params.get('flow') === 'invite' && !user) return <section className="auth-content"><h1>Ask for a new setup link.</h1><Notice kind="error">This account setup link expired or was already used. Ask an organizer to resend the setup email.</Notice><a className="auth-primary" href="/login">Back to sign in<ArrowRight size={18} /></a></section>
   if (recovery && !user && !activationVerified && !codeFlow) return <section className="auth-content"><h1>A new code, please.</h1><Notice kind="error">This older reset link is expired or invalid. Request a fresh reset code from sign in.</Notice><a className="auth-primary" href="/login">Back to sign in<ArrowRight size={18} /></a></section>
 
   if (codeFlow && !user && !activationVerified) return <section className="auth-content auth-code-content" aria-labelledby="auth-title">

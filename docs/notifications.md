@@ -18,7 +18,7 @@ SMTP acceptance does not guarantee inbox delivery. Check Brevo's transactional l
 
 ## API contract
 
-Call from the signed-in admin's Supabase client:
+Call from the signed-in admin's Supabase client to deliver a queued notification:
 
 ```js
 const { data, error } = await supabase.functions.invoke('send-reservation-email', {
@@ -26,9 +26,11 @@ const { data, error } = await supabase.functions.invoke('send-reservation-email'
 })
 ```
 
+To send a fresh ticket email from an approved reservation, the admin dashboard calls the same function with `{ reservation_id, resend: true }`. The database checks that the reservation is still approved, takes the current attendee email and ticket details from the saved record, and creates a separate outbox attempt. It never changes the payment or approval status. The button is unavailable while a current ticket email is pending, sending, or has uncertain delivery.
+
 The function verifies the user with `auth.getUser(token)`, then runs the trusted `is_admin()` database lookup using that user's credentials. User-editable profile metadata cannot grant access. Only after these checks does it create the privileged client. A request cannot provide an email address, SMTP configuration, message content, or a reservation decision.
 
-The request is limited to a single UUID in a JSON body of at most 512 bytes. Browser calls must come from an allowed origin. CORS is an additional browser restriction; JWT verification and the database role check enforce access for every caller, including non-browser callers.
+The request accepts only a notification UUID, or an approved reservation UUID with the resend flag, in a small JSON body. Browser calls must come from an allowed origin. CORS is an additional browser restriction; JWT verification and the database role check enforce access for every caller, including non-browser callers.
 
 | Response | Meaning |
 | --- | --- |
@@ -37,6 +39,7 @@ The request is limited to a single UUID in a JSON body of at most 512 bytes. Bro
 | `502`, `status: "failed"` | No email was sent: invalid stored payload or a definite SMTP rejection/connection failure. |
 | `502`, `status: "unknown"` | Delivery may have happened; do not automatically retry. |
 | `400` | Invalid request body. |
+| `409` | The ticket is not approved, or its current email is pending or needs a delivery check. |
 | `401` / `403` | Invalid user session, disallowed origin, or no admin access. |
 | `503` | Missing setup or an authentication/database dependency failed. The error message is safe to display. |
 
@@ -44,7 +47,7 @@ Supabase treats non-2xx results as function errors. Read the error response JSON
 
 ## Concurrent sends, retries, and recovery
 
-`claim_notification` atomically changes only an eligible `pending`/`failed` row to `sending`, returns a fresh claim token, and increments the attempt count. At most five attempts are allowed. The current reservation status, reviewed receipt, and review timestamp must still match that notification. This prevents an old rejection from being retried after a new receipt is submitted or approved.
+`claim_notification` atomically changes only an eligible `pending`/`failed` row to `sending`, returns a fresh claim token, and increments the attempt count. At most five attempts are allowed. The current reservation status, reviewed receipt, and review timestamp must still match that notification. This prevents an old rejection from being retried after a new receipt is submitted or approved. A manual resend creates a new ticket notification row and is allowed only while its saved approval is still current.
 
 `finish_notification` accepts only the worker's matching claim token. A second caller cannot send while the first holds the claim. Recipient address and message fields are taken from the snapshot saved by the review transaction, not from the browser or a later profile edit. A fixed Message-ID makes the message traceable in provider logs; it does **not** make SMTP exactly-once.
 
@@ -78,6 +81,6 @@ No production email is sent by the tests, and SMTP credentials still need to be 
 
 ### Confirmation links and previews
 
-Use `SITE_URL=https://greensheavenxxvi.online` for `send-reservation-email`, then redeploy that function after template changes. WhatsApp drafts link to the same production dashboard. Recipients must sign in to their own account; the link does not contain attendee details or an entry token.
+Use `SITE_URL=https://greensheavenxxvi.online` for `send-reservation-email`, then redeploy that function after template changes. WhatsApp drafts link to the same production dashboard. Confirmed-ticket emails include a QR for the organizer to scan; attendees do not need an account at the entrance. The QR identifies the reservation, while only signed-in organizers can view its current status.
 
 Netlify's `netlify/edge-functions/share-preview.js` supplies route-specific Open Graph and Twitter metadata in the HTML response. It runs after deployment, not in the Vite development server. The home, reserve, login, payment and dashboard links use public event artwork and copy only. Query strings and private ticket data are never included. Share platforms may cache older previews.

@@ -123,7 +123,7 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
         const [recRes, revRes, notRes, attRes, payRes] = await Promise.all([
           supabase.from('receipt_submissions').select('id,receipt_path,submitted_at').eq('reservation_id', reservationId).order('submitted_at', { ascending: false }),
           supabase.from('review_history').select('id,decision,note,admin_id,created_at').eq('reservation_id', reservationId).order('created_at', { ascending: false }),
-          supabase.from('notification_outbox').select('id,review_id,notification_type,status,attempts,created_at,sent_at,last_error').eq('reservation_id', reservationId).order('created_at', { ascending: false }),
+          supabase.from('notification_outbox').select('id,review_id,notification_type,status,attempts,created_at,sent_at,last_error,payload').eq('reservation_id', reservationId).order('created_at', { ascending: false }),
           supabase.from('ticket_attendance').select('gate,checked_in_at').eq('reservation_id', reservationId).order('checked_in_at', { ascending: false }).then(res => res, () => ({ data: [] })),
           supabase.from('payment_events').select('id,event_type,payment_method,amount_lkr,admin_id,note,created_at').eq('reservation_id', reservationId).order('created_at', { ascending: false }).then(res => res, () => ({ data: [] })),
         ])
@@ -276,6 +276,41 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
   const cashRegistration = reservation?.registration_source === 'in_person' && cashPayment
   const canRecordCash = ['awaiting_payment', 'rejected'].includes(reservation?.status)
     && (cashRegistration || reservation?.registration_source === 'online')
+  const currentApprovalReview = details?.reviews?.find(review => review.decision === 'approved'
+    && review.created_at === reservation?.reviewed_at)
+  const ticketEmailBlocked = reservation?.status === 'approved' && details?.emails?.some(email => {
+    if (email.notification_type === 'account_setup' || !['pending', 'sending', 'unknown'].includes(email.status)
+      || email.payload?.status !== 'approved') return false
+    if (email.notification_type === 'ticket_resend') {
+      const approvalAt = email.payload?.approval_at
+      return approvalAt == null
+        ? reservation.reviewed_at == null
+        : Date.parse(approvalAt) === Date.parse(reservation.reviewed_at)
+    }
+    return Boolean(currentApprovalReview && email.review_id === currentApprovalReview.id)
+  })
+
+  async function resendTicket() {
+    if (emailBusyId || busy || ticketEmailBlocked || reservation?.status !== 'approved') return
+    setEmailBusyId('ticket-resend')
+    setActionError('')
+    setNotice('')
+    try {
+      const { data, error } = await supabase.functions.invoke('send-reservation-email', {
+        body: { reservation_id: reservation.id, resend: true },
+      })
+      if (error || data?.status !== 'sent') {
+        setActionError(data?.error || 'The ticket could not be resent. Check delivery updates and try again.')
+      } else {
+        setNotice(`Ticket resent to ${reservation.email}.`)
+      }
+    } catch {
+      setActionError('The resend request could not be confirmed. Check delivery updates before trying again.')
+    } finally {
+      setEmailBusyId(null)
+      setRevision(current => current + 1)
+    }
+  }
 
   const steps = [
     { id: 'receipt', label: cashPayment ? 'Payment' : 'Slip', icon: cashPayment ? CircleDollarSign : Receipt, badge: reservation?.status === 'pending_review' },
@@ -622,12 +657,22 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
 
               {/* Status banner when not pending */}
               {reservation.status === 'approved' && (
-                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-[#0f2416] border border-[#275330]">
+                <div className="flex flex-wrap items-center gap-3 p-3.5 rounded-xl bg-[#0f2416] border border-[#275330]">
                   <CheckCircle2 size={20} className="text-[#64e082] shrink-0" />
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <strong className="text-sm text-[#d8e5cd] block">Confirmed & Admitted</strong>
                     <p className="text-xs text-[#a2b89d]">Ticket QR is active and valid for gate check-in.</p>
                   </div>
+                  <button
+                    type="button"
+                    className="admin-button py-2 px-3 text-xs"
+                    onClick={resendTicket}
+                    disabled={Boolean(emailBusyId) || busy || ticketEmailBlocked}
+                  >
+                    <RotateCcw size={14} aria-hidden="true" />
+                    {emailBusyId === 'ticket-resend' ? 'Sending…' : 'Resend ticket'}
+                  </button>
+                  {ticketEmailBlocked && <p className="basis-full text-xs text-[#b7c4a8]">A ticket email is pending or its delivery needs checking. Refresh delivery updates before resending.</p>}
                 </div>
               )}
               {reservation.status === 'rejected' && !cashPayment && (
