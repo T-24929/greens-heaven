@@ -32,8 +32,8 @@ export default function AdminNotificationBanner() {
       setEnabled(true)
       toast.show({
         status: 'success',
-        title: 'Receipt notifications active!',
-        description: 'You will receive desktop and sound alerts whenever an attendee uploads a receipt.'
+        title: 'Payment notifications are active',
+        description: 'You will receive desktop and sound alerts when attendees submit bank receipts or organizers record cash payments.'
       })
     } else if (res === 'denied') {
       toast.show({
@@ -54,9 +54,9 @@ export default function AdminNotificationBanner() {
           </div>
         </div>
         <div className="admin-banner-content">
-          <h3 className="admin-banner-title">Allow Receipt Notifications?</h3>
+          <h3 className="admin-banner-title">Allow payment notifications?</h3>
           <p className="admin-banner-desc">
-            Get instant sound and desktop alerts the second an attendee uploads proof of payment, so you never miss a review.
+            Get sound and desktop alerts when attendees submit bank receipts or organizers record cash payments for review.
           </p>
           <div className="admin-banner-actions">
             <button
@@ -94,7 +94,7 @@ export default function AdminNotificationBanner() {
       <div className="admin-blocked-notifications-banner" role="alert">
         <BellOff size={18} className="text-[#f43f5e] shrink-0" />
         <div className="flex-1 text-xs text-[#f0c2b5]">
-          <strong>Notifications blocked in browser:</strong> Click the tune / padlock icon in your browser URL bar and set Notifications to <em>Allow</em> to receive real-time receipt alerts.
+          <strong>Payment notifications are blocked in your browser:</strong> Change the notification setting in the address bar to receive payment alerts.
         </div>
         <button
           type="button"

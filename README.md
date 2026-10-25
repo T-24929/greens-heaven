@@ -10,6 +10,7 @@ Event: **31 October 2026, 5:30 pm onwards, Solis Hotel**. Isipathana College 202
 - Public refund policy at `/refund-policy`: no personal cancellation refunds; verified duplicate payments and organizer cancellation are covered, subject to consumer rights. Requests are handled directly through the event's Instagram account.
 - Email/password registration, confirmation, sign in, password recovery, email sign-in links, and Google sign in using Supabase Auth. Attendees choose a website password; the website never asks for their Gmail password.
 - Attendee name, Sri Lankan NIC, optional five-digit school index, school joined year, and local WhatsApp number; server-priced reservations, private bank instructions, receipt upload, and status tracking.
+- Organizers can record physical cash against an existing online reservation. The cash record enters the same review and email flow as a bank receipt; walk-in cash registrations keep their existing confirmation flow.
 - Private JPG/PNG/PDF receipts, up to 5 MB. Client file signature checks improve feedback; these are not a malware scan or proof of payment.
 - Admin receipt review, approval/rejection, rejection notes, and immutable review/receipt history.
 - Styled approval/rejection emails through a server-side Brevo SMTP function, a transactional outbox, and safe retry controls. Approved tickets include an inline QR for protected organizer lookup; this is not single-use check-in.
@@ -47,8 +48,8 @@ See [database setup](docs/database.md) for the exact update and verification que
 
 - Attendee home and ticket tracking: `/dashboard`.
 - Reservation: `/reserve` (`/ticket` also works). Saving a reservation opens `/payment` automatically.
-- Payment: `/payment`. Bank details and receipt upload live here. Submitting a receipt returns the attendee to `/dashboard` to track review. Unpaid or rejected reservations have a link back to payment; reservations already under review or approved open the dashboard instead.
-- Admin: `/admin/dashboard`.
+- Payment: `/payment`. Bank details and receipt upload live here. Attendees who pay an organizer in person can ask the organizer to record cash against their reservation. Submitting a bank receipt returns the attendee to `/dashboard` to track review.
+- Admin: `/admin/dashboard`. Open an online reservation to record collected cash, then approve or return the cash record through the existing payment review.
 
 A separate repository is not needed. Access is checked by Supabase on every protected operation; a hidden route or subdomain is not the security boundary. If you later use an admin subdomain, open `/admin/dashboard` on it. Each origin has its own browser session, so sign in again there. Add that origin’s callback URLs to Supabase and include it in the email function’s `ALLOWED_ORIGINS`.
 

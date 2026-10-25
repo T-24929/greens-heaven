@@ -285,11 +285,11 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
   }, [refresh])
   useEffect(() => {
     const handleNewReceipt = (e) => {
-      const { reservationId, fullName, reference } = e.detail || {}
+      const { reservationId, fullName, reference, paymentMethod } = e.detail || {}
       toast.show({
         status: 'info',
-        title: `New receipt: ${fullName || 'Attendee'}`,
-        description: `${reference || 'Ticket'} is ready for review. Click to inspect.`,
+        title: paymentMethod === 'cash' ? `New cash payment: ${fullName || 'Attendee'}` : `New receipt: ${fullName || 'Attendee'}`,
+        description: `${reference || 'Ticket'} ${paymentMethod === 'cash' ? 'cash payment' : 'receipt'} is ready for review. Click to inspect.`,
         duration: 8000,
         action: reservationId ? {
           label: 'Review',
@@ -379,7 +379,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
     <AdminNotificationBanner />
     {tab === 'overview' && summaryError && <p className="admin-error" role="alert">{summaryError}</p>}
     {tab === 'overview' && <FadeContent trigger="mount" duration={.18} className="stack">
-      <section className="admin-overview-banner"><p className="admin-eyebrow">BEFORE THE DOORS OPEN</p><h2>Keep the evening<br /><em>moving.</em></h2><p>Review receipts, follow delivery and welcome your batch.</p><button className="admin-button primary" onClick={() => showTickets('pending_review')}>Review pending receipts<ChevronRight size={17} /></button></section>
+      <section className="admin-overview-banner"><p className="admin-eyebrow">BEFORE THE DOORS OPEN</p><h2>Keep the evening<br /><em>moving.</em></h2><p>Review payments, follow delivery and welcome your batch.</p><button className="admin-button primary" onClick={() => showTickets('pending_review')}>Review pending payments<ChevronRight size={17} /></button></section>
       <section className="admin-stats" aria-label="Reservation totals">{stats.map(([key,label]) => <button key={key} className={`admin-stat-card ${key}`} onClick={() => showTickets(key)}><span>{label}</span><strong>{summary?.[key] ?? '—'}</strong><ChevronRight size={16} /></button>)}</section>
       <div className="admin-two-up">{[['entrance','Entrance desk','Admit confirmed guests',ScanLine],['photobooth','Photo booth desk','Check ID and record the session',Camera]].map(([key,title,copy,Icon]) => <button key={key} className="admin-panel admin-gate-shortcut" onClick={() => navigateAdmin(`/admin/dashboard/attendance/${key}`)}><Icon size={22} /><h3>{title}</h3><p>{copy}</p><strong>{summary?.[key] ?? '—'} recorded</strong></button>)}</div>
       <div className="admin-two-up">

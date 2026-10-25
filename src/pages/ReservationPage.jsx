@@ -104,7 +104,7 @@ function ReceiptForm({ reservation, user, bank, onSaved, onRefresh }) {
   }
 
   return <section className="panel stack payment-upload" aria-labelledby="upload-title">
-    <div className="payment-card-heading"><span className="payment-number">02</span><div><p className="reserve-eyebrow">PROOF OF PAYMENT</p><h2 id="upload-title">{reservation.status === 'rejected' ? 'Replace your receipt.' : 'Add your receipt.'}</h2></div></div>
+    <div className="payment-card-heading"><span className="payment-number">02</span><div><p className="reserve-eyebrow">PROOF OF PAYMENT</p><h2 id="upload-title">{reservation.status === 'rejected' && reservation.payment_method === 'cash' ? 'Pay by bank transfer.' : reservation.status === 'rejected' ? 'Replace your receipt.' : 'Add your receipt.'}</h2></div></div>
     <p className="payment-help">Upload a clear receipt showing the amount, date and receiving account.</p>
     {bank?.is_demo && <Notice kind="warning">Testing mode: use a sample receipt without real bank or personal details.</Notice>}
     <Notice kind="error">{error}</Notice>
@@ -217,11 +217,16 @@ export default function ReservationPage({ user, view = 'reserve' }) {
   if ((dashboard || payment) && !reservation) return <div className="stack"><div><p className="eyebrow">Greens Heaven · 31 October 2026</p><h1 className="page-heading">{payment ? 'Reserve a ticket before paying' : 'Your dashboard'}</h1></div><section className="panel stack narrow"><h2>Your ticket journey starts here</h2><p>Reserve your ticket first. You’ll go straight to the payment page for bank details and receipt upload, then follow organizer updates from your dashboard.</p><p className="muted">One ticket · {formatMoney(event.ticket_price_lkr)}</p><a className="button-link self-start" href="/reserve">Reserve your ticket</a></section></div>
   if (payment) return <div className="stack payment-experience">
     <ReservationProgress step={2} completed={1} />
-    <div className="reserve-heading"><p className="reserve-eyebrow">YOUR PLACE IS RESERVED</p><h1 className="page-heading">{reservation.status === 'rejected' ? 'Update your receipt' : 'Complete your payment'}</h1></div>
+    <div className="reserve-heading"><p className="reserve-eyebrow">YOUR PLACE IS RESERVED</p><h1 className="page-heading">{reservation.status === 'rejected' ? reservation.payment_method === 'cash' ? 'Check your payment' : 'Update your receipt' : 'Complete your payment'}</h1></div>
     <Notice kind="error">{error}</Notice>
     <section className="payment-summary">
       <div className="row page-title"><h2>One ticket · {formatMoney(reservation.amount_lkr)}</h2><span className={`badge status-${reservation.status}`}>{reservation.reference}</span></div>
-      <p>{reservation.status === 'rejected' ? 'Read the organizer’s note before uploading a corrected receipt or making another transfer.' : 'Transfer the amount, then upload your receipt.'}</p>
+      <p>{reservation.status === 'rejected' && reservation.payment_method === 'cash'
+        ? 'Your cash payment record needs attention. Contact the organizers before making another payment. If they ask you to pay by bank transfer, upload that receipt below.'
+        : reservation.status === 'rejected'
+          ? 'Read the organizer’s note before uploading a corrected receipt or making another transfer.'
+          : 'Transfer the amount, then upload your receipt.'}</p>
+      {reservation.status !== 'rejected' && <p className="payment-help">Paying an organizer in person? They can record the cash against this reservation. The ticket will be confirmed after organizer review.</p>}
       <p className="muted text-sm">No refunds for personal cancellations. <a href="/refund-policy" target="_blank" rel="noreferrer">Read the refund policy</a>.</p>
       {reservation.review_note && <Notice kind="warning"><strong>Organizer’s note</strong><p>{reservation.review_note}</p></Notice>}
     </section>

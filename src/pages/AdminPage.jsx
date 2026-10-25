@@ -193,7 +193,9 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
     try {
       const { error } = await supabase.rpc('record_cash_received', { p_reservation_id: reservationId, p_payment_collector: selectedCashCollectorId })
       if (error) throw error
-      setNotice('Physical cash recorded. The ticket is confirmed.')
+      setNotice(details?.reservation.registration_source === 'in_person'
+        ? 'Physical cash recorded. The ticket is confirmed.'
+        : 'Physical cash recorded. The ticket is waiting for organizer approval.')
       setRevision(current => current + 1)
       onReview?.()
     } catch (recordError) {
@@ -270,10 +272,13 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
 
   const reservation = details?.reservation
   const whatsappUrl = reservationWhatsappLink(reservation)
-  const cashRegistration = reservation?.registration_source === 'in_person' && reservation?.payment_method === 'cash'
+  const cashPayment = reservation?.payment_method === 'cash'
+  const cashRegistration = reservation?.registration_source === 'in_person' && cashPayment
+  const canRecordCash = ['awaiting_payment', 'rejected'].includes(reservation?.status)
+    && (cashRegistration || reservation?.registration_source === 'online')
 
   const steps = [
-    { id: 'receipt', label: cashRegistration ? 'Payment' : 'Slip', icon: cashRegistration ? CircleDollarSign : Receipt, badge: !cashRegistration && reservation?.status === 'pending_review' },
+    { id: 'receipt', label: cashPayment ? 'Payment' : 'Slip', icon: cashPayment ? CircleDollarSign : Receipt, badge: reservation?.status === 'pending_review' },
     { id: 'info', label: 'Details', icon: User },
     { id: 'timeline', label: 'Logs', icon: Clock },
   ]
@@ -365,8 +370,8 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
           {/* Official Payment Receipt Card matching Image 3 */}
           <div className="admin-receipt-official-card">
             <div className="admin-receipt-card-header">
-                {cashRegistration ? (
-                  <span className={`admin-receipt-status-pill ${reservation.status === 'approved' ? 'paid' : reservation.status === 'pending_review' ? 'pending' : 'awaiting'}`}>
+                {cashPayment ? (
+                  <span className={`admin-receipt-status-pill ${reservation.status === 'approved' ? 'paid' : reservation.status === 'pending_review' ? 'pending' : reservation.status === 'rejected' ? 'needs_fix' : 'awaiting'}`}>
                     {reservation.status === 'approved' ? <><Check size={12} />CASH CONFIRMED</>
                       : reservation.status === 'pending_review' ? <><Clock size={12} />CASH RECORDED</>
                         : reservation.status === 'rejected' ? <><AlertCircle size={12} />CASH NEEDS FIX</>
@@ -396,16 +401,16 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
 
             <div className="admin-receipt-title-group">
               <h4 className="admin-receipt-card-title">
-              {cashRegistration ? 'Physical cash registration' : 'Ticket reservation fee received (2026)'}
+              {cashRegistration ? 'Physical cash registration' : cashPayment ? 'Physical cash payment' : 'Ticket reservation fee received (2026)'}
               </h4>
               <span className="admin-receipt-card-sub">
-                {cashRegistration
+                {cashPayment
                   ? reservation.status === 'approved'
                     ? `Physical cash collected by ${adminMap[reservation.payment_received_by] || 'organizer'} · ticket confirmed`
                       : reservation.status === 'pending_review'
-                      ? `Physical cash collected by ${adminMap[reservation.payment_received_by] || 'admin'}`
+                      ? `Physical cash collected by ${adminMap[reservation.payment_received_by] || 'admin'} · awaiting organizer review`
                       : reservation.status === 'rejected'
-                        ? `Physical cash record needs correction${reservation.review_note ? `: ${reservation.review_note}` : ''}`
+                        ? `Physical cash record needs attention${reservation.review_note ? `: ${reservation.review_note}` : ''}`
                         : `Registration entered by ${adminMap[reservation.registered_by] || 'admin not recorded'} · payment due`
                   : reservation.status === 'approved'
                     ? `Confirmed on ${new Date(details.reviews?.[0]?.created_at || reservation.updated_at || reservation.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} · Gate Pass Active`
@@ -436,7 +441,7 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
               <div className="admin-receipt-cell">
                 <span className="admin-cell-label">Fee received</span>
                 <strong className="admin-cell-value">
-                  {cashRegistration
+                  {cashPayment
                     ? reservation.status === 'awaiting_payment' ? 'Not recorded yet' : reservation.status === 'pending_review' ? 'Received' : reservation.status === 'approved' ? 'Received · confirmed' : 'Received · correction needed'
                     : reservation.status === 'approved' ? 'Yes (Bank Slip)' : reservation.status === 'pending_review' ? 'Slip Uploaded' : 'Pending'}
                 </strong>
@@ -460,6 +465,8 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
               <span>
                 {cashRegistration
                   ? `Entered by ${adminMap[reservation.registered_by] || 'admin not recorded'} · ${reservation.payment_received_by ? `physical cash collected by ${adminMap[reservation.payment_received_by] || 'admin'}` : 'payment not collected yet'}`
+                  : cashPayment
+                    ? `Physical cash collected by ${adminMap[reservation.payment_received_by] || 'admin'}${reservation.reviewed_by ? ` · reviewed by ${adminMap[reservation.reviewed_by] || 'admin'}` : ' · awaiting organizer review'}`
                   : reservation.status === 'approved' && (adminMap[reservation.reviewed_by] || reservation.reviewed_by)
                     ? `Approved by: ${adminMap[reservation.reviewed_by] || reservation.reviewed_by}`
                     : reservation.status === 'approved'
@@ -496,20 +503,24 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
           {/* Tab 1: Slip & Verification */}
           {step === 'receipt' && (
             <div className="space-y-3">
-              {cashRegistration && ['awaiting_payment', 'rejected'].includes(reservation.status) && (
+              {canRecordCash && (
                 <div className="rounded-xl border border-[#24432d] bg-[#0b1710] p-3.5">
                   <strong className="block text-sm text-[#e2eadd]">
-                    {reservation.status === 'rejected' ? 'Cash record needs correction' : 'Cash has not been recorded'}
+                    {reservation.status === 'rejected' && cashPayment ? 'Cash record needs attention' : reservation.status === 'rejected' ? 'Payment needs attention' : cashPayment ? 'Cash has not been recorded' : 'Record a physical cash payment'}
                   </strong>
                   <p className="mt-1 text-xs text-[#9eb598]">
-                    {reservation.status === 'rejected'
-                      ? 'After checking the record, select the admin who collected the physical cash.'
-                      : `Record ${amount(reservation)} when payment is collected. The ticket will be confirmed when you save it.`}
+                    {cashRegistration
+                      ? reservation.status === 'rejected'
+                        ? 'After checking the record, select the admin who collected the physical cash.'
+                        : `Record ${amount(reservation)} when payment is collected. The ticket will be confirmed when you save it.`
+                      : reservation.status === 'rejected' && cashPayment
+                        ? 'Check the organizer’s note. Record cash again only if a new physical payment was collected.'
+                        : 'If the attendee paid in person, record who collected the cash. The ticket will wait for organizer approval.'}
                   </p>
                   {reservation.status === 'rejected' && reservation.review_note && <p className="mt-2 text-xs text-[#f0b3a7]">Review note: {reservation.review_note}</p>}
                   <label className="reserve-field admin-cash-collector-field mt-3"><span>Physical cash collected by</span><select value={selectedCashCollectorId} onChange={event => setCashCollectorId(event.target.value)} disabled={busy} required><option value="">Choose admin</option>{currentAdminId && !admins.some(admin => (admin.user_id || admin.id) === currentAdminId) && <option value={currentAdminId}>You</option>}{admins.map(admin => { const id = admin.user_id || admin.id; return id ? <option value={id} key={id}>{id === currentAdminId ? `${admin.full_name || admin.email || 'Admin'} (you)` : admin.full_name || admin.email || 'Admin'}</option> : null })}</select></label>
                   <button type="button" className="admin-button primary mt-3 w-full justify-center text-xs" onClick={recordCashReceived} disabled={busy}>
-                    <CircleDollarSign size={15} />{busy ? 'Saving payment…' : reservation.status === 'rejected' ? 'Record physical cash' : 'Confirm cash received'}
+                    <CircleDollarSign size={15} />{busy ? 'Saving payment…' : reservation.status === 'rejected' && cashPayment ? 'Record new cash payment' : reservation.status === 'rejected' ? 'Record physical cash' : 'Confirm cash received'}
                   </button>
                 </div>
               )}
@@ -519,9 +530,11 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
                   {!decision ? (
                     <div className="space-y-2.5">
                       <div className="p-3 rounded-xl bg-[#0b190f] border border-[#1f3624] text-center">
-                        <span className="text-xs text-[#9eb598] block">Review payment slip</span>
+                        <span className="text-xs text-[#9eb598] block">{cashPayment ? 'Review physical cash payment' : 'Review payment slip'}</span>
                         <strong className="text-sm text-[#e2eadd]">
-                          {`Verify ${amount(reservation)} deposit for ${reservation.full_name}`}
+                          {cashPayment
+                            ? `Confirm ${amount(reservation)} physical cash for ${reservation.full_name}`
+                            : `Verify ${amount(reservation)} deposit for ${reservation.full_name}`}
                         </strong>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
@@ -532,7 +545,7 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
                           disabled={busy}
                         >
                           <CheckCircle2 size={15} />
-                          <span>{cashRegistration ? 'Approve cash' : 'Approve'}</span>
+                          <span>{cashPayment ? 'Approve cash' : 'Approve'}</span>
                         </button>
                         <button
                           type="button"
@@ -541,13 +554,13 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
                           disabled={busy}
                         >
                           <AlertCircle size={15} />
-                          <span>{cashRegistration ? 'Reject cash' : 'Needs Fix'}</span>
+                          <span>{cashPayment ? 'Reject cash' : 'Needs Fix'}</span>
                         </button>
                       </div>
                     </div>
                   ) : decision === 'approved' ? (
                     <div className="admin-inline-confirm-card approve">
-                      <h4>Confirm {amount(reservation)} {cashRegistration ? 'cash payment' : 'payment'} for {reservation.full_name}?</h4>
+                      <h4>Confirm {amount(reservation)} {cashPayment ? 'cash payment' : 'payment'} for {reservation.full_name}?</h4>
                       <p>Issues QR ticket and sends confirmation email.</p>
                       <div className="flex items-center gap-2 mt-3">
                         <button
@@ -570,12 +583,12 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
                     </div>
                   ) : (
                     <div className="admin-inline-confirm-card reject">
-                      <h4>{cashRegistration ? 'Reject cash record' : 'Request slip correction'}</h4>
-                      <p>{cashRegistration ? 'Explain what needs correcting before the cash record can be approved:' : 'Explain what is missing or illegible so the attendee can re-upload:'}</p>
+                      <h4>{cashPayment ? 'Reject cash record' : 'Request slip correction'}</h4>
+                      <p>{cashPayment ? 'Explain what needs correcting. Ask the attendee to contact the organizers before making another payment:' : 'Explain what is missing or illegible so the attendee can re-upload:'}</p>
                       <textarea
                         value={reason}
                         onChange={(e) => setReason(e.target.value)}
-                        placeholder={cashRegistration ? 'e.g. Amount or collector details need checking' : 'e.g. Transaction reference or bank seal is not legible'}
+                        placeholder={cashPayment ? 'e.g. Amount or collector details need checking' : 'e.g. Transaction reference or bank seal is not legible'}
                         rows={3}
                         maxLength={500}
                         className="admin-reason-textarea"
@@ -588,7 +601,7 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
                           onClick={review}
                           disabled={busy || !reason.trim()}
                         >
-                          {busy ? 'Saving…' : cashRegistration ? 'Send for correction' : 'Send Correction Note'}
+                          {busy ? 'Saving…' : cashPayment ? 'Send for correction' : 'Send Correction Note'}
                         </button>
                         <button
                           type="button"
@@ -617,7 +630,7 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
                   </div>
                 </div>
               )}
-              {reservation.status === 'rejected' && !cashRegistration && (
+              {reservation.status === 'rejected' && !cashPayment && (
                 <div className="flex items-start gap-3 p-3.5 rounded-xl bg-[#261511] border border-[#593026]">
                   <AlertCircle size={18} className="text-[#f5a796] shrink-0 mt-0.5" />
                   <div>
@@ -633,7 +646,7 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
               {!cashRegistration && (details.receipts.length === 0 ? (
                 <div className="admin-empty-card">
                   <Receipt size={26} className="mx-auto text-[#4d6951] mb-2" />
-                  <p className="text-xs text-[#9eb598]">No payment slip uploaded yet.</p>
+                  <p className="text-xs text-[#9eb598]">{cashPayment ? 'No bank receipt was uploaded for this cash payment.' : 'No payment slip uploaded yet.'}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -645,7 +658,7 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
                       <div key={receipt.id} className="admin-receipt-card">
                         <div className="flex items-center justify-between gap-2 text-xs text-[#9eb598] mb-2">
                           <span className="font-medium text-[#d8e5cd]">
-                            Receipt {details.receipts.length - index} {isLatest && <span className="text-[#7ce698] font-semibold">(Latest)</span>}
+                            {cashPayment ? 'Previous bank receipt' : `Receipt ${details.receipts.length - index}`} {isLatest && <span className="text-[#7ce698] font-semibold">(Latest)</span>}
                           </span>
                           <span className="text-xs text-[#8ea488]">{dateTime(receipt.submitted_at)}</span>
                         </div>
@@ -711,7 +724,7 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
           {/* Tab 2: Attendee & School Information */}
           {step === 'info' && (
             <div className="space-y-3">
-              {(cashRegistration ? (reservation.registered_by || reservation.payment_received_by) : reservation.reviewed_at) && (
+              {(cashRegistration ? (reservation.registered_by || reservation.payment_received_by) : cashPayment ? (reservation.payment_received_by || reservation.reviewed_at) : reservation.reviewed_at) && (
                 <div className="admin-table-card">
                   <div className="admin-table-card-header">
                     <ShieldCheck size={13} />
@@ -736,6 +749,7 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
                       {reservation.payment_method === 'cash' && <>
                         <tr><th scope="row">Payment</th><td><strong className="text-[#64e082]">Physical cash · {amount(reservation)}</strong></td></tr>
                         <tr><th scope="row">Received at</th><td className="text-xs text-[#a2b59d]">{reservation.payment_received_at ? dateTime(reservation.payment_received_at) : 'Not collected'}</td></tr>
+                        {cashPayment && !cashRegistration && <tr><th scope="row">Reviewed by</th><td><strong className="text-[#e2eadd]">{adminMap[reservation.reviewed_by] || (reservation.reviewed_by ? `Admin (${reservation.reviewed_by.slice(0, 8)}…)` : 'Not reviewed')}</strong></td></tr>}
                       </>}
                       <tr>
                         <th scope="row">Outcome</th>

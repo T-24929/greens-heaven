@@ -1,6 +1,6 @@
 # Greens Heaven database setup
 
-The migrations in `supabase/migrations/` supply the event, reservation workflow, private receipt storage, admin permissions, decision history, and email outbox. Apply them in filename order. The first migration is intended for a fresh Supabase project; the second adds sequential `GH-001` style references, Sri Lanka-only phone validation, and NIC/school identity fields for new reservations. Existing reservation references are preserved, and existing rows keep those newly added identity fields empty. Applying migrations and configuring Auth are separate from running the React app. No remote project was changed while building this code.
+The migrations in `supabase/migrations/` supply the event, reservation workflow, private receipt storage, admin permissions, decision history, and email outbox. Apply them in filename order. The first migration is intended for a fresh Supabase project; the second adds sequential `GH-001` style references, Sri Lanka-only phone validation, and NIC/school identity fields for new reservations. Existing reservation references are preserved, and existing rows keep those newly added identity fields empty. The `20261025095033_online_reservation_cash_payment.sql` migration lets organizers record cash against an existing online reservation and sends that payment through the normal review flow. Applying migrations and configuring Auth are separate from running the React app. No remote project was changed while building this code.
 
 ## Event and bank details
 

@@ -28,7 +28,9 @@ export default function TicketPass({
     >
       {!confirmed && (
         <div className="dash-ticket-unconfirmed-label">
-          {ticketNotice || <span>{reservation?.status === 'pending_review' ? 'Receipt received · Awaiting approval' : 'Awaiting payment receipt'}</span>}
+          {ticketNotice || <span>{reservation?.payment_method === 'cash'
+            ? reservation?.status === 'pending_review' ? 'Physical cash recorded · Awaiting approval' : reservation?.status === 'rejected' ? 'Cash record needs attention' : 'Awaiting physical cash'
+            : reservation?.status === 'pending_review' ? 'Receipt received · Awaiting approval' : 'Awaiting payment receipt'}</span>}
         </div>
       )}
 

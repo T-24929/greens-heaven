@@ -8,9 +8,9 @@ export const EVENT = {
 
 export const STATUS_LABELS = {
   awaiting_payment: 'Awaiting payment',
-  pending_review: 'Receipt under review',
+  pending_review: 'Payment under review',
   approved: 'Ticket confirmed',
-  rejected: 'Receipt needs attention',
+  rejected: 'Payment needs attention',
 }
 
 export function formatMoney(amount) {

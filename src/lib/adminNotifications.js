@@ -86,7 +86,7 @@ export async function testReceiptNotification() {
   })
 }
 
-export async function displayReceiptNotification({ reservationId, fullName, reference, amountLkr, isTest = false }) {
+export async function displayReceiptNotification({ reservationId, fullName, reference, amountLkr, paymentMethod = 'bank_transfer', isTest = false }) {
   if (reservationId && !isTest) {
     const now = Date.now()
     const lastTime = recentAlerts.get(reservationId) || 0
@@ -97,8 +97,8 @@ export async function displayReceiptNotification({ reservationId, fullName, refe
     }
   }
 
-  const title = isTest ? 'Test Alert · Greens Heaven' : `New Receipt: ${fullName || 'Attendee'}`
-  const body = `${reference || 'Ticket'} · Rs. ${amountLkr ? Number(amountLkr).toLocaleString() : '6,500'} payment submitted for review.`
+  const title = isTest ? 'Test Alert · Greens Heaven' : paymentMethod === 'cash' ? `New Cash Payment: ${fullName || 'Attendee'}` : `New Receipt: ${fullName || 'Attendee'}`
+  const body = `${reference || 'Ticket'} · Rs. ${amountLkr ? Number(amountLkr).toLocaleString() : '6,500'} ${paymentMethod === 'cash' ? 'physical cash recorded for review.' : 'payment submitted for review.'}`
   const url = `/admin/dashboard?review=${reservationId || ''}`
 
   // Play audio chime if enabled
@@ -133,7 +133,7 @@ export async function displayReceiptNotification({ reservationId, fullName, refe
 
   // Dispatch custom in-app event for immediate UI refresh and toast notification
   window.dispatchEvent(new CustomEvent('admin:new-receipt', {
-    detail: { reservationId, fullName, reference, amountLkr, isTest }
+    detail: { reservationId, fullName, reference, amountLkr, paymentMethod, isTest }
   }))
   window.dispatchEvent(new CustomEvent('admin:refresh'))
 }
@@ -152,7 +152,7 @@ export function subscribeToReceiptAlerts(onReceiptReceived) {
 
           const { data, error } = await supabase
             .from('reservations')
-            .select('id, reference, full_name, amount_lkr, status')
+            .select('id, reference, full_name, amount_lkr, status, payment_method')
             .eq('id', resId)
             .maybeSingle()
 
@@ -161,7 +161,8 @@ export function subscribeToReceiptAlerts(onReceiptReceived) {
               reservationId: data.id,
               fullName: data.full_name,
               reference: data.reference,
-              amountLkr: data.amount_lkr
+              amountLkr: data.amount_lkr,
+              paymentMethod: data.payment_method
             })
             if (onReceiptReceived) onReceiptReceived(data)
           }
@@ -182,7 +183,8 @@ export function subscribeToReceiptAlerts(onReceiptReceived) {
               reservationId: newRow.id,
               fullName: newRow.full_name,
               reference: newRow.reference,
-              amountLkr: newRow.amount_lkr
+              amountLkr: newRow.amount_lkr,
+              paymentMethod: newRow.payment_method
             })
             if (onReceiptReceived) onReceiptReceived(newRow)
           }

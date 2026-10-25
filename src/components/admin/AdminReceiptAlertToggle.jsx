@@ -33,7 +33,7 @@ export default function AdminReceiptAlertToggle() {
       toast.show({
         status: 'error',
         title: 'Notifications are blocked',
-        description: 'Allow notifications in your browser settings to receive real-time receipt alerts.'
+        description: 'Allow notifications in your browser settings to receive payment alerts.'
       })
       return
     }
@@ -43,7 +43,7 @@ export default function AdminReceiptAlertToggle() {
       setPermission(result)
       if (result === 'granted') {
         setEnabled(true)
-        toast.show({ status: 'success', title: 'Real-time receipt alerts activated', description: 'You will receive sound and desktop notifications when receipts are uploaded.' })
+        toast.show({ status: 'success', title: 'Payment alerts activated', description: 'You will receive alerts when bank receipts are submitted or cash is recorded.' })
       } else {
         toast.show({ status: 'warning', title: 'Notification permission was not granted' })
       }
@@ -56,9 +56,9 @@ export default function AdminReceiptAlertToggle() {
     setEnabled(nextState)
     if (nextState) {
       playReceiptChime()
-      toast.show({ status: 'success', title: 'Receipt alerts turned ON' })
+      toast.show({ status: 'success', title: 'Payment alerts turned on' })
     } else {
-      toast.show({ status: 'info', title: 'Receipt alerts silenced' })
+      toast.show({ status: 'info', title: 'Payment alerts silenced' })
     }
   }
 
@@ -70,13 +70,13 @@ export default function AdminReceiptAlertToggle() {
       type="button"
       className={`admin-header-btn admin-header-icon-btn admin-header-alerts-btn ${isActive ? 'active' : ''} ${isBlocked ? 'blocked' : ''}`}
       onClick={handleToggle}
-      aria-label={isActive ? 'Disable receipt alerts' : 'Enable receipt alerts'}
+      aria-label={isActive ? 'Disable payment alerts' : 'Enable payment alerts'}
       title={
         isBlocked
           ? 'Notifications blocked in browser settings'
           : isActive
-          ? 'Receipt alerts active (Click to silence)'
-          : 'Enable sound and desktop alerts for new receipts'
+          ? 'Payment alerts active. Click to silence.'
+          : 'Enable sound and desktop alerts for new payments'
       }
     >
       {isActive ? (

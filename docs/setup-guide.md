@@ -31,6 +31,8 @@ This creates the event, the Rs. 6,500 price, demo bank details, reservation tabl
 
 After all three migrations, the account is Pan Asia Bank, Homagama, 2076 1000 2552, K K V N C Kariyawasam. If the website still shows DEMO-NOT-FOR-PAYMENT, the third migration has not been applied to the database used by the app. Verify the details with the organizer before accepting payments.
 
+These three files set up the initial bank payment flow. For the current app, continue with any remaining migrations in filename order. The latest physical cash migration, `20261025095033_online_reservation_cash_payment.sql`, lets organizers record cash against an existing online reservation and send it for review.
+
 ## 3. Set the website sign in and email links
 
 The website sends people back to the same browser page after Google sign in, email confirmation, and password reset. Supabase only accepts addresses added to its redirect allow list.

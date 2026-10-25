@@ -12,11 +12,16 @@ export function reservationWhatsappLink(reservation) {
       'View your ticket and entry QR:', dashboard, '',
       'Sign in with the account you used to reserve. Keep your QR ready at the entrance.', '',
       'See you at Solis!', 'Greens Heaven organizing team'].join('\n')
-    : [greeting, '', `Your receipt for *${reservation.reference}* needs attention.`, '',
-      reservation.review_note || 'Please check your payment receipt.', '',
-      'Upload a replacement receipt from your dashboard:', dashboard, '',
-      'Your ticket will be confirmed after the organizers approve your payment.', '',
-      'Greens Heaven organizing team'].join('\n')
+    : reservation.payment_method === 'cash'
+      ? [greeting, '', `Your physical cash payment for *${reservation.reference}* needs attention.`, '',
+        reservation.review_note || 'Please check the cash payment record.', '',
+        'Contact the organizers before making another payment.', dashboard, '',
+        'Greens Heaven organizing team'].join('\n')
+      : [greeting, '', `Your receipt for *${reservation.reference}* needs attention.`, '',
+        reservation.review_note || 'Please check your payment receipt.', '',
+        'Upload a replacement receipt from your dashboard:', dashboard, '',
+        'Your ticket will be confirmed after the organizers approve your payment.', '',
+        'Greens Heaven organizing team'].join('\n')
 
   return `https://wa.me/${reservation.whatsapp.slice(1)}?text=${encodeURIComponent(message)}`
 }
