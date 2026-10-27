@@ -10,7 +10,7 @@ const fieldStyles = { root: 'auth-field', label: 'auth-label', field: 'auth-inpu
 const copy = {
   login: ['Welcome back.', 'Sign in to reserve your place and keep your ticket close.', 'Sign in', 'Signing in…'],
   signup: ['Join the evening.', 'Create your account. Your reservation comes next.', 'Create account', 'Creating your account…'],
-  forgot: ['Let’s get you back.', 'Enter your email and we’ll send a password reset code.', 'Send reset code', 'Sending your code…'],
+  forgot: ['Let’s get you back.', 'Enter your email and we’ll send a password reset link.', 'Send reset link', 'Sending your link…'],
   link: ['Your inbox is the way in.', 'We’ll email a sign-in link to your existing account.', 'Email me a sign-in link', 'Sending your link…'],
   update: ['A fresh start.', 'Choose a new password to get back to your ticket.', 'Save new password', 'Saving your password…'],
 }
@@ -97,7 +97,7 @@ export default function AuthPage({ user, recovery = false }) {
       let result
       if (mode === 'login') result = await supabase.auth.signInWithPassword({ email, password })
       if (mode === 'signup') result = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/auth/confirm?next=${adminLogin ? 'admin' : 'attendee'}` } })
-      if (mode === 'forgot') result = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password?flow=recovery` })
+      if (mode === 'forgot') result = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth/confirm?next=recovery` })
       if (mode === 'link') result = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/auth/confirm?next=${adminLogin ? 'admin' : 'attendee'}` } })
       if (mode === 'update') {
         result = await supabase.auth.updateUser({ password })
@@ -115,7 +115,7 @@ export default function AuthPage({ user, recovery = false }) {
         }
         throw result.error
       }
-      if (mode === 'forgot') setMessage('If an account exists for this email, you’ll receive a reset code. Enter it on the next page to choose a new password.')
+      if (mode === 'forgot') setMessage('If an account exists for this email, you’ll receive a password reset link. Open it to choose a new password.')
       else if (mode === 'link') setMessage('If an account exists for this email, you’ll receive a sign-in link. Open it to continue.')
       else if (mode === 'signup' && !result.data.session) setMessage('Check your inbox for a confirmation link to finish setting up your account.')
       else if (mode === 'update') setMessage(claimAccount
@@ -149,7 +149,7 @@ export default function AuthPage({ user, recovery = false }) {
   if (!supabase) return <section className="auth-content"><h1>See you soon.</h1><SetupNotice /></section>
   if (user && !recovery) return <section className="auth-content"><p className="auth-eyebrow">YOUR EVENING STARTS HERE</p><h1>You’re signed in.</h1><p className="auth-description auth-email">{user.email}</p><a className="auth-primary" href={destination}>{adminLogin ? 'Open admin dashboard' : 'Open my dashboard'}<ArrowRight size={18} /></a></section>
   if (recovery && claimAccount && params.get('flow') === 'invite' && !user) return <section className="auth-content"><h1>Ask for a new setup link.</h1><Notice kind="error">This account setup link expired or was already used. Ask an organizer to resend the setup email.</Notice><a className="auth-primary" href="/login">Back to sign in<ArrowRight size={18} /></a></section>
-  if (recovery && !user && !activationVerified && !codeFlow) return <section className="auth-content"><h1>A new code, please.</h1><Notice kind="error">This older reset link is expired or invalid. Request a fresh reset code from sign in.</Notice><a className="auth-primary" href="/login">Back to sign in<ArrowRight size={18} /></a></section>
+  if (recovery && !user && !activationVerified && !codeFlow) return <section className="auth-content"><h1>Request a new reset link.</h1><Notice kind="error">This password reset link could not be verified. Return to sign in and request a new password reset link.</Notice><a className="auth-primary" href="/login">Back to sign in<ArrowRight size={18} /></a></section>
 
   if (codeFlow && !user && !activationVerified) return <section className="auth-content auth-code-content" aria-labelledby="auth-title">
     <div className="auth-heading"><p className="auth-eyebrow">{claimAccount ? 'TICKET ACCOUNT' : 'PASSWORD RESET'}</p><h1 id="auth-title">{claimAccount ? 'Enter your email code.' : 'Enter your reset code.'}</h1><p className="auth-description">Use the code in the latest Greens Heaven email. The code confirms your email without relying on a one-time link.</p></div>

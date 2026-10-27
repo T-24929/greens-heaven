@@ -21,7 +21,7 @@ If you already have a Supabase project with other tables or users, pause before 
 
 ## 2. Add the ticketing database
 
-This creates the event, the Rs. 6,500 price, demo bank details, reservation tables, admin permissions, and private receipt storage.
+This creates the event, the Rs. 7,000 price, demo bank details, reservation tables, admin permissions, and private receipt storage.
 
 1. In your Supabase project, open **SQL Editor → New query**.
 2. Open supabase/migrations/20261012172441_greens_heaven_ticketing.sql. Copy the whole file, paste it into the query, and click **Run**. This is for a fresh project only.
@@ -52,6 +52,8 @@ Supabase only accepts addresses added to its redirect allow list. Email confirma
    http://localhost:5173/auth/confirm
    http://localhost:5173/auth/confirm?next=attendee
    http://localhost:5173/auth/confirm?next=admin
+   http://localhost:5173/auth/confirm?next=recovery
+   http://localhost:5173/auth/confirm?next=account-setup
    http://localhost:5173/auth/callback
    http://localhost:5173/auth/callback?next=admin
    http://localhost:5173/reset-password

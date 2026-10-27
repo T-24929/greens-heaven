@@ -4,7 +4,7 @@ The migrations in `supabase/migrations/` supply the event, reservation workflow,
 
 ## Event and bank details
 
-The seeded event is **Greens Heaven, 31 October 2026 at 5:30 p.m. in Asia/Colombo, Solis Hotel**, with one **Rs. 6,500** ticket per account. Prices are fixed in Sri Lankan rupees throughout the app and database. The timestamp includes its `+05:30` offset. Reservations close automatically at the event start, or earlier when an organizer sets `reservations_open = false`.
+The seeded event is **Greens Heaven, 31 October 2026 at 5:30 p.m. in Asia/Colombo, Solis Hotel**, with one **Rs. 7,000** ticket per account. Prices are fixed in Sri Lankan rupees throughout the app and database. The timestamp includes its `+05:30` offset. Reservations close automatically at the event start, or earlier when an organizer sets `reservations_open = false`.
 
 The initial migration uses demo details. The `20261015214713_update_event_bank_details.sql` migration replaces them with the organizer-provided account below and sets `is_demo = false`. This update is prepared locally; the connected Supabase account does not have access to the app's project (`dqpuhrsytwibeomkrtic`), so it has not been applied remotely. Open that project's SQL Editor and run the migration file, then verify the result with the query below. Until then, the app correctly continues to show the database's existing demo details.
 

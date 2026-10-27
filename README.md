@@ -2,7 +2,7 @@
 
 React + Vite, Tailwind, local shadcn/Base UI components, React Bits interactions, and Supabase. Dark event branding with responsive landing, sign-in and reservation pages.
 
-Event: **31 October 2026, 5:30 pm onwards, Solis Hotel**. Isipathana College 2023 O/L and 2026 A/L batch. **Rs. 6,500 per ticket**, one reservation per verified account.
+Event: **31 October 2026, 5:30 pm onwards, Solis Hotel**. Isipathana College 2023 O/L and 2026 A/L batch. **Rs. 7,000 per ticket**, one reservation per verified account.
 
 ## What is implemented
 

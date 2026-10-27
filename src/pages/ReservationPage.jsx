@@ -206,7 +206,7 @@ export default function ReservationPage({ user, view = 'reserve' }) {
   if (!supabase) return <SetupNotice />
   if (!user && dashboard) return <AttendeeDashboard />
   if (!user && !payment && !dashboard) return <ReservationDetails />
-  if (!user) return <section className="panel stack narrow"><h1 className="page-heading">{payment ? 'Sign in to continue payment' : 'Reserve your ticket'}</h1><p>Sign in to save your details, view payment instructions, and follow your reservation.</p><a href="/login" className="button-link">{payment ? 'Sign in' : 'Sign in to reserve'}</a><p className="muted text-sm">One ticket per account · Rs. 6,500</p></section>
+  if (!user) return <section className="panel stack narrow"><h1 className="page-heading">{payment ? 'Sign in to continue payment' : 'Reserve your ticket'}</h1><p>Sign in to save your details, view payment instructions, and follow your reservation.</p><a href="/login" className="button-link">{payment ? 'Sign in' : 'Sign in to reserve'}</a><p className="muted text-sm">One ticket per account · Rs. 7,000</p></section>
   if (loading) return <Loading />
   if (redirect) return <Loading>{redirect === '/payment' ? 'Opening your payment page…' : 'Opening your dashboard…'}</Loading>
   if (!data) return <div className="stack"><Notice kind="error">{error}</Notice><Button onClick={refresh}>Try again</Button></div>

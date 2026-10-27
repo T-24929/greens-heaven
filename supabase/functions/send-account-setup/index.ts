@@ -163,8 +163,8 @@ Deno.serve(async request => {
     return respond({ status: 'failed', error: 'Could not send the account setup email. Check SMTP settings and retry.' }, 502)
   }
 
-  const inviteRedirectTo = new URL('/reset-password?claim=1&flow=invite', config.site).href
-  const recoveryRedirectTo = new URL('/reset-password?claim=1&flow=recovery', config.site).href
+  const inviteRedirectTo = new URL('/auth/confirm?next=attendee', config.site).href
+  const recoveryRedirectTo = new URL('/auth/confirm?next=account-setup', config.site).href
   let delivery: 'invite' | 'reset' = 'invite'
   try {
     const { error: inviteError } = await service.auth.admin.inviteUserByEmail(notification.recipient_email, { redirectTo: inviteRedirectTo })

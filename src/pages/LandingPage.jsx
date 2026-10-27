@@ -105,7 +105,7 @@ function useLandingIntro(brandRef) {
 
 const questions = [
   ['Who is the evening for?', 'The Isipathana College batch of 2023 O/L and 2026 A/L. Join us at Solis Hotel on 31 October 2026, from 5:30 pm onwards.'],
-  ['How do I reserve my ticket?', 'Sign in, fill in your attendee details, and reserve one ticket for Rs. 6,500. The payment page opens next with bank transfer details and a receipt upload.'],
+  ['How do I reserve my ticket?', 'Sign in, fill in your attendee details, and reserve one ticket for Rs. 7,000. The payment page opens next with bank transfer details and a receipt upload.'],
   ['When is my ticket confirmed?', 'The organizers check your payment receipt before confirming your ticket. Follow the status and any updates from your personal dashboard.'],
   ['What if my receipt needs attention?', 'Your dashboard will show the organizer’s note. Choose “Upload corrected receipt” to return to the payment page.'],
   ['Can I get a refund?', <>Personal cancellations are not refundable. Verified duplicate payments and organizer cancellation are covered, subject to applicable consumer rights. See the <a href="/refund-policy">refund policy</a> and contact the organizers directly.</>],
@@ -308,7 +308,7 @@ export default function LandingPage({ user }) {
             <span className="landing-step-number" aria-hidden="true">02</span>
             <p className="landing-step-label"><BlurText text="BANK TRANSFER" /></p>
             <h3><BlurText text="Pay. Upload. Done." delay={65} /></h3>
-            <p><BlurText text="The payment page opens next. Transfer Rs. 6,500 using the bank details, then upload a clear JPG, PNG, or PDF receipt for review." delay={20} /></p>
+            <p><BlurText text="The payment page opens next. Transfer Rs. 7,000 using the bank details, then upload a clear JPG, PNG, or PDF receipt for review." delay={20} /></p>
             <a href="/payment"><BlurText text="Go to payment" /> <span aria-hidden="true">↗</span></a>
           </BorderGlow>
           <BorderGlow as="article" className="landing-step">

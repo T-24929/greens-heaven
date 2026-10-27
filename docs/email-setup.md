@@ -76,12 +76,16 @@ Add these **Redirect URLs**:
 https://greensheavenxxvi.online/auth/confirm
 https://greensheavenxxvi.online/auth/confirm?next=attendee
 https://greensheavenxxvi.online/auth/confirm?next=admin
+https://greensheavenxxvi.online/auth/confirm?next=recovery
+https://greensheavenxxvi.online/auth/confirm?next=account-setup
 https://greensheavenxxvi.online/auth/callback
 https://greensheavenxxvi.online/auth/callback?next=admin
 https://greensheavenxxvi.online/reset-password
 http://localhost:5173/auth/confirm
 http://localhost:5173/auth/confirm?next=attendee
 http://localhost:5173/auth/confirm?next=admin
+http://localhost:5173/auth/confirm?next=recovery
+http://localhost:5173/auth/confirm?next=account-setup
 http://localhost:5173/auth/callback
 http://localhost:5173/auth/callback?next=admin
 http://localhost:5173/reset-password
@@ -98,9 +102,9 @@ In **Authentication → Emails → Templates**, open each template below. Copy t
 | Confirm signup | [confirm-signup.html](../supabase/templates/confirm-signup.html) | Confirm your email · Greens Heaven XXVI |
 | Invite user | [invite.html](../supabase/templates/invite.html) | Your Greens Heaven account is ready |
 | Magic Link | [magic-link.html](../supabase/templates/magic-link.html) | Your sign-in link · Greens Heaven XXVI |
-| Reset Password | [reset-password.html](../supabase/templates/reset-password.html) | Reset your password · Greens Heaven XXVI |
+| Reset Password | [reset-password.html](../supabase/templates/reset-password.html) | Reset your Greens Heaven password |
 
-For Confirm signup and Magic Link, keep the `{{ .RedirectTo }}` and `{{ .TokenHash }}` variables in the secure link. The link opens `/auth/confirm`, where the attendee taps once to verify; this avoids PKCE's same-browser requirement. The Invite user template uses `{{ .SiteURL }}`, `{{ .TokenHash }}`, and `type=invite`, then takes the attendee to password setup. Keep the existing Reset Password template and its code flow unchanged. Local files and `config.toml` do not update hosted Auth templates: paste each matching file in **Authentication → Emails → Templates** and save. [Supabase email templates](https://supabase.com/docs/guides/auth/auth-email-templates), [PKCE flow](https://supabase.com/docs/guides/auth/sessions/pkce-flow)
+For Confirm signup, Magic Link, Invite user, and Reset Password, keep `{{ .RedirectTo }}` and `{{ .TokenHash }}` in the secure link. Each link opens `/auth/confirm`, where the attendee taps once to verify; password recovery then opens the password form. This avoids PKCE's same-browser requirement and removes the reset-code step for new requests. Invite and account-setup recovery redirects come from the account setup function; self-service password resets use the current site origin. Local files and `config.toml` do not update hosted Auth templates: paste each matching file in **Authentication → Emails → Templates** and save. [Supabase email templates](https://supabase.com/docs/guides/auth/auth-email-templates), [PKCE flow](https://supabase.com/docs/guides/auth/sessions/pkce-flow)
 
 After saving the hosted templates, request a fresh sign-in link or resend the optional account setup link. Previously delivered links keep their old format.
 

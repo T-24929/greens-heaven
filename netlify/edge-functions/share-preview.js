@@ -1,7 +1,7 @@
 const origin = 'https://greensheavenxxvi.online'
 const pages = {
   '/': ['Greens Heaven XXVI · 31 October 2026', 'One evening. The whole batch. Solis Hotel, 5:30 pm onwards. Isipathana College · 2023 O/L & 2026 A/L.'],
-  '/reserve': ['Reserve your ticket · Greens Heaven XXVI', 'Join your batch at Solis Hotel on 31 October 2026, 5:30 pm onwards. One ticket · Rs. 6,500.'],
+  '/reserve': ['Reserve your ticket · Greens Heaven XXVI', 'Join your batch at Solis Hotel on 31 October 2026, 5:30 pm onwards. One ticket · Rs. 7,000.'],
   '/dashboard': ['Your ticket · Greens Heaven XXVI', 'Sign in to view your reservation, payment status and confirmed entry QR. See you at Solis on 31 October.'],
   '/payment': ['Payment · Greens Heaven XXVI', 'Sign in to view bank details and submit your payment receipt securely.'],
   '/login': ['Sign in · Greens Heaven XXVI', 'Your Greens Heaven ticket starts here. Sign in to reserve and track your ticket.'],

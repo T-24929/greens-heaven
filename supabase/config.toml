@@ -16,7 +16,7 @@ subject = "Your Greens Heaven sign-in link"
 content_path = "./supabase/templates/magic-link.html"
 
 [auth.email.template.recovery]
-subject = "Your Greens Heaven password reset code"
+subject = "Reset your Greens Heaven password"
 content_path = "./supabase/templates/reset-password.html"
 
 [functions.send-reservation-email]

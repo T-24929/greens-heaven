@@ -2,7 +2,7 @@ export default function RefundPolicyPage() {
   return <article className="panel stack narrow" aria-labelledby="refund-policy-title">
     <div><p className="eyebrow">Greens Heaven · 31 October 2026</p><h1 id="refund-policy-title" className="page-heading">Refund policy</h1></div>
     <p className="muted text-sm">Updated 13 October 2026</p>
-    <p>Please read this policy before transferring your ticket payment. One ticket costs Rs. 6,500.</p>
+    <p>Please read this policy before transferring your ticket payment. One ticket costs Rs. 7,000.</p>
 
     <section className="stack" aria-labelledby="personal-cancellations">
       <h2 id="personal-cancellations">If you cannot attend</h2>

@@ -19,12 +19,12 @@ const AuthPage = lazy(() => import('./pages/AuthPage.jsx'))
 const AdminsDrawer = lazy(() => import('./components/admin/AdminsDrawer.jsx'))
 const AdminHeader = lazy(() => import('./components/admin/AdminHeader.jsx'))
 
-const currentPath = () => window.location.pathname.replace(/\/$/, '') || '/'
+const currentPath = () => window.location.pathname.replace(/^\/{2,}/, '/').replace(/\/$/, '') || '/'
 const appRoutes = new Set(['/', '/refund-policy', '/privacy', '/terms', '/login', '/reset-password', '/auth/callback', '/auth/confirm', ...adminRoutes, ...reservationRoutes])
 
 function LegalPage({ privacy }) {
   return <article className="panel stack narrow"><h1 className="page-heading">{privacy ? 'Your information' : 'Reservations and payments'}</h1>
-    {privacy ? <><p>Greens Heaven collects your name, email, Sri Lankan mobile number, NIC number, school index number, school joined year, reservation details, and payment receipt to manage and verify event tickets.</p><p>Authorized organizers can review reservation identity details and use your email or WhatsApp number to contact you about your ticket. Your receipt is stored privately.</p><p>Sign in uses Supabase. If you choose Google, Google also processes your sign in. The site stores a login session in your browser so you can stay signed in.</p><p>For questions about your information or to request its deletion, contact the organizers through the <a href="https://www.instagram.com/greens_heaven/" target="_blank" rel="noreferrer">Greens Heaven Instagram account</a>.</p><Notice>The organizers still need to publish their data retention period before live registrations open.</Notice></> : <><p>Each account can reserve one ticket for Rs. 6,500. A reservation is confirmed only after the organizers approve the payment receipt.</p><p>Use your reservation reference when making a transfer. Upload a readable receipt and track updates from your personal dashboard.</p><p>Personal cancellations are not refundable. Verified duplicate payments and organizer cancellation of the event are covered by our <a href="/refund-policy">refund policy</a>, subject to applicable consumer rights. Contact the organizers directly to arrange an eligible refund.</p><p>Bank details marked as demo are for testing. Do not make a real transfer using demo details.</p><Notice>Ticket transfer and entry rules have not yet been published. Confirm these with the organizers before making a real payment.</Notice></>}
+    {privacy ? <><p>Greens Heaven collects your name, email, Sri Lankan mobile number, NIC number, school index number, school joined year, reservation details, and payment receipt to manage and verify event tickets.</p><p>Authorized organizers can review reservation identity details and use your email or WhatsApp number to contact you about your ticket. Your receipt is stored privately.</p><p>Sign in uses Supabase. If you choose Google, Google also processes your sign in. The site stores a login session in your browser so you can stay signed in.</p><p>For questions about your information or to request its deletion, contact the organizers through the <a href="https://www.instagram.com/greens_heaven/" target="_blank" rel="noreferrer">Greens Heaven Instagram account</a>.</p><Notice>The organizers still need to publish their data retention period before live registrations open.</Notice></> : <><p>Each account can reserve one ticket for Rs. 7,000. A reservation is confirmed only after the organizers approve the payment receipt.</p><p>Use your reservation reference when making a transfer. Upload a readable receipt and track updates from your personal dashboard.</p><p>Personal cancellations are not refundable. Verified duplicate payments and organizer cancellation of the event are covered by our <a href="/refund-policy">refund policy</a>, subject to applicable consumer rights. Contact the organizers directly to arrange an eligible refund.</p><p>Bank details marked as demo are for testing. Do not make a real transfer using demo details.</p><Notice>Ticket transfer and entry rules have not yet been published. Confirm these with the organizers before making a real payment.</Notice></>}
     <a href="/">Back to the event</a></article>
 }
 
@@ -47,7 +47,7 @@ function AuthConfirm() {
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
   const [expired, setExpired] = useState(false)
-  const valid = Boolean(supabase && link.tokenHash && ['email', 'invite'].includes(link.type))
+  const valid = Boolean(supabase && link.tokenHash && ['email', 'invite', 'recovery'].includes(link.type))
 
   async function confirmLink() {
     if (!valid || pending) return
@@ -60,7 +60,9 @@ function AuthConfirm() {
       window.history.replaceState(null, '', '/auth/confirm')
       const next = link.type === 'invite'
         ? '/reset-password?claim=1&flow=invite'
-        : link.next === 'admin' ? '/admin/dashboard' : '/dashboard'
+        : link.type === 'recovery'
+          ? link.next === 'account-setup' ? '/reset-password?claim=1&flow=invite' : '/reset-password?flow=recovery'
+          : link.next === 'admin' ? '/admin/dashboard' : '/dashboard'
       window.location.replace(next)
     } catch (verifyError) {
       const expiredLink = ['otp_expired', 'invite_not_found', 'token_expired'].includes(verifyError?.code)
@@ -68,14 +70,16 @@ function AuthConfirm() {
       setError(expiredLink
         ? link.type === 'invite'
           ? 'This setup link expired or was already used. Ask an organizer to send a new setup email.'
-          : 'This sign-in link expired or was already used. Return to sign in and request a fresh link.'
+          : link.type === 'recovery'
+            ? 'This password reset link expired or was already used. Request a new password reset link.'
+            : 'This sign-in link expired or was already used. Return to sign in and request a fresh link.'
         : friendlyError(verifyError))
       setPending(false)
     }
   }
 
   if (!valid || expired) return <section className="panel stack narrow"><h1 className="page-heading">That link didn’t work</h1><Notice kind="error">{error || 'This sign-in link is incomplete. Return to sign in and request a fresh link.'}</Notice><a className="button-link" href="/login">Back to sign in</a></section>
-  return <section className="panel stack narrow"><h1 className="page-heading">{link.type === 'invite' ? 'Set up your ticket account' : 'Finish signing in'}</h1><p>{link.type === 'invite' ? 'Continue to verify your email and choose a password.' : 'Continue to securely verify your email and open your ticket.'}</p><Notice kind="error">{error}</Notice><button className="button-link" type="button" onClick={confirmLink} disabled={pending}>{pending ? 'Verifying…' : error ? 'Try again' : link.type === 'invite' ? 'Continue to password setup' : 'Sign in securely'}</button><a href="/login">Back to sign in</a></section>
+  return <section className="panel stack narrow"><h1 className="page-heading">{link.type === 'invite' ? 'Set up your ticket account' : link.type === 'recovery' ? 'Reset your password' : 'Finish signing in'}</h1><p>{link.type === 'invite' ? 'Continue to verify your email and choose a password.' : link.type === 'recovery' ? 'Continue to securely verify your email and choose a new password.' : 'Continue to securely verify your email and open your ticket.'}</p><Notice kind="error">{error}</Notice><button className="button-link" type="button" onClick={confirmLink} disabled={pending}>{pending ? 'Verifying…' : error ? 'Try again' : link.type === 'invite' ? 'Continue to password setup' : link.type === 'recovery' ? 'Continue to password reset' : 'Sign in securely'}</button><a href="/login">Back to sign in</a></section>
 }
 
 export default function App() {
@@ -120,7 +124,7 @@ export default function App() {
       if (!active) return
       receivedAuthEvent = true
       setAuth({ loading: false, user: session?.user || null, error: '' })
-      if (event === 'PASSWORD_RECOVERY' && currentPath() !== '/reset-password') window.location.replace('/reset-password')
+      if (event === 'PASSWORD_RECOVERY' && !['/reset-password', '/auth/confirm'].includes(currentPath())) window.location.replace('/reset-password')
     })
     const init = supabase.auth.initializePromise || Promise.resolve({ error: null })
     init.then(({ error: initErr }) => {
@@ -169,7 +173,7 @@ export default function App() {
   else if (auth.loading) content = <Loading>Checking your sign in…</Loading>
   else if (path === '/login' || path === '/reset-password') content = <Suspense fallback={<Loading>Opening sign in…</Loading>}><AuthPage user={auth.user} recovery={path === '/reset-password'} /></Suspense>
   else if (path === '/auth/callback') content = <Callback user={auth.user} error={auth.error} />
-  else if (path === '/auth/confirm') content = <AuthConfirm />
+  else if (path === '/auth/confirm' || (path === '/reset-password' && new URLSearchParams(window.location.search).has('token_hash'))) content = <AuthConfirm />
   else if (path === '/reserve' || path === '/ticket') content = <ReservationPage key={auth.user?.id || 'guest'} user={auth.user} />
   else if (path === '/payment') content = <ReservationPage key={auth.user?.id || 'guest'} user={auth.user} view="payment" />
   else if (path === '/dashboard') content = <ReservationPage key={auth.user?.id || 'guest'} user={auth.user} view="dashboard" />
