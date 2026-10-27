@@ -26,7 +26,7 @@ export default function AdminCashRegistration({ onCreated, schemaReady = true, a
   const [values, setValues] = useState(initialValues)
   const [touched, setTouched] = useState({})
   const [requestId, setRequestId] = useState(() => crypto.randomUUID())
-  const [price, setPrice] = useState(6500)
+  const [price, setPrice] = useState(7000)
   const [created, setCreated] = useState(null)
   const [review, setReview] = useState(null)
   const [pending, setPending] = useState(false)

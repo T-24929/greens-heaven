@@ -81,7 +81,7 @@ export async function testReceiptNotification() {
     reservationId: 'test-' + Date.now(),
     fullName: 'Demo Attendee',
     reference: 'GH-TEST',
-    amountLkr: 6500,
+    amountLkr: 7000,
     isTest: true
   })
 }
@@ -98,7 +98,7 @@ export async function displayReceiptNotification({ reservationId, fullName, refe
   }
 
   const title = isTest ? 'Test Alert · Greens Heaven' : paymentMethod === 'cash' ? `New Cash Payment: ${fullName || 'Attendee'}` : `New Receipt: ${fullName || 'Attendee'}`
-  const body = `${reference || 'Ticket'} · Rs. ${amountLkr ? Number(amountLkr).toLocaleString() : '6,500'} ${paymentMethod === 'cash' ? 'physical cash recorded for review.' : 'payment submitted for review.'}`
+  const body = `${reference || 'Ticket'} · Rs. ${amountLkr ? Number(amountLkr).toLocaleString() : '7,000'} ${paymentMethod === 'cash' ? 'physical cash recorded for review.' : 'payment submitted for review.'}`
   const url = `/admin/dashboard?review=${reservationId || ''}`
 
   // Play audio chime if enabled

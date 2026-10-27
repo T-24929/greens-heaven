@@ -60,11 +60,11 @@ select set_config('test.reservation_id', (public.reserve_ticket('Test Attendee',
 select test_support.ok((public.reserve_ticket('Different Name', '+94770000000', '855420159V', '24875', 2014)).id::text = current_setting('test.reservation_id'), 'duplicate reserve is idempotent');
 select test_support.ok((select count(*) = 1 from public.reservations), 'only one reservation per account');
 select test_support.ok((select reference = 'GH-001' from public.reservations), 'reservation reference uses GH-001 numbering');
-select test_support.ok((select amount_lkr = 6500 and status = 'awaiting_payment' and email = 'attendee@example.test' from public.reservations), 'server sets amount, state and trusted email');
+select test_support.ok((select amount_lkr = 7000 and status = 'awaiting_payment' and email = 'attendee@example.test' from public.reservations), 'server sets amount, state and trusted email');
 select test_support.ok((select nic_number = '198554200159' and school_index_number = '24929' and school_joined_year = 2013 from public.reservations), 'reservation stores validated NIC, school index and joined year');
 select test_support.ok((select not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name in ('event_settings', 'reservations') and column_name = 'currency')), 'event and ticket storage use fixed rupee amounts without currency selectors');
 select test_support.ok((public.update_reservation_details('Updated Attendee', '+94771234567', '198554200159', '24929', 2010)).school_joined_year = 2010, 'owner edits saved details at minimum year');
-select test_support.ok((select reference = 'GH-001' and amount_lkr = 6500 and status = 'awaiting_payment' from public.reservations), 'edit preserves ticket reference amount and status');
+select test_support.ok((select reference = 'GH-001' and amount_lkr = 7000 and status = 'awaiting_payment' from public.reservations), 'edit preserves ticket reference amount and status');
 select test_support.denied($sql$select public.update_reservation_details('Updated Attendee', '+94771234567', '198554200159', '24929', 2009)$sql$, '22023', 'edit rejects joined years before 2010');
 select test_support.denied('update public.reservations set amount_lkr = 1, status = ''approved''', '42501', 'attendee cannot change amount or approve');
 select test_support.denied('insert into private.admins(user_id) values (auth.uid())', '42501', 'attendee cannot grant admin access');

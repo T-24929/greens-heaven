@@ -5,7 +5,7 @@ import { formatMoney } from '../lib/tickets.js'
 const DragTicket = lazy(() => import('./ReactBitsTearTicket.jsx'))
 
 // A reusable visual preview. Tearing is local presentation state only.
-export default function TearTicket({ amount = 6500 }) {
+export default function TearTicket({ amount = 7000 }) {
   const [torn, setTorn] = useState(false)
   const [version, setVersion] = useState(0)
   return <figure className="tear-preview">

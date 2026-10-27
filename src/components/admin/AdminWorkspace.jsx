@@ -387,7 +387,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
           <CircleDollarSign size={21} className="text-[#7ce698]" />
           <span>
             <strong>Admin Revenue</strong>
-            <small>{summary?.approved ? `Rs. ${(summary.approved * 6500).toLocaleString('en-LK')} confirmed proceeds` : 'Ticket proceeds & analytics'}</small>
+            <small>{summary?.approved ? `${summary.approved} tickets confirmed · View tiers & proceeds` : 'Ticket proceeds & analytics'}</small>
           </span>
           <ChevronRight size={18} />
         </button>

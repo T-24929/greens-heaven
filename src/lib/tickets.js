@@ -3,7 +3,7 @@ export const EVENT = {
   name: 'Greens Heaven',
   starts_at: '2026-10-31T17:30:00+05:30',
   venue: 'Solis Hotel',
-  ticket_price_lkr: 6500,
+  ticket_price_lkr: 7000,
 }
 
 export const STATUS_LABELS = {
