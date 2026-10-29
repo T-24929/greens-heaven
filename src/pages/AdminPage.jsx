@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   GraduationCap,
   CircleDollarSign,
+  Camera,
 } from 'lucide-react'
 import { reservationWhatsappLink } from '../lib/admin-messages.js'
 import { supabase } from '../utils/supabase.js'
@@ -30,8 +31,8 @@ function scannedTicket() {
     return TICKET_ID.test(saved || '') ? saved : null
   } catch { return null }
 }
-const RESERVATION_FIELDS = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,amount_lkr,status,receipt_path,review_note,created_at,updated_at,reviewed_at,reviewed_by,registration_source,payment_method,payment_received_at,payment_received_by,account_setup_sent_at,user_id,registered_by'
-const CASH_RESERVATION_FIELDS = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,amount_lkr,status,receipt_path,review_note,created_at,updated_at,reviewed_at,reviewed_by,registration_source,payment_method,payment_received_at,payment_received_by,account_setup_sent_at,user_id'
+const RESERVATION_FIELDS = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,amount_lkr,status,receipt_path,review_note,created_at,updated_at,reviewed_at,reviewed_by,registration_source,payment_method,payment_received_at,payment_received_by,account_setup_sent_at,user_id,registered_by,images'
+const CASH_RESERVATION_FIELDS = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,amount_lkr,status,receipt_path,review_note,created_at,updated_at,reviewed_at,reviewed_by,registration_source,payment_method,payment_received_at,payment_received_by,account_setup_sent_at,user_id,images'
 const LEGACY_RESERVATION_FIELDS = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,amount_lkr,status,receipt_path,review_note,created_at,updated_at,reviewed_at,reviewed_by'
 const STATUS_LABELS = {
   awaiting_payment: 'Awaiting payment',
@@ -73,6 +74,9 @@ async function sendEmail(notificationId, notificationType = 'reservation_decisio
     const { data, error } = await supabase.functions.invoke(setup ? 'send-account-setup' : 'send-reservation-email', {
       body: { notification_id: notificationId },
     })
+    if (data?.status === 'already_linked') {
+      return 'The attendee has already signed in and linked their account.'
+    }
     if (error || data?.status !== 'sent') {
       return setup
         ? 'Check the account setup invitation status below before retrying delivery.'
@@ -296,8 +300,32 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
     setActionError('')
     setNotice('')
     try {
+      let notificationId = null
+
+      // Queue ticket resend via RPC to acquire a notification_id.
+      // Compatible with both current and legacy Edge Function deployments.
+      const { data: queueData, error: queueError } = await supabase.rpc('queue_ticket_resend', {
+        p_reservation_id: reservation.id,
+      })
+
+      if (!queueError) {
+        notificationId = Array.isArray(queueData)
+          ? queueData[0]?.notification_id
+          : queueData?.notification_id
+      } else if (queueError.code === '55000') {
+        setActionError('A ticket email is already pending or its delivery needs checking. Refresh delivery updates before resending.')
+        return
+      } else if (queueError.code === '22023') {
+        setActionError('Only an approved ticket can be resent.')
+        return
+      }
+
+      const payload = notificationId
+        ? { notification_id: notificationId }
+        : { reservation_id: reservation.id, resend: true }
+
       const { data, error } = await supabase.functions.invoke('send-reservation-email', {
-        body: { reservation_id: reservation.id, resend: true },
+        body: payload,
       })
       if (error || data?.status !== 'sent') {
         setActionError(data?.error || 'The ticket could not be resent. Check delivery updates and try again.')
@@ -898,6 +926,26 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
                   </tbody>
                 </table>
               </div>
+
+              {Array.isArray(reservation.images) && reservation.images.length > 0 && (
+                <div className="admin-table-card">
+                  <div className="admin-table-card-header">
+                    <Camera size={13} />
+                    <span>Photo Booth Captures ({reservation.images.length})</span>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '10px 12px' }}>
+                    {reservation.images.map((img, i) => (
+                      <span
+                        key={i}
+                        className="admin-photo-preset-chip"
+                        style={{ fontSize: '10px', padding: '4px 10px', cursor: 'default' }}
+                      >
+                        #{i + 1} {img}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

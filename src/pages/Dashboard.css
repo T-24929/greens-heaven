@@ -173,3 +173,107 @@
 .dash-attendee-name[data-length='long'] { font-size: 21px; }
 @media(max-width:360px) { .dash-attendee-name[data-length='medium'] { font-size: 23px; }.dash-attendee-name[data-length='long'] { font-size: 19px; }.dash-ticket-owner { gap: 12px; } }
 @media(prefers-reduced-transparency:reduce) { .dash-ticket-frost { display: none; }.dash-ticket-owner,.dash-ticket-stub { background: #101d14; } }
+
+/* Attendance status banners & live event milestone cards */
+.dash-attendance-banner { position: relative; overflow: hidden; padding: 24px; border-radius: 20px; margin-bottom: 24px; }
+.dash-attendance-entrance { background: linear-gradient(180deg, #101d13 0%, #0a140d 100%); border: 1px solid #3c5432; box-shadow: 0 8px 24px rgb(0 0 0 / 24%); }
+.dash-attendance-party { background: linear-gradient(180deg, #142417 0%, #0d170f 100%); border: 1px solid #527342; box-shadow: 0 10px 28px rgb(16 40 20 / 30%); }
+.dash-attendance-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.dash-attendance-pill { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 20px; background: #1f321d; color: #cbe0bc; font-size: 10px; font-weight: 600; letter-spacing: .06em; }
+.dash-party-pill { background: #253d20; color: #d6e8c7; border: 1px solid #4a6838; }
+.dash-attendance-badge { font-size: 9px; letter-spacing: .12em; color: #8fa683; text-transform: uppercase; }
+.dash-attendance-banner h3 { font: 500 26px/1.2 'Cormorant Garamond', serif; letter-spacing: -.02em; color: #e1eed8; margin: 0 0 8px; }
+.dash-attendance-banner p { font-size: 11px; line-height: 1.7; color: #b7c7ae; margin: 0; }
+.dash-attendance-check-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #283824; }
+.dash-attendance-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: #121f14; border: 1px solid #283a24; }
+.dash-attendance-item.is-done { border-color: #3b5430; background: #152417; }
+.dash-attendance-item.is-pending { border-color: #557945; background: linear-gradient(180deg, #1a2f1d 0%, #122115 100%); box-shadow: 0 4px 16px rgb(0 0 0 / 22%), inset 0 1px 0 rgb(255 255 255 / 6%); }
+
+.dash-check-dot { display: grid; place-items: center; width: 32px; height: 32px; min-width: 32px; min-height: 32px; border-radius: 50%; aspect-ratio: 1; flex-shrink: 0; }
+.dash-attendance-item.is-done .dash-check-dot {display:flex; justify-content: center; background: #bed6ae; color: #10220e; box-shadow: 0 2px 8px rgb(190 214 174 / 25%); }
+.dash-attendance-item.is-pending .dash-check-dot { background: #233b22; border: 1.5px solid #6b9356; color: #d6eac7; box-shadow: 0 0 12px rgb(107 147 86 / 28%); }
+
+.dash-attendance-info { min-width: 0; flex: 1; }
+.dash-attendance-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 2px; }
+.dash-attendance-title-row strong { font-size: 12px; font-weight: 600; color: #d8e6cf; line-height: 1.3; }
+.dash-attendance-item span:not(.dash-attendance-tag) { display: block; font-size: 10px; color: #9bb092; line-height: 1.4; }
+
+.dash-attendance-tag { font-size: 8px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 2px 6px; border-radius: 10px; }
+.dash-attendance-tag.is-done { background: #1c301c; color: #a4c497; border: 1px solid #334e2c; }
+.dash-attendance-tag.is-next { background: #bed6ae; color: #10220e; font-weight: 700; box-shadow: 0 2px 6px rgb(190 214 174 / 20%); }
+
+.dash-party-reassurance { display: flex; align-items: center; gap: 10px; margin-top: 18px; padding: 12px 14px; border-radius: 12px; background: #172819; border: 1px solid #3c5432; font-size: 11px; line-height: 1.6; color: #cad8be; }
+.dash-party-reassurance svg { flex-shrink: 0; color: #b8d4a6; }
+
+/* 9:00 PM commemorative thank-you celebration card */
+.dash-ending-card-wrap { margin-bottom: 28px; }
+.dash-ending-card { position: relative; overflow: hidden; padding: 28px; border: 1px solid #4a663b; border-radius: 24px; background: linear-gradient(180deg, #132416 0%, #0c160e 100%); box-shadow: 0 16px 40px rgb(0 0 0 / 36%); animation: dash-card-in 260ms cubic-bezier(0.23, 1, 0.32, 1) both; }
+.dash-ending-glow { position: absolute; top: -50px; right: -40px; width: 240px; height: 240px; border-radius: 50%; background: radial-gradient(circle, rgb(167 214 150 / 14%) 0%, transparent 70%); pointer-events: none; z-index: 0; animation: dash-ending-glow-breathe 6s ease-in-out infinite alternate; }
+.dash-ending-badge { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 24px; background: #1f361f; border: 1px solid #4b6a3a; color: #cfe2c0; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 16px; }
+.dash-ending-card h2 { position: relative; z-index: 1; font: 500 34px/1.1 'Cormorant Garamond', serif; letter-spacing: -.03em; color: #eaf5e3; margin: 0 0 12px; }
+.dash-ending-card p { position: relative; z-index: 1; font-size: 12px; line-height: 1.8; color: #b9caa2; margin: 0 0 20px; }
+.dash-ending-info-grid { position: relative; z-index: 1; display: grid; gap: 12px; margin-bottom: 24px; }
+.dash-ending-info-item { display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; border-radius: 14px; background: #0e1a10; border: 1px solid #2f4429; }
+.dash-ending-info-item svg { flex-shrink: 0; color: #bed6ae; margin-top: 2px; }
+.dash-ending-info-item strong { display: block; font-size: 12px; font-weight: 600; color: #e0edd7; margin-bottom: 2px; }
+.dash-ending-info-item p { font-size: 11px; line-height: 1.6; color: #9ab092; margin: 0; }
+.dash-ending-actions { position: relative; z-index: 1; margin-bottom: 16px; }
+.dash-ending-batch-seal { position: relative; z-index: 1; text-align: center; font-size: 10px; letter-spacing: .12em; color: #8ba280; text-transform: uppercase; margin: 16px 0 0; }
+
+/* Ticket-styled live attendance pass */
+.dash-ticket-live-card { position: relative; overflow: hidden; border: 1px solid #3c5432; border-radius: 24px; background: linear-gradient(180deg, #122115 0%, #0d170f 100%); margin-bottom: 24px; box-shadow: 0 12px 36px rgb(0 0 0 / 28%); }
+.dash-ticket-live-card.is-party { border-color: #557c44; box-shadow: 0 14px 40px rgb(16 40 20 / 34%); }
+.dash-ticket-live-card.is-ended { border-color: #5c7949; box-shadow: 0 16px 48px rgb(0 0 0 / 38%); }
+.dash-ticket-live-glow { position: absolute; top: -60px; right: -50px; width: 240px; height: 240px; border-radius: 50%; background: radial-gradient(circle, rgb(167 214 150 / 16%) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+.dash-ticket-live-body { position: relative; z-index: 1; padding: 24px 28px 20px; }
+.dash-ticket-live-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.dash-ticket-live-pass { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 20px; background: #1b2f1a; border: 1px solid #3d5832; color: #cce0bf; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.dash-ticket-live-pass.is-party { background: #233b20; border-color: #52753e; color: #daf0cd; }
+.dash-ticket-live-pass.is-ended { background: #253820; border-color: #577843; color: #dceecf; }
+.dash-ticket-live-badge { font-size: 9px; letter-spacing: .12em; color: #8fa683; text-transform: uppercase; }
+.dash-ticket-live-body h2 { font: 500 clamp(24px, 3.2vw, 32px)/1.15 'Cormorant Garamond', serif; letter-spacing: -.025em; color: #e5f3dc; margin: 0 0 10px; }
+.dash-ticket-live-body p { font-size: 11px; line-height: 1.7; color: #b5c7ab; margin: 0; }
+.dash-ticket-live-stub { position: relative; border-top: 1px dashed #4b6440; padding: 20px 28px; background: #0c160eb8; }
+.dash-ticket-live-stub::before, .dash-ticket-live-stub::after { content: ''; position: absolute; top: -10px; width: 18px; height: 18px; border: 1px solid #3c5432; border-radius: 50%; background: #050907; }
+.dash-ticket-live-stub::before { left: -10px; }
+.dash-ticket-live-stub::after { right: -10px; }
+.dash-ticket-live-action { position: relative; z-index: 1; padding: 0 28px 20px; }
+.dash-ticket-live-caption { display: flex; align-items: center; gap: 8px; padding: 14px 28px; background: #142317; color: #b7c8ad; font-size: 10px; line-height: 1.7; border-top: 1px solid #203522; }
+.dash-ticket-live-caption svg { flex-shrink: 0; color: #9eb88d; }
+
+@keyframes dash-card-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes dash-ending-glow-breathe {
+  0% { transform: scale(0.92); opacity: 0.5; }
+  100% { transform: scale(1.15); opacity: 1; }
+}
+
+@media (max-width: 760px) {
+  .dash-attendance-check-list { grid-template-columns: 1fr; }
+  .dash-ending-card { padding: 24px 20px; }
+  .dash-ending-card h2 { font-size: 30px; }
+  .dash-ticket-live-body { padding: 20px 20px 16px; }
+  .dash-ticket-live-stub { padding: 16px 20px; }
+  .dash-ticket-live-caption { padding: 12px 20px; }
+  .dash-ticket-live-action { padding: 0 20px 16px; }
+  .dash-ticket-live-body h2 { font-size: 26px; }
+}
+
+@media (max-width: 360px) {
+  .dash-attendance-banner { padding: 18px 16px; }
+  .dash-ending-card { padding: 20px 16px; }
+  .dash-ending-card h2 { font-size: 26px; }
+  .dash-ticket-live-body { padding: 18px 16px 14px; }
+  .dash-ticket-live-stub { padding: 14px 16px; }
+  .dash-ticket-live-caption { padding: 10px 16px; font-size: 9px; }
+  .dash-ticket-live-action { padding: 0 16px 14px; }
+  .dash-ticket-live-body h2 { font-size: 23px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-ending-glow { animation: none; }
+  .dash-ending-card { animation: none; }
+}

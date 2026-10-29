@@ -4,14 +4,12 @@ import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
+  Camera,
   Check,
   CheckCircle2,
   FileText,
   LockKeyhole,
-  Plus,
-  Save,
   ScanLine,
-  Trash2,
   X,
 } from 'lucide-react'
 import { supabase } from '../../utils/supabase.js'
@@ -21,6 +19,7 @@ import { OTPInput } from '../motion/otp-input.jsx'
 import TicketPass from '../TicketPass.jsx'
 import SlideActionButton from './SlideActionButton.jsx'
 import TicketScanner from './TicketScanner.jsx'
+import PhotoSessionManager from './PhotoSessionManager.jsx'
 
 const time = (value) =>
   new Date(value).toLocaleString('en-GB', {
@@ -39,9 +38,6 @@ export default function GateDesk({ initialGate = 'entrance', lockedGate = null, 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [completedGate, setCompletedGate] = useState(null)
-  const [photoImageFields, setPhotoImageFields] = useState([{ id: 0, value: '' }])
-  const [savingPhotoImages, setSavingPhotoImages] = useState(false)
-  const photoImageFieldId = useRef(1)
   const lock = useRef(false)
   const toast = useToast()
   const reduceMotion = useReducedMotion()
@@ -54,13 +50,6 @@ export default function GateDesk({ initialGate = 'entrance', lockedGate = null, 
   ) || false
   const completionRecord = ticket?.attendance?.find((item) => item.gate === completedGate)
   const completedBy = completionRecord?.checked_in_by ? adminMap[completionRecord.checked_in_by] : null
-
-  function makePhotoImageFields(values = []) {
-    const nextFields = values.length
-      ? values.map((value) => ({ id: photoImageFieldId.current++, value: String(value ?? '') }))
-      : [{ id: photoImageFieldId.current++, value: '' }]
-    setPhotoImageFields(nextFields)
-  }
 
   async function lookup(raw) {
     if (lock.current) return
@@ -90,10 +79,8 @@ export default function GateDesk({ initialGate = 'entrance', lockedGate = null, 
 
       const attendance = await loadAttendance(data.id, data.attendance || [])
       setTicket({ ...data, attendance })
-      makePhotoImageFields(Array.isArray(data.images) ? data.images : [])
       if (
         (lockedGate || gate) === 'photobooth' &&
-        attendance.some((item) => item.gate === 'entrance' && item.identity_checked === true) &&
         attendance.some((item) => item.gate === 'photobooth')
       ) {
         setCompletedGate('photobooth')
@@ -164,6 +151,15 @@ export default function GateDesk({ initialGate = 'entrance', lockedGate = null, 
         status: 'success',
         title: data?.already_recorded ? `${label} already recorded` : `${label} check-in saved`,
       })
+      if (data?.thank_you_notification_id) {
+        void supabase.functions
+          .invoke('send-reservation-email', {
+            body: { notification_id: data.thank_you_notification_id },
+          })
+          .catch((dispatchError) => {
+            console.warn('Automated thank-you email dispatch deferred:', dispatchError?.message || dispatchError)
+          })
+      }
       onChange?.()
       setCompletedGate(gate)
       return true
@@ -176,58 +172,11 @@ export default function GateDesk({ initialGate = 'entrance', lockedGate = null, 
     }
   }
 
-  function addPhotoImageField() {
-    setPhotoImageFields((current) => [
-      ...current,
-      { id: photoImageFieldId.current++, value: '' },
-    ])
-  }
-
-  function updatePhotoImageField(id, value) {
-    setPhotoImageFields((current) => current.map((field) => field.id === id ? { ...field, value } : field))
-  }
-
-  function removePhotoImageField(id) {
-    setPhotoImageFields((current) => current.length > 1 ? current.filter((field) => field.id !== id) : current)
-  }
-
-  async function savePhotoImages() {
-    if (!ticket || savingPhotoImages) return false
-
-    setSavingPhotoImages(true)
-    setError('')
-    try {
-      const imageNames = photoImageFields.map((field) => field.value.trim()).filter(Boolean)
-      const { data, error: saveError } = await supabase.rpc('save_ticket_images', {
-        p_reservation_id: ticket.id,
-        p_images: imageNames,
-      })
-      if (saveError) throw saveError
-
-      const savedImages = Array.isArray(data) ? data : imageNames
-      setTicket((current) => current ? { ...current, images: savedImages } : current)
-      makePhotoImageFields(savedImages)
-      toast.show({ status: 'success', title: 'Photo names saved' })
-      return true
-    } catch (saveError) {
-      const missingImageRpc = ['PGRST202', 'PGRST203'].includes(saveError?.code)
-        || /could not find the function.*schema cache/i.test(saveError?.message || '')
-      setError(missingImageRpc
-        ? 'Photo-name saving is not available yet. Apply the latest attendance image migration, then refresh this page.'
-        : saveError.message || 'Photo names could not be saved.')
-      toast.show({ status: 'error', title: 'Photo names could not be saved' })
-      return false
-    } finally {
-      setSavingPhotoImages(false)
-    }
-  }
-
   function clearTicket() {
     setTicket(null)
     setTicketId('')
     setError('')
     setCompletedGate(null)
-    makePhotoImageFields([])
     setMobileView('scanner')
   }
 
@@ -345,83 +294,14 @@ export default function GateDesk({ initialGate = 'entrance', lockedGate = null, 
                         </button>
                       )}
                     >
-                      <form
-                        className="admin-photo-session"
-                        onSubmit={(event) => {
-                          event.preventDefault()
-                          savePhotoImages()
+                      <PhotoSessionManager
+                        ticket={ticket}
+                        onSave={(savedImages) => {
+                          setTicket((current) => current ? { ...current, images: savedImages } : current)
+                          onChange?.()
                         }}
-                      >
-                        <div className="admin-photo-session-heading">
-                          <div>
-                            <h3>Image names <span>Optional</span></h3>
-                          </div>
-                          <button
-                            type="button"
-                            className="admin-photo-add"
-                            onClick={addPhotoImageField}
-                            aria-label="Add another image name"
-                            title="Add image name"
-                          >
-                            <Plus size={17} aria-hidden="true" />
-                          </button>
-                        </div>
-
-                        <AnimatePresence initial={false}>
-                          {photoImageFields.map((field, index) => {
-                            const inputId = `photo-image-name-${field.id}`
-                            return (
-                              <motion.div
-                                key={field.id}
-                                className="admin-photo-image-field"
-                                initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 7 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -5 }}
-                                transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }}
-                              >
-                                <label htmlFor={inputId}>Image {index + 1}</label>
-                                <div className="admin-photo-image-input-row">
-                                  <input
-                                    id={inputId}
-                                    type="text"
-                                    value={field.value}
-                                    maxLength={500}
-                                    autoComplete="off"
-                                    autoCapitalize="off"
-                                    spellCheck={false}
-                                    placeholder="Image filename"
-                                    onChange={(event) => updatePhotoImageField(field.id, event.target.value)}
-                                  />
-                                  {photoImageFields.length > 1 && (
-                                    <button
-                                      type="button"
-                                      className="admin-photo-remove"
-                                      onClick={() => removePhotoImageField(field.id)}
-                                      aria-label={`Remove image ${index + 1}`}
-                                      title="Remove image name"
-                                    >
-                                      <Trash2 size={16} aria-hidden="true" />
-                                    </button>
-                                  )}
-                                </div>
-                              </motion.div>
-                            )
-                          })}
-                        </AnimatePresence>
-
-                        {error && <p className="admin-error" role="alert">{error}</p>}
-
-                        <div className="admin-photo-session-actions">
-                          <button type="submit" className="admin-photo-save" disabled={savingPhotoImages}>
-                            <Save size={16} aria-hidden="true" />
-                            {savingPhotoImages ? 'Saving…' : 'Save names'}
-                          </button>
-                          <button type="button" className="admin-attendance-next" onClick={clearTicket}>
-                            <ScanLine size={16} aria-hidden="true" />
-                            Next guest
-                          </button>
-                        </div>
-                      </form>
+                        onNextGuest={clearTicket}
+                      />
                     </TicketPass>
                   </motion.div>
                 ) : (
@@ -540,9 +420,24 @@ export default function GateDesk({ initialGate = 'entrance', lockedGate = null, 
                           </a>
                         </div>
                       ) : recorded?.identity_checked === true ? (
-                        <div className="admin-attendance-recorded">
-                          <CheckCircle2 size={17} aria-hidden="true" />
-                          <span><strong>{label} admitted</strong><small>{time(recorded.checked_in_at)}</small></span>
+                        <div className="admin-attendance-recorded-wrap">
+                          <div className="admin-attendance-recorded">
+                            <CheckCircle2 size={17} aria-hidden="true" />
+                            <span><strong>{label} admitted</strong><small>{time(recorded.checked_in_at)}</small></span>
+                          </div>
+                          {photo && (
+                            <div className="admin-attendance-ticket-actions" style={{ marginTop: '10px' }}>
+                              <button
+                                type="button"
+                                className="admin-bento-submit-pill"
+                                style={{ width: '100%', height: '42px', borderRadius: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                                onClick={() => setCompletedGate('photobooth')}
+                              >
+                                <Camera size={16} />
+                                <span>Manage photo captures ({ticket.images?.length || 0})</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="admin-attendance-ticket-actions">

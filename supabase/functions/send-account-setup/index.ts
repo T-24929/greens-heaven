@@ -125,11 +125,13 @@ Deno.serve(async request => {
     if (item.status === 'failed' && item.attempts >= 5) return respond({ status: 'failed', error: 'Retry limit reached. Check the delivery logs.' }, 429)
   } else if (value.resend !== true) {
     const { data: item, error: lookupError } = await service.from('notification_outbox')
-      .select('id,notification_type,status,attempts')
+      .select('id,reservation_id,notification_type,status,attempts')
       .eq('id', notificationId)
       .maybeSingle()
     if (lookupError) return respond({ error: 'Could not load this notification.' }, 503)
     if (!item || item.notification_type !== 'account_setup') return respond({ error: 'Account setup notification not found.' }, 404)
+    const { data: res } = await service.from('reservations').select('user_id').eq('id', item.reservation_id).maybeSingle()
+    if (res?.user_id) return respond({ status: 'already_linked' })
     if (['sent', 'sending', 'unknown'].includes(item.status)) return respond({ status: item.status, already_sent: item.status === 'sent' })
     if (item.status === 'failed' && item.attempts >= 5) return respond({ status: 'failed', error: 'Retry limit reached. Check the delivery logs.' }, 429)
   }
@@ -174,7 +176,24 @@ Deno.serve(async request => {
         return await finishFailure('auth_invite_failed')
       }
       delivery = 'reset'
-      const { error: resetError } = await service.auth.resetPasswordForEmail(notification.recipient_email, { redirectTo: recoveryRedirectTo })
+      let { error: resetError } = await service.auth.resetPasswordForEmail(notification.recipient_email, { redirectTo: recoveryRedirectTo })
+      if (resetError) {
+        console.warn('Initial reset password failed:', resetError.message)
+        // If the user exists in auth.users but has not confirmed their email, auto-confirm so recovery email can send
+        try {
+          const { data: userList } = await service.auth.admin.listUsers()
+          const existingUser = userList?.users?.find(
+            u => u.email?.toLowerCase() === notification.recipient_email.toLowerCase()
+          )
+          if (existingUser && !existingUser.email_confirmed_at) {
+            await service.auth.admin.updateUserById(existingUser.id, { email_confirm: true })
+            const retry = await service.auth.resetPasswordForEmail(notification.recipient_email, { redirectTo: recoveryRedirectTo })
+            resetError = retry.error
+          }
+        } catch (adminErr) {
+          console.warn('Could not auto-confirm unconfirmed user:', adminErr)
+        }
+      }
       if (resetError) {
         console.error('Account password setup email failed:', resetError.message)
         return await finishFailure('auth_reset_failed')

@@ -1,9 +1,22 @@
 import { useToast } from '../lib/toasts.js'
 import ReservationProgress from './ReservationProgress.jsx'
 import { useState } from 'react'
-import { ArrowUpRight, ArrowRight, Check, Clock3, RefreshCw, CalendarDays, MapPin, ShieldCheck, Ticket, AlertCircle, LockKeyhole } from 'lucide-react'
+import {
+  ArrowUpRight,
+  ArrowRight,
+  Check,
+  Clock3,
+  RefreshCw,
+  CalendarDays,
+  MapPin,
+  ShieldCheck,
+  Ticket,
+  AlertCircle,
+  LockKeyhole,
+} from 'lucide-react'
 import FadeContent from './FadeContent.jsx'
 import BorderGlow from './BorderGlow.jsx'
+import LiveAttendancePass from './LiveAttendancePass.jsx'
 import TicketFlipCard from './TicketFlipCard.jsx'
 import TicketPass from './TicketPass.jsx'
 import { Notice } from './Feedback.jsx'
@@ -23,7 +36,7 @@ const physicalCashStates = {
   rejected: { label: 'Cash payment needs attention', title: 'Please check with the organizers.', description: 'The cash record needs correction. Contact the organizers before paying again.', action: 'Review payment options', icon: AlertCircle },
 }
 
-export default function AttendeeDashboard({ user, reservation, event, error, onRefresh }) {
+export default function AttendeeDashboard({ user, reservation, event, attendance, error, onRefresh }) {
   const toast = useToast()
   const [refreshing, setRefreshing] = useState(false)
   const [copyMessage, setCopyMessage] = useState('')
@@ -32,11 +45,40 @@ export default function AttendeeDashboard({ user, reservation, event, error, onR
   const StatusIcon = state?.icon || Ticket
   const name = reservation?.full_name?.trim()
   const confirmed = reservation?.status === 'approved'
-  const ticketMessage = cashPayment
-    ? reservation?.status === 'approved' ? 'Physical cash received · Ticket confirmed'
-      : reservation?.status === 'pending_review' ? 'Physical cash recorded · Awaiting approval'
-        : reservation?.status === 'rejected' ? 'Cash record needs attention · Not confirmed' : 'Physical cash due · Not confirmed'
-    : reservation?.status === 'pending_review' ? 'Receipt received · Awaiting approval' : reservation?.status === 'rejected' ? 'Receipt needs attention · Not confirmed' : 'Awaiting payment receipt'
+
+  const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+  const mockGate = urlParams?.get('preview_gate')
+  const hasEntrance = Boolean(attendance?.has_entrance || mockGate === 'entrance' || mockGate === 'both')
+  const hasPhotobooth = Boolean(attendance?.has_photobooth || mockGate === 'both')
+  const hasEntranceOnly = hasEntrance && !hasPhotobooth
+  const hasBothGates = hasEntrance && hasPhotobooth
+
+  // Party scheduled for 31 October 2026. Concludes around 9:00 PM (21:00 Colombo time).
+  const [isPartyEnded] = useState(() => {
+    const eventEndTime = new Date('2026-10-31T21:00:00+05:30').getTime()
+    return (Date.now() >= eventEndTime) || Boolean(urlParams?.has('ended') || urlParams?.get('preview') === 'ended')
+  })
+
+  const ticketMessage = hasBothGates
+    ? 'All gates verified · Entrance & Photo Booth recorded'
+    : hasEntranceOnly
+      ? 'Admitted at entrance · Photo booth pending'
+      : cashPayment
+        ? reservation?.status === 'approved' ? 'Physical cash received · Ticket confirmed'
+          : reservation?.status === 'pending_review' ? 'Physical cash recorded · Awaiting approval'
+            : reservation?.status === 'rejected' ? 'Cash record needs attention · Not confirmed' : 'Physical cash due · Not confirmed'
+        : reservation?.status === 'pending_review' ? 'Receipt received · Awaiting approval' : reservation?.status === 'rejected' ? 'Receipt needs attention · Not confirmed' : 'Awaiting payment receipt'
+
+  const ticketCaption = isPartyEnded
+    ? 'Greens Heaven XXVI · Concluded with wonderful memories.'
+    : hasBothGates
+      ? 'Admitted · Enjoy the party at Solis!'
+      : hasEntranceOnly
+        ? 'Admitted · Make sure to visit the Photo Booth next.'
+        : reservation?.status === 'approved'
+          ? 'Confirmed · Turn over for your ticket QR.'
+          : 'Entry QR unlocks after organizer approval.'
+
   async function refresh() {
     if (refreshing) return
     setRefreshing(true)
@@ -55,6 +97,15 @@ export default function AttendeeDashboard({ user, reservation, event, error, onR
     <Notice kind="error">{error}</Notice>
     {!reservation ? <FadeContent duration={.55} trigger="mount" className="dash-empty"><img className="dash-empty-art" src="/images/hero-grass.png" alt="Greens Heaven event artwork" width="1080" height="1350" /><div className="dash-empty-content"><span className="dash-empty-icon"><Ticket size={24} /></span><p className="dash-eyebrow">THE NEXT STEP IS YOURS</p><h2>A ticket. A whole<br /><em>lot to catch up on.</em></h2><p>{user ? 'Save your details, make your transfer and leave the receipt with us. You can follow every step here.' : 'Sign in to reserve your place and keep your payment updates together.'}</p><div className="dash-empty-action"><a className="dash-primary" href={user ? '/reserve' : '/login'}>{user ? 'Reserve my ticket' : 'Sign in to continue'}<ArrowRight size={18} /></a><span className="dash-caption">One person · {formatMoney(event?.ticket_price_lkr || 7000)}</span></div></div></FadeContent> : <div className="dashboard-grid">
       <FadeContent trigger="mount" duration={.65} className="dash-ticket-column">
+        {confirmed && (hasEntrance || isPartyEnded) && (
+          <LiveAttendancePass
+            hasEntranceOnly={hasEntranceOnly}
+            hasBothGates={hasBothGates}
+            isPartyEnded={isPartyEnded}
+            attendance={attendance}
+            reservation={reservation}
+          />
+        )}
         <TicketFlipCard key={`${reservation.id}-${reservation.status}`} reservation={reservation} actions={<><button title="Refresh ticket status" className="dash-refresh dash-refresh-icon" onClick={refresh} disabled={refreshing} aria-label="Refresh ticket status"><RefreshCw size={16} className={refreshing ? 'dash-spin' : ''} /></button>
           <a className="dash-calendar" href="/greens-heaven.ics" download><CalendarDays size={16} />Save the date</a>
         </>}>
@@ -65,7 +116,7 @@ export default function AttendeeDashboard({ user, reservation, event, error, onR
           statusIcon={StatusIcon}
           onCopyReference={copyReference}
           ticketNotice={<><LockKeyhole size={16} /><span>{ticketMessage}</span></>}
-          caption={reservation.status === 'approved' ? 'Confirmed · Turn over for your ticket QR.' : 'Entry QR unlocks after organizer approval.'}
+          caption={ticketCaption}
         />
         </TicketFlipCard>
         {!confirmed && <div className="dash-ticket-next">
@@ -76,6 +127,7 @@ export default function AttendeeDashboard({ user, reservation, event, error, onR
         <p className="dash-copy-feedback" role="status">{copyMessage}</p>
       </FadeContent>
       <div className="dash-status-column">
+
         <FadeContent trigger="mount" duration={.55} delay={.1}><BorderGlow className="dash-status-card"><span className={`dash-status-pill dash-status-${reservation.status}`}><StatusIcon size={14} />{state?.label || 'Status unavailable'}</span><h2>{state?.title || 'Check your reservation.'}</h2><p>{state?.description || 'Refresh your status or contact the organizers for an update.'}</p>
           {reservation.review_note && <div className="dash-organizer-note"><span>FROM THE ORGANIZERS</span><p>{reservation.review_note}</p></div>}
           <ol className="dash-timeline" aria-label="Reservation progress">{[

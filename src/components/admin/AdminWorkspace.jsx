@@ -197,10 +197,30 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
         setup ? 'send-account-setup' : 'send-reservation-email',
         { body: resendable ? { notification_id: item.id, resend: true } : { notification_id: item.id } },
       )
-      if (sendError || data?.status !== 'sent') {
-        toast.show({ status: ['unknown', 'sending'].includes(data?.status) ? 'warning' : 'error', title: setup ? 'Setup email not confirmed' : 'Email not sent', description: data?.error || 'Check the notification status before trying again.' })
+      if (data?.status === 'already_linked') {
+        toast.show({
+          status: 'info',
+          title: 'Account already linked',
+          description: `${item.reservations?.full_name || 'This attendee'} has already signed in and claimed their reservation.`,
+        })
+      } else if (data?.status === 'already_sent') {
+        toast.show({
+          status: 'info',
+          title: 'Setup email already delivered',
+          description: `An account setup email was already sent to ${item.reservations?.full_name || 'this attendee'}.`,
+        })
+      } else if (sendError || data?.status !== 'sent') {
+        toast.show({
+          status: ['unknown', 'sending'].includes(data?.status) ? 'warning' : 'error',
+          title: setup ? 'Setup link not sent' : 'Email not sent',
+          description: data?.error || 'Check the notification status before trying again.',
+        })
       } else {
-        toast.show({ status: 'success', title: resendable ? 'New setup link sent' : setup ? 'Setup email sent' : 'Email sent', description: `Sent to ${item.reservations?.full_name || 'the attendee'}.` })
+        toast.show({
+          status: 'success',
+          title: resendable ? 'New setup link sent' : setup ? 'Setup email sent' : 'Email sent',
+          description: `Sent to ${item.reservations?.full_name || 'the attendee'}.`,
+        })
       }
     } catch {
       toast.show({ status: 'error', title: 'Delivery could not be checked', description: 'Refresh the outbox and verify its status before retrying.' })
@@ -320,7 +340,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
     async function load() {
       setLoading(true); setError('')
       if (tab === 'updates') {
-        const { data, error, count } = await supabase.from('notification_outbox').select('id,reservation_id,notification_type,status,created_at,sent_at,attempts,last_error,reservations(reference,full_name)', { count: 'exact' }).order('created_at', { ascending: false }).order('id', { ascending: false }).range(emailPage * pageSize, (emailPage + 1) * pageSize - 1)
+        const { data, error, count } = await supabase.from('notification_outbox').select('id,reservation_id,notification_type,status,created_at,sent_at,attempts,last_error,reservations(reference,full_name,user_id)', { count: 'exact' }).order('created_at', { ascending: false }).order('id', { ascending: false }).range(emailPage * pageSize, (emailPage + 1) * pageSize - 1)
         if (!live || querySeq !== requestSeqRef.current) return
         if (error) throw error
         setEmails(data || []); setEmailTotal(count || 0)
@@ -802,14 +822,15 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
         {emails.map(email => {
           const retryable = ['pending', 'failed'].includes(email.status) && email.attempts < 5
           const setup = email.notification_type === 'account_setup'
-          const resendable = setup && email.status === 'sent'
+          const isLinked = Boolean(email.reservations?.user_id)
+          const resendable = setup && email.status === 'sent' && !isLinked
           const status = email.status === 'unknown' ? 'Needs check' : email.status === 'pending' ? 'Queued' : email.status === 'failed' ? 'Failed' : email.status === 'sending' ? 'Sending' : 'Sent'
           const date = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Colombo' }).format(new Date(email.sent_at || email.created_at))
           return <li className="admin-outbox-item" key={email.id}>
             <button type="button" className="admin-outbox-open" onClick={() => setSelected(email.reservation_id)} aria-label={`Open ${email.reservations?.full_name || 'reservation'} delivery details`}>
               <span className="admin-outbox-avatar" aria-hidden="true">{email.reservations?.full_name?.trim()?.charAt(0)?.toUpperCase() || 'G'}</span>
               <span className="admin-outbox-summary">
-                <span className="admin-outbox-main"><strong>{email.reservations?.full_name || 'Reservation update'}</strong><span className={`admin-outbox-status ${email.status}`}><i aria-hidden="true" />{status}</span></span>
+                <span className="admin-outbox-main"><strong>{email.reservations?.full_name || 'Reservation update'}</strong><span className={`admin-outbox-status ${email.status}`}><i aria-hidden="true" />{status}</span>{isLinked && <span className="admin-outbox-status linked" style={{ marginLeft: 6, fontSize: 11, color: '#a7c49a', border: '1px solid rgba(167, 196, 154, 0.3)', padding: '1px 6px', borderRadius: 999 }}>Linked</span>}</span>
                 <span className="admin-outbox-meta"><span>{email.reservations?.reference || 'Reservation'}</span><span className="admin-outbox-separator" aria-hidden="true">·</span><span className="admin-outbox-type">{setup ? 'Account setup' : 'Ticket update'}</span><time dateTime={email.sent_at || email.created_at}>{date}</time></span>
                 {email.last_error && <span className="admin-outbox-error" title={email.last_error}>{email.last_error}</span>}
               </span>

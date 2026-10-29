@@ -151,13 +151,19 @@ export default function ReservationPage({ user, view = 'reserve' }) {
         supabase.from('reservations').select('*').eq('user_id', user.id).maybeSingle(),
         supabase.from('bank_details').select('*').eq('event_id', EVENT_ID).maybeSingle(),
         supabase.from('event_settings').select('*').eq('id', EVENT_ID).single(),
+        supabase.rpc('get_my_attendance'),
       ])
     }).then(results => {
-      const failure = results.find(r => r.error)
+      const failure = results.slice(0, 3).find(r => r.error)
       if (failure) throw failure.error
       if (alive.current && request === revision.current) {
         setError('')
-        setData({ reservation: results[0].data, bank: results[1].data, event: results[2].data })
+        setData({
+          reservation: results[0].data,
+          bank: results[1].data,
+          event: results[2].data,
+          attendance: results[3].error ? null : results[3].data,
+        })
       }
     }).catch(err => { if (alive.current && request === revision.current) setError(friendlyError(err)) })
       .finally(() => { if (alive.current && request === revision.current) setLoading(false) })
@@ -211,8 +217,8 @@ export default function ReservationPage({ user, view = 'reserve' }) {
   if (redirect) return <Loading>{redirect === '/payment' ? 'Opening your payment page…' : 'Opening your dashboard…'}</Loading>
   if (!data) return <div className="stack"><Notice kind="error">{error}</Notice><Button onClick={refresh}>Try again</Button></div>
 
-  const { bank, event } = data
-  if (dashboard) return <AttendeeDashboard user={user} reservation={reservation} event={event} error={error} onRefresh={refresh} />
+  const { bank, event, attendance } = data
+  if (dashboard) return <AttendeeDashboard user={user} reservation={reservation} event={event} attendance={attendance} error={error} onRefresh={refresh} />
   if (!reservation && !dashboard && !payment) return <ReservationDetails user={user} bank={bank} event={event} pending={pending} error={error} onReserve={reserve} />
   if ((dashboard || payment) && !reservation) return <div className="stack"><div><p className="eyebrow">Greens Heaven · 31 October 2026</p><h1 className="page-heading">{payment ? 'Reserve a ticket before paying' : 'Your dashboard'}</h1></div><section className="panel stack narrow"><h2>Your ticket journey starts here</h2><p>Reserve your ticket first. You’ll go straight to the payment page for bank details and receipt upload, then follow organizer updates from your dashboard.</p><p className="muted">One ticket · {formatMoney(event.ticket_price_lkr)}</p><a className="button-link self-start" href="/reserve">Reserve your ticket</a></section></div>
   if (payment) return <div className="stack payment-experience">

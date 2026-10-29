@@ -212,3 +212,25 @@ test('missing SMTP configuration leaves notification pending', async () => {
   assert.equal(state(), 'pending')
   assert.equal(calls.some(([name]) => name === 'claim_notification'), false)
 })
+
+test('thank_you email builds warm celebratory copy without QR attachment', async () => {
+  const notification = row()
+  notification.payload.status = 'thank_you'
+  const message = buildMessage(notification, env.SITE_URL)
+  assert.equal(message.subject, 'Greens Heaven: thank you for celebrating with us')
+  assert.match(message.text, /Thank you for joining us at Solis Hotel tonight/)
+  assert.match(message.text, /Greens Heaven XXVI/)
+  assert.match(message.text, /Batch portraits and photo booth memories/)
+  assert.match(message.html, /Thank you for celebrating with us\./)
+  assert.match(message.html, /ATTENDANCE CONFIRMED · ENTRANCE &amp; PHOTO BOOTH/)
+  assert.doesNotMatch(message.html, /cid:ticket-qr/)
+
+  const { handler, calls } = fixture({ row: notification })
+  const response = await handler(request())
+  assert.equal(response.status, 200)
+  assert.equal((await response.json()).status, 'sent')
+  assert.equal(calls.some(([name]) => name === 'qr'), false)
+  const sentMessage = calls.find(([name]) => name === 'send')[1]
+  assert.equal(sentMessage.subject, 'Greens Heaven: thank you for celebrating with us')
+  assert.equal(sentMessage.attachments, undefined)
+})

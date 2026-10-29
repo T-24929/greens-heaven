@@ -31,7 +31,7 @@ export function ticketVerificationUrl(notification, siteUrl) {
 export function buildMessage(notification, siteUrl) {
   const { payload, recipient_email: recipient, id } = notification
   if (!UUID.test(id) || !isMailbox(recipient) || !payload ||
-      !['approved', 'rejected'].includes(payload.status) ||
+      !['approved', 'rejected', 'thank_you'].includes(payload.status) ||
       !Number.isSafeInteger(payload.amount_lkr) || payload.amount_lkr <= 0) throw new Error('invalid_payload')
 
   const name = line(payload.full_name, 120)
@@ -45,34 +45,54 @@ export function buildMessage(notification, siteUrl) {
     dateStyle: 'long', timeStyle: 'short', hour12: true, timeZone: 'Asia/Colombo',
   }).format(eventDate)
   const approved = payload.status === 'approved'
+  const thankYou = payload.status === 'thank_you'
   const cashPayment = payload.payment_method === 'cash'
   if (payload.payment_method !== undefined && !['cash', 'bank_transfer'].includes(payload.payment_method)) throw new Error('invalid_payload')
   const verificationUrl = approved ? ticketVerificationUrl(notification, siteUrl) : null
-  const outcome = approved
-    ? `Your ticket for ${event} is confirmed. See you at Solis!`
-    : cashPayment
-      ? `Your cash payment record for ${event} needs a correction. Check the organizer’s note below and contact the organizers before paying again.`
-      : `We could not approve the payment receipt for ${event}. Please check the note below and upload a new receipt from your reservation page.`
+  const outcome = thankYou
+    ? `Thank you for joining us at ${venue} tonight. Having our batch back together made Greens Heaven XXVI truly special.`
+    : approved
+      ? `Your ticket for ${event} is confirmed. See you at Solis!`
+      : cashPayment
+        ? `Your cash payment record for ${event} needs a correction. Check the organizer’s note below and contact the organizers before paying again.`
+        : `We could not approve the payment receipt for ${event}. Please check the note below and upload a new receipt from your reservation page.`
   const rejectionHeading = cashPayment ? 'Your cash record needs attention.' : 'Your receipt needs attention.'
+  const heading = thankYou ? 'Thank you for celebrating with us.' : approved ? 'Your evening is confirmed.' : rejectionHeading
   const rejectionSubject = cashPayment ? 'Greens Heaven: please check your cash payment' : 'Greens Heaven: please check your receipt'
-  const body = [
-    `Hi ${name},`, '', outcome, '',
-    `Reservation: ${reference}`,
-    `Ticket amount: Rs. ${payload.amount_lkr.toLocaleString('en-LK')}`,
-    `Date: ${when} onwards (Sri Lanka time)`,
-    `Venue: ${venue}`,
-    ...(note ? ['', `Organiser's note: ${note}`] : []),
-    ...(approved ? ['', 'Your ticket QR is included in this email. No account is needed at the entrance; show the QR to an organizer, who will verify your current ticket status.', `Organizer verification: ${verificationUrl}`] : []),
-    '', `View your dashboard: ${new URL('/dashboard', siteUrl).href}`,
-    ...(approved ? ['', 'The dashboard is optional; use your account if you want to manage your reservation online.'] : ['', 'Sign in with the account you used to reserve.']),
-    '', 'Greens Heaven organizing team',
-  ].join('\n')
+  const subject = thankYou ? 'Greens Heaven: thank you for celebrating with us' : approved ? 'Greens Heaven: your ticket is confirmed' : rejectionSubject
+  const body = thankYou
+    ? [
+        `Hi ${name},`, '', outcome, '',
+        `Reservation: ${reference}`,
+        `Date: ${when} (Sri Lanka time)`,
+        `Venue: ${venue}`, '',
+        'Batch portraits and photo booth memories will be sorted and shared with everyone soon.', '',
+        `View your dashboard and event updates: ${new URL('/dashboard', siteUrl).href}`, '',
+        '2023 O/L & 2026 A/L batch',
+        'Greens Heaven organizing team',
+      ].join('\n')
+    : [
+        `Hi ${name},`, '', outcome, '',
+        `Reservation: ${reference}`,
+        `Ticket amount: Rs. ${payload.amount_lkr.toLocaleString('en-LK')}`,
+        `Date: ${when} onwards (Sri Lanka time)`,
+        `Venue: ${venue}`,
+        ...(note ? ['', `Organiser's note: ${note}`] : []),
+        ...(approved ? ['', 'Your ticket QR is included in this email. No account is needed at the entrance; show the QR to an organizer, who will verify your current ticket status.', `Organizer verification: ${verificationUrl}`] : []),
+        '', `View your dashboard: ${new URL('/dashboard', siteUrl).href}`,
+        ...(approved ? ['', 'The dashboard is optional; use your account if you want to manage your reservation online.'] : ['', 'Sign in with the account you used to reserve.']),
+        '', 'Greens Heaven organizing team',
+      ].join('\n')
+
+  const cardContent = thankYou
+    ? `<p style="margin:0 0 8px;font-size:12px;letter-spacing:1px;color:#a7c49a">ATTENDANCE CONFIRMED · ENTRANCE &amp; PHOTO BOOTH</p><strong style="font-size:28px;color:#e2f0da">${escapeHtml(reference)}</strong><p style="line-height:1.7;color:#c2d1ba;margin:12px 0 0">${escapeHtml(when)} · Sri Lanka<br>${escapeHtml(venue)}</p><p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#bed6ae">Photos from the photo booth will be sorted and shared with the batch shortly. Check your dashboard for gallery updates.</p>`
+    : `<p style="margin:0 0 8px;font-size:12px;color:#a7c49a">YOUR RESERVATION</p><strong style="font-size:28px;color:#e2f0da">${escapeHtml(reference)}</strong><p style="line-height:1.7;color:#c2d1ba">${escapeHtml(when)} onwards · Sri Lanka<br>${escapeHtml(venue)}<br>One ticket · Rs. ${payload.amount_lkr.toLocaleString('en-LK')}</p>${approved ? '<img src="cid:ticket-qr@greensheaven" width="240" height="240" alt="Ticket verification QR code" style="display:block;box-sizing:border-box;max-width:100%;height:auto;background:white;border:12px solid white;border-radius:12px"><p style="font-size:12px;line-height:1.6;color:#b6c8ad">Keep this QR ready for the organizers. No account is needed at the entrance.</p>' : ''}`
 
   return {
     to: { address: recipient },
-    subject: approved ? 'Greens Heaven: your ticket is confirmed' : rejectionSubject,
+    subject,
     text: body,
-    html: `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;padding:24px 12px;background:#050907;font-family:Arial,sans-serif;color:#e8eee9"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#0d1810;border:1px solid #33462e;border-radius:20px"><tr><td style="padding:32px"><p style="margin:0 0 8px;letter-spacing:3px;color:#a7c49a;font-size:12px">ISIPATHANA COLLEGE · XXVI</p><h1 style="margin:0;font-size:30px;line-height:1.1;color:#d5eec7">GREENS<br>HEAVEN</h1><h2 style="margin:32px 0 16px;font-family:Georgia,serif;font-size:30px;font-weight:normal">${approved ? 'Your evening is confirmed.' : escapeHtml(rejectionHeading)}</h2><p style="line-height:1.7">Hi ${escapeHtml(name)},</p><p style="line-height:1.7;color:#c2d1ba">${escapeHtml(outcome)}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:24px;border-top:1px dashed #738a64;border-bottom:1px dashed #738a64"><tr><td style="padding:24px 0"><p style="margin:0 0 8px;font-size:12px;color:#a7c49a">YOUR RESERVATION</p><strong style="font-size:28px;color:#e2f0da">${escapeHtml(reference)}</strong><p style="line-height:1.7;color:#c2d1ba">${escapeHtml(when)} onwards · Sri Lanka<br>${escapeHtml(venue)}<br>One ticket · Rs. ${payload.amount_lkr.toLocaleString('en-LK')}</p>${approved ? '<img src="cid:ticket-qr@greensheaven" width="240" height="240" alt="Ticket verification QR code" style="display:block;box-sizing:border-box;max-width:100%;height:auto;background:white;border:12px solid white;border-radius:12px"><p style="font-size:12px;line-height:1.6;color:#b6c8ad">Keep this QR ready for the organizers. No account is needed at the entrance.</p>' : ''}</td></tr></table>${note ? `<p style="line-height:1.7;color:#c2d1ba"><strong>Organizer’s note</strong><br>${escapeHtml(note)}</p>` : ''}<p style="margin:28px 0"><a href="${escapeHtml(new URL('/dashboard', siteUrl).href)}" style="display:inline-block;padding:16px 24px;background:#bed6ae;border-radius:10px;color:#10220e;text-decoration:none;font-weight:bold">View my ticket</a></p><p style="font-size:13px;line-height:1.6;color:#b6c8ad">${approved ? 'No sign-in is needed to enter. Your dashboard is optional if you want to manage your reservation online.' : 'Sign in with the account you used to reserve.'}<br><a href="${escapeHtml(new URL('/dashboard', siteUrl).href)}" style="color:#bed6ae;word-break:break-all">${escapeHtml(new URL('/dashboard', siteUrl).href)}</a></p><p style="font-size:12px;line-height:1.7;color:#9eaf95">2023 O/L &amp; 2026 A/L batch<br>Greens Heaven organizing team</p></td></tr></table></td></tr></table></body></html>`,
+    html: `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;padding:24px 12px;background:#050907;font-family:Arial,sans-serif;color:#e8eee9"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#0d1810;border:1px solid #33462e;border-radius:20px"><tr><td style="padding:32px"><p style="margin:0 0 8px;letter-spacing:3px;color:#a7c49a;font-size:12px">ISIPATHANA COLLEGE · XXVI</p><h1 style="margin:0;font-size:30px;line-height:1.1;color:#d5eec7">GREENS<br>HEAVEN</h1><h2 style="margin:32px 0 16px;font-family:Georgia,serif;font-size:30px;font-weight:normal">${escapeHtml(heading)}</h2><p style="line-height:1.7">Hi ${escapeHtml(name)},</p><p style="line-height:1.7;color:#c2d1ba">${escapeHtml(outcome)}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:24px;border-top:1px dashed #738a64;border-bottom:1px dashed #738a64"><tr><td style="padding:24px 0">${cardContent}</td></tr></table>${note ? `<p style="line-height:1.7;color:#c2d1ba"><strong>Organizer’s note</strong><br>${escapeHtml(note)}</p>` : ''}<p style="margin:28px 0"><a href="${escapeHtml(new URL('/dashboard', siteUrl).href)}" style="display:inline-block;padding:16px 24px;background:#bed6ae;border-radius:10px;color:#10220e;text-decoration:none;font-weight:bold">${thankYou ? 'View event dashboard' : 'View my ticket'}</a></p><p style="font-size:13px;line-height:1.6;color:#b6c8ad">${thankYou ? 'Photos and batch updates will appear on your dashboard.' : approved ? 'No sign-in is needed to enter. Your dashboard is optional if you want to manage your reservation online.' : 'Sign in with the account you used to reserve.'}<br><a href="${escapeHtml(new URL('/dashboard', siteUrl).href)}" style="color:#bed6ae;word-break:break-all">${escapeHtml(new URL('/dashboard', siteUrl).href)}</a></p><p style="font-size:12px;line-height:1.7;color:#9eaf95">2023 O/L &amp; 2026 A/L batch<br>Greens Heaven organizing team</p></td></tr></table></td></tr></table></body></html>`,
     // Helpful for tracing in provider logs; SMTP does not guarantee deduplication by Message-ID.
     messageId: `<greens-heaven-${id}@${new URL(siteUrl).hostname}>`,
     disableFileAccess: true,

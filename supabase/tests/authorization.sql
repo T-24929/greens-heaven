@@ -220,6 +220,8 @@ select test_support.ok((public.lookup_event_ticket(current_setting('test.reserva
 select test_support.ok(not (public.lookup_event_ticket(current_setting('test.reservation_id')) ? 'nic_number'),'desk lookup does not expose NIC');
 select test_support.ok((public.check_in_ticket(current_setting('test.reservation_id')::uuid,'entrance',true)->>'already_recorded')='false','entrance records verified attendee identity');
 select test_support.ok((public.check_in_ticket(current_setting('test.reservation_id')::uuid,'photobooth',true)->>'already_recorded')='false','photo booth opens after verified entrance');
+select test_support.ok((select public.save_ticket_images(current_setting('test.reservation_id')::uuid, array['DSC_001.JPG', 'DSC_002.JPG'])) = array['DSC_001.JPG', 'DSC_002.JPG'],'save_ticket_images persists image list');
+select test_support.ok(jsonb_array_length(public.lookup_event_ticket(current_setting('test.reservation_id'))->'images') = 2,'lookup_event_ticket retrieves saved images');
 select test_support.ok((select count(*)=1 from public.ticket_attendance where gate='entrance'),'photo session keeps entrance attendance');
 select set_config('test.entrance_time',(select checked_in_at::text from public.ticket_attendance where gate='entrance'),true);
 select test_support.ok((public.check_in_ticket(current_setting('test.reservation_id')::uuid,'entrance',true)->>'already_recorded')='true','duplicate entrance is idempotent');
@@ -230,6 +232,7 @@ select test_support.denied($sql$delete from public.ticket_attendance$sql$,'42501
 select test_support.ok((public.admin_event_summary()->>'entrance')='1','summary counts entrance');
 select test_support.ok((public.admin_event_summary()->>'photobooth')='1','summary counts photo booth');
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',true);
+select test_support.denied($sql$select public.save_ticket_images(current_setting('test.reservation_id')::uuid, array['hack.jpg'])$sql$,'42501','ordinary attendee cannot save photo images');
 select test_support.ok((select count(*)=0 from public.ticket_attendance),'attendee cannot see recorded attendance');
 select test_support.denied($sql$select public.add_admin('10000000-0000-4000-8000-000000000004'::uuid)$sql$,'42501','ordinary attendee cannot invoke add_admin');
 
@@ -273,5 +276,22 @@ select test_support.denied($sql$select public.create_cash_registration(
   '+94770000001', '200000000001', null, 2014, true, auth.uid())$sql$,
   '22023', 'request id cannot be reused for different details');
 
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
+select test_support.denied($sql$select * from public.queue_ticket_resend(current_setting('test.cash_reservation_id')::uuid)$sql$, '42501', 'ordinary attendee cannot call queue_ticket_resend');
+
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000003', true);
+select test_support.ok((select count(*) = 1 from public.queue_ticket_resend(current_setting('test.cash_reservation_id')::uuid)), 'admin can call queue_ticket_resend');
+select test_support.denied($sql$select * from public.queue_ticket_resend(current_setting('test.cash_reservation_id')::uuid)$sql$, '55000', 'pending resend blocks duplicate queue');
+
+-- Cash registration auto-confirms pre-existing unconfirmed user and links their user_id
+select set_config('test.unverified_cash_id', '20000000-0000-4000-8000-000000000002', true);
+select set_config('test.unverified_res_id', (public.create_cash_registration(
+  current_setting('test.unverified_cash_id')::uuid, 'Unverified Attendee', 'unverified@example.test',
+  '+94770000002', '200000000002', null, 2015, true, auth.uid()
+)).id::text, true);
+select test_support.ok((select user_id = '10000000-0000-4000-8000-000000000004'::uuid from public.reservations where id = current_setting('test.unverified_res_id')::uuid), 'cash registration links unconfirmed user');
+
 reset role;
+select test_support.ok((select email_confirmed_at is not null from auth.users where id = '10000000-0000-4000-8000-000000000004'::uuid), 'cash registration auto-confirms unconfirmed user account');
+
 rollback;
