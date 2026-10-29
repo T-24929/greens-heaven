@@ -226,7 +226,7 @@ export default function LandingPage({ user }) {
         <HeroRays enabled={phase === 'ready' && imageSettled} />
         <div className="landing-shade" aria-hidden="true" />
 
-        <aside className="landing-announcement-bar" aria-label="Ticket availability announcement">
+        {/* <aside className="landing-announcement-bar" aria-label="Ticket availability announcement">
           <p className="landing-announcement-text">
             <span key={ticketAvailability.tickets_left ?? 90} className="landing-announcement-count">
               Only {ticketAvailability.tickets_left ?? 90} Tickets Left.
@@ -235,7 +235,7 @@ export default function LandingPage({ user }) {
               Reserve Your Ticket Now.
             </a>
           </p>
-        </aside>
+        </aside> */}
 
         <header className="landing-header">
           <a ref={brandRef} className="landing-brand" href="/" aria-label="Greens Heaven home" aria-current="page">

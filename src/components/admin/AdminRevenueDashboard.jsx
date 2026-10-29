@@ -21,7 +21,7 @@ import { Loader } from '../motion/loader.jsx'
 import FadeContent from '../FadeContent.jsx'
 
 const TICKET_PRICE = 7000
-const TOTAL_CAPACITY = 145
+const TOTAL_CAPACITY = 175
 const VIP_DEDUCTION = 6500 + 6500 + 7000 + 7000
 
 
