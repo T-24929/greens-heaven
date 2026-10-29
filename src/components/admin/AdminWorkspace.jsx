@@ -20,6 +20,7 @@ import {
   RotateCcw,
   CircleDollarSign,
   Clock3,
+  Tag,
 } from 'lucide-react'
 import FadeContent from '../FadeContent.jsx'
 import { supabase } from '../../utils/supabase.js'
@@ -50,7 +51,6 @@ const pageSize = 20
 const listFields = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,status,amount_lkr,created_at,reviewed_by,registration_source,payment_method,user_id,account_setup_sent_at,registered_by,payment_received_by,payment_received_at'
 const cashListFields = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,status,amount_lkr,created_at,reviewed_by,registration_source,payment_method,user_id,account_setup_sent_at,payment_received_by,payment_received_at'
 const legacyListFields = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,status,amount_lkr,created_at,reviewed_by'
-const BATCH_YEARS = Array.from({ length: 2026 - 2010 + 1 }, (_, i) => 2026 - i)
 
 function missingCashSchema(error) {
   return ['PGRST202', 'PGRST204', '42703'].includes(error?.code)
@@ -155,7 +155,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
 
   // Filter & Search states
   const [filter, setFilter] = useState('all')
-  const [batchFilter, setBatchFilter] = useState('all')
+  const [tierFilter, setTierFilter] = useState('all') // 'all', '6500', '7000'
   const [search, setSearch] = useState('')
   const [query, setQuery] = useState('')
 
@@ -267,10 +267,10 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
     setPage(0)
   }, [])
 
-  const hasActiveFilters = filter !== 'all' || batchFilter !== 'all' || Boolean(query.trim())
+  const hasActiveFilters = filter !== 'all' || tierFilter !== 'all' || Boolean(query.trim())
   const resetFilters = useCallback(() => {
     setFilter('all')
-    setBatchFilter('all')
+    setTierFilter('all')
     setSearch('')
     setQuery('')
     setSortField('created_at')
@@ -328,7 +328,11 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
         const makeRequest = fields => {
           let request = supabase.from('reservations').select(fields, { count: 'exact' })
           if (filter !== 'all') request = request.eq('status', filter)
-          if (batchFilter !== 'all') request = request.eq('school_joined_year', Number(batchFilter))
+          if (tierFilter === '6500') {
+            request = request.lt('amount_lkr', 7000)
+          } else if (tierFilter === '7000') {
+            request = request.gte('amount_lkr', 7000)
+          }
           const term = query.replace(/[^\p{L}\p{N} -]/gu, '').trim().slice(0, 80)
           if (term) request = request.or(`full_name.ilike.%${term}%,reference.ilike.%${term}%,nic_number.ilike.%${term}%,school_index_number.ilike.%${term}%,whatsapp.ilike.%${term}%,email.ilike.%${term}%`)
           request = request.order(sortField, { ascending: sortAsc, nullsFirst: false })
@@ -356,12 +360,12 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
     }
     load().catch(loadError => { if (live && querySeq === requestSeqRef.current) { console.error('Admin records failed to load:', loadError); setLoading(false); setError(missingCashSchema(loadError) ? 'The admin registration database update is missing. Apply the latest Supabase migrations, then refresh.' : 'Could not load the latest records. Refresh to try again.') } })
     return () => { live = false }
-  }, [tab,filter,batchFilter,query,sortField,sortAsc,page,emailPage,revision])
+  }, [tab,filter,tierFilter,query,sortField,sortAsc,page,emailPage,revision])
   useEffect(() => {
     const tabName = tabs.find(t => t[0] === tab)?.[1]
     if (tabName) document.title = `${tabName} · Admin · Greens Heaven`
   }, [tab])
-  function showTickets(status) { setFilter(status); setBatchFilter('all'); setPage(0); setTab('tickets'); setQuery(''); setSearch('') }
+  function showTickets(status) { setFilter(status); setTierFilter('all'); setPage(0); setTab('tickets'); setQuery(''); setSearch('') }
   const stats = [['pending_review','To review'],['approved','Confirmed'],['awaiting_payment','Awaiting payment'],['rejected','Needs correction']]
 
   const totalReservations = (summary?.pending_review || 0) + (summary?.approved || 0) + (summary?.awaiting_payment || 0) + (summary?.rejected || 0)
@@ -406,8 +410,8 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
       <div className="admin-metrics-grid" role="region" aria-label="Reservation metrics">
         <button
           type="button"
-          className={`admin-metric-card all ${filter === 'all' && batchFilter === 'all' && !query ? 'active' : ''}`}
-          onClick={() => { setFilter('all'); setBatchFilter('all'); setQuery(''); setSearch(''); setPage(0) }}
+          className={`admin-metric-card all ${filter === 'all' && tierFilter === 'all' && !query ? 'active' : ''}`}
+          onClick={() => { setFilter('all'); setTierFilter('all'); setQuery(''); setSearch(''); setPage(0) }}
         >
           <div className="admin-metric-card-top">
             <Users size={20} className="admin-metric-icon" />
@@ -515,17 +519,16 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
 
         <div className="admin-toolbar-controls">
           <div className="admin-select-wrap">
-            <GraduationCap size={15} className="admin-select-icon" aria-hidden="true" />
+            <Tag size={14} className="admin-select-icon" aria-hidden="true" />
             <select
-              value={batchFilter}
-              onChange={e => { setBatchFilter(e.target.value); setPage(0) }}
-              aria-label="Filter by batch year"
+              value={tierFilter}
+              onChange={e => { setTierFilter(e.target.value); setPage(0) }}
+              aria-label="Filter by pricing tier"
               className="admin-select-input"
             >
-              <option value="all">All batches</option>
-              {BATCH_YEARS.map(year => (
-                <option key={year} value={year}>Batch {year}</option>
-              ))}
+              <option value="all">All tiers</option>
+              <option value="6500">Tier 1 · Rs. 6,500</option>
+              <option value="7000">Tier 2 · Rs. 7,000</option>
             </select>
             <ChevronDown size={13} className="admin-select-chevron" aria-hidden="true" />
           </div>
@@ -566,10 +569,10 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
                 </button>
               </span>
             )}
-            {batchFilter !== 'all' && (
+            {tierFilter !== 'all' && (
               <span className="admin-active-tag">
-                Batch: {batchFilter}
-                <button type="button" onClick={() => { setBatchFilter('all'); setPage(0) }} aria-label="Remove batch filter">
+                Tier: {tierFilter === '6500' ? 'Tier 1 (6.5k)' : 'Tier 2 (7k)'}
+                <button type="button" onClick={() => { setTierFilter('all'); setPage(0) }} aria-label="Remove tier filter">
                   <X size={11} />
                 </button>
               </span>

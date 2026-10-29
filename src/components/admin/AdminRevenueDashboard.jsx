@@ -22,7 +22,8 @@ import FadeContent from '../FadeContent.jsx'
 
 const TICKET_PRICE = 7000
 const TOTAL_CAPACITY = 145
-const VIP_DEDUCTION = 7000 // 1 complimentary / VIP seat
+const VIP_DEDUCTION = 6500 + 6500 + 7000 + 7000
+
 
 function getColomboDateKey(isoString) {
   if (!isoString) return ''

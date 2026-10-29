@@ -657,7 +657,7 @@
 .admin-section-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; }.admin-count { padding: 6px 12px; border-radius: 20px; background: #20321e; font-size: 12px; }
 .admin-filters { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; }.admin-filters button { white-space: nowrap; border: 1px solid #344a35; border-radius: 30px; padding: 10px 14px; min-height: 44px; font-size: 11px; }.admin-filters [aria-pressed=true] { background: #bdd4ad; color: #132310; }
 .admin-search { display: flex; gap: 8px; }.admin-search input { min-width: 0; width: 100%; border: 1px solid #344a35; border-radius: 12px; background: #07100a; padding: 12px; font-size: 16px; color: #e2eadd; }
-.admin-ticket-list,.admin-records { list-style: none; padding: 0; margin: 0; }.admin-ticket-list li + li { border-top: 1px solid #263a29; }.admin-ticket-list li > button { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 18px 0; }.admin-ticket-list svg { flex-shrink: 0; }.admin-avatar { flex-shrink: 0; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #243820; color: #c6dab9; font-family: 'Cormorant Garamond',serif; font-size: 22px; }.admin-ticket-summary { flex: 1; min-width: 0; }.admin-ticket-summary strong { display: block; overflow-wrap: anywhere; font-size: 13px; font-weight: 500; line-height: 1.6; }.admin-ticket-summary small { display: block; color: #a3b69a; font-size: 10px; margin: 4px 0 8px; }
+.admin-ticket-list,.admin-records { list-style: none; padding: 0; margin: 0; }.admin-ticket-list li + li { border-top: 1px solid #263a29; }.admin-ticket-list:not(.admin-outbox-list) li > button { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 18px 0; }.admin-ticket-list svg { flex-shrink: 0; }.admin-avatar { flex-shrink: 0; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #243820; color: #c6dab9; font-family: 'Cormorant Garamond',serif; font-size: 22px; }.admin-ticket-summary { flex: 1; min-width: 0; }.admin-ticket-summary strong { display: block; overflow-wrap: anywhere; font-size: 13px; font-weight: 500; line-height: 1.6; }.admin-ticket-summary small { display: block; color: #a3b69a; font-size: 10px; margin: 4px 0 8px; }
 .admin-badge { display: inline-block; border-radius: 20px; padding: 4px 8px; font-size: 9px; background: #253221; color: #c5d9b9; }.admin-badge.approved,.admin-badge.sent { background: #163c25; color: #b0e4bd; }.admin-badge.rejected,.admin-badge.failed,.admin-badge.unknown { background: #3b2520; color: #f0baaa; }.admin-badge.pending_review { background: #331e06; color: #fbbf24; }.admin-badge.awaiting_payment { background: #0c2138; color: #7dd3fc; }
 .admin-pagination { display: flex; align-items: center; justify-content: space-between; gap: 8px; }.admin-pagination span { font-size: 11px; color: #aabd9f; }
 .admin-empty { padding: 32px 12px; text-align: center; font-size: 12px; color: #aabd9f; line-height: 1.8; }
@@ -1357,45 +1357,134 @@
 
 /* Compact ticket list: keep audit detail in the reservation sheet, not in every row. */
 .admin-shell .admin-metrics-grid {
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
   margin-bottom: 12px;
 }
 .admin-shell .admin-metric-card {
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
-  grid-template-rows: auto auto;
-  align-items: center;
-  column-gap: 10px;
-  row-gap: 2px;
-  min-height: 64px;
-  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 68px;
+  padding: 10px 12px;
   border-radius: 14px;
+  text-align: left;
 }
-.admin-shell .admin-metric-card-top { display: contents; }
-.admin-shell .admin-metric-icon { grid-column: 1; grid-row: 1 / span 2; width: 18px; height: 18px; }
-.admin-shell .admin-metric-live-dot,
-.admin-shell .admin-metric-pct-badge,
-.admin-shell .admin-metric-sub { display: none; }
+.admin-shell .admin-metric-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.admin-shell .admin-metric-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.admin-shell .admin-metric-live-dot {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #52e078;
+  box-shadow: 0 0 6px rgba(82, 224, 120, 0.8);
+}
+.admin-shell .admin-metric-pct-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 6px;
+  line-height: 1.2;
+}
+.admin-shell .admin-metric-sub {
+  display: none;
+}
 .admin-shell .admin-metric-number {
-  grid-column: 3;
-  grid-row: 1 / span 2;
-  margin: 0;
-  font-size: 22px;
-  line-height: 1;
+  margin: 4px 0 1px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: #ffffff;
 }
 .admin-shell .admin-metric-label {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: center;
+  align-self: flex-start;
   font-size: 11px;
-  line-height: 1.35;
+  font-weight: 500;
+  color: #9cb296;
+  line-height: 1.25;
 }
-.admin-shell .admin-cash-registration-bar { min-height: 64px; padding: 10px 14px; }
-.admin-shell .admin-cash-registration-bar strong { font-size: 12px; }
-.admin-shell .admin-cash-registration-bar span { font-size: 10px; }
-.admin-shell .admin-pill-group { gap: 6px; margin-bottom: 10px; }
-.admin-shell .admin-filter-pill { min-height: 36px; padding: 6px 11px; font-size: 11px; }
-.admin-shell .admin-table-toolbar { gap: 8px; margin-bottom: 10px; }
+.admin-shell .admin-cash-registration-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(82, 224, 120, 0.16);
+  background: linear-gradient(180deg, rgba(16, 36, 22, 0.7) 0%, rgba(10, 22, 14, 0.85) 100%);
+  margin-bottom: 12px;
+}
+.admin-shell .admin-cash-registration-bar > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.admin-shell .admin-cash-registration-bar strong {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e5f0e1;
+  letter-spacing: -0.01em;
+}
+.admin-shell .admin-cash-registration-bar span {
+  font-size: 10.5px;
+  color: #8da488;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.admin-shell .admin-cash-registration-bar .admin-button {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border-radius: 10px;
+  flex-shrink: 0;
+  gap: 6px;
+  box-shadow: 0 2px 10px rgba(35, 133, 60, 0.35);
+}
+.admin-shell .admin-pill-group {
+  gap: 6px;
+  margin-bottom: 12px;
+  padding-bottom: 2px;
+}
+.admin-shell .admin-filter-pill {
+  min-height: 34px;
+  padding: 5px 12px;
+  font-size: 11.5px;
+  border-radius: 999px;
+  gap: 6px;
+}
+.admin-shell .admin-filter-pill-count {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+.admin-shell .admin-table-toolbar {
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.admin-shell .admin-toolbar-search input {
+  font-size: 16px; /* Native mobile minimum to prevent Safari zoom */
+  height: 40px;
+  border-radius: 12px;
+}
 .admin-shell .admin-members-table { table-layout: fixed; }
 .admin-shell .admin-members-table th,
 .admin-shell .admin-members-table td { padding: 9px 12px; }
@@ -1413,9 +1502,31 @@
 .admin-shell .admin-ticket-status-cell .admin-cash-row-badge { flex: 0 0 auto; margin: 0; padding: 2px 6px; font-size: 9px; }
 
 @media (max-width: 640px) {
-  .admin-shell .admin-metrics-grid { gap: 7px; }
-  .admin-shell .admin-metric-card { min-height: 54px; padding: 9px 10px; column-gap: 7px; }
-  .admin-shell .admin-metric-number { font-size: 19px; }
+  .admin-shell .admin-metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .admin-shell .admin-metric-card {
+    min-height: 64px;
+    padding: 9px 11px;
+  }
+  .admin-shell .admin-metric-number {
+    font-size: 18px;
+  }
+  .admin-shell .admin-metric-label {
+    font-size: 10.5px;
+  }
+  .admin-shell .admin-cash-registration-bar {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+  .admin-shell .admin-cash-registration-bar .admin-button {
+    width: auto;
+    padding: 0 12px;
+    font-size: 11px;
+  }
   .admin-shell .admin-metric-label { font-size: 10px; }
   .admin-shell .admin-members-table th,
   .admin-shell .admin-members-table td { padding: 9px 8px; }
@@ -2301,16 +2412,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 14px 16px;
-  border: 1px solid #203427;
-  border-radius: 16px;
-  background: #09110c;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(82, 224, 120, 0.16);
+  background: linear-gradient(180deg, rgba(16, 36, 22, 0.7) 0%, rgba(10, 22, 14, 0.85) 100%);
+  margin-bottom: 12px;
 }
-.admin-shell .admin-cash-registration-bar > div { display: grid; gap: 3px; min-width: 0; }
-.admin-shell .admin-cash-registration-bar strong { color: #e2eadd; font-size: 13px; }
-.admin-shell .admin-cash-registration-bar span { color: #879b84; font-size: 11px; }
-.admin-shell .admin-cash-registration-bar .admin-button { min-height: 40px; flex-shrink: 0; }
+.admin-shell .admin-cash-registration-bar > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.admin-shell .admin-cash-registration-bar strong { color: #e5f0e1; font-size: 12.5px; font-weight: 600; }
+.admin-shell .admin-cash-registration-bar span { color: #8da488; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .admin-cash-registration-bar .admin-button { min-height: 36px; padding: 0 14px; font-size: 11.5px; font-weight: 600; border-radius: 10px; flex-shrink: 0; }
 .admin-shell .admin-cash-registration-bar .admin-button:disabled { opacity: .52; cursor: not-allowed; }
 .admin-shell .admin-cash-schema-notice { margin: -8px 2px 0; color: #e3bc72; font: 500 11px/1.5 'Montserrat', sans-serif; }
 .admin-shell .admin-cash-row-badge {
@@ -2497,8 +2610,21 @@
 .admin-shell .admin-cash-done { min-width: 130px; min-height: 40px; margin-top: 5px; }
 
 @media (max-width: 640px) {
-  .admin-shell .admin-cash-registration-bar { align-items: flex-start; flex-direction: column; gap: 11px; padding: 13px; }
-  .admin-shell .admin-cash-registration-bar .admin-button { width: 100%; justify-content: center; }
+  .admin-shell .admin-cash-registration-bar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+  .admin-shell .admin-cash-registration-bar .admin-button {
+    width: auto;
+    padding: 0 12px;
+    font-size: 11px;
+    min-height: 34px;
+    justify-content: center;
+  }
   .admin-shell .admin-cash-overlay { align-items: end; padding: 0; }
   .admin-shell .admin-cash-dialog { width: 100%; max-height: min(92dvh, 820px); border-radius: 21px 21px 0 0; padding-bottom: env(safe-area-inset-bottom); }
   .admin-shell .admin-cash-header { padding: 14px 16px; }
@@ -2549,6 +2675,9 @@
 .admin-metric-card:hover {
   background: #112317;
   border-color: #2e5235;
+}
+.admin-metric-card:active {
+  transform: scale(0.975);
 }
 .admin-metric-card.active {
   background: #14281a;
@@ -3254,11 +3383,11 @@
   border-bottom: 1px solid #182e1d;
 }
 .admin-drawer-title {
-  font-size: 19px;
+  font-size: 15px;
   font-weight: 600;
   color: #edf5ea;
   margin: 0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   letter-spacing: -0.01em;
 }
 .admin-drawer-header-actions {
@@ -3270,8 +3399,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 10px;
   border: 1px solid #243e2a;
   background: #0c1a10;
@@ -3298,54 +3427,58 @@
 .admin-profile-hero {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 4px 0;
+  gap: 12px;
+  padding: 2px 0;
 }
 .admin-hero-avatar {
-  width: 56px;
-  height: 56px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: #132a19;
-  border: 2px solid #294f31;
+  border: 1.5px solid #294f31;
   color: #c0d8b0;
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 28px;
+  font-family: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
 }
 .admin-hero-info {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  gap: 2px;
 }
 .admin-hero-name {
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 600;
   color: #ffffff;
-  margin: 0 0 4px;
+  margin: 0;
   overflow-wrap: anywhere;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   letter-spacing: -0.01em;
+  line-height: 1.25;
 }
 .admin-hero-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
-  font-size: 12px;
+  font-size: 11px;
   color: #9bb094;
 }
 .admin-hero-ref {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-family: ui-monospace, monospace;
+  font-family: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
   font-weight: 600;
   color: #c0d8b0;
-  padding: 2px 7px;
+  padding: 1.5px 6px;
   border-radius: 6px;
   background: #0c1a10;
   border: 1px solid #203a25;
@@ -3360,10 +3493,10 @@
 .admin-share-section {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 .admin-share-label {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 500;
   color: #8ea488;
 }
@@ -3371,17 +3504,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
+  gap: 8px;
   width: 100%;
-  padding: 12px 18px;
-  border-radius: 14px;
+  padding: 10px 16px;
+  border-radius: 12px;
   background: #22c55e;
   color: #04210f;
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.28);
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.22);
   transition: all .16s ease;
   user-select: none;
   border: 0;
@@ -3397,31 +3530,32 @@
 
 /* Official Payment Receipt Card */
 .admin-receipt-official-card {
-  border-radius: 16px;
+  border-radius: 14px;
   border: 1px solid #1c3823;
   background: #09170e;
-  padding: 16px;
+  padding: 13px 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   position: relative;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  font-family: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 .admin-receipt-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
 }
 .admin-receipt-status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
+  gap: 4px;
+  padding: 2.5px 7px;
   border-radius: 6px;
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 700;
-  letter-spacing: .06em;
+  letter-spacing: .05em;
 }
 .admin-receipt-status-pill.paid {
   background: #163e23;
@@ -3443,23 +3577,18 @@
   color: #f7b4a4;
   border: 1px solid #733424;
 }
-.admin-receipt-form-no {
-  font-family: ui-monospace, monospace;
-  font-size: 11px;
-  color: #7a9476;
-  font-weight: 500;
-}
 .admin-receipt-title-group {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 .admin-receipt-card-title {
-  font-size: 14.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: #eaf3e6;
   margin: 0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: -0.01em;
 }
 .admin-receipt-card-sub {
   font-size: 11px;
@@ -3468,35 +3597,36 @@
 .admin-receipt-official-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px 10px;
-  padding: 12px 0;
+  gap: 10px 8px;
+  padding: 10px 0;
   border-top: 1px solid #162b1b;
   border-bottom: 1px solid #162b1b;
 }
 .admin-receipt-cell {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
 }
 .admin-cell-label {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 500;
   color: #6f896a;
   text-transform: uppercase;
-  letter-spacing: .05em;
+  letter-spacing: .04em;
 }
 .admin-cell-value {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   color: #d8e5cd;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 .admin-fee-highlight {
   color: #52e078 !important;
-  font-size: 13.5px !important;
+  font-size: 12.5px !important;
   font-weight: 700 !important;
 }
 .admin-receipt-card-footer {
@@ -3544,6 +3674,58 @@
   font-weight: 600;
   border: 1px solid #2b5233;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.admin-drawer-container .admin-button {
+  min-height: 36px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-family: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.admin-drawer-container .admin-button.primary {
+  background: #22c55e;
+  color: #04210f;
+  border-color: #22c55e;
+  box-shadow: 0 2px 10px rgba(34, 197, 94, 0.2);
+}
+.admin-drawer-container .admin-button.primary:hover {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #ffffff;
+}
+.admin-drawer-container .admin-table-card {
+  border-radius: 14px;
+  border-color: #1a3320;
+  margin-bottom: 12px;
+}
+.admin-drawer-container .admin-table-card-header {
+  padding: 8px 12px;
+  font-size: 10px;
+  letter-spacing: .05em;
+  font-family: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.admin-drawer-container .admin-table-grid th {
+  padding: 8px 10px;
+  font-size: 9.5px;
+  font-family: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: .04em;
+}
+.admin-drawer-container .admin-table-grid td {
+  padding: 8px 10px;
+  font-size: 11.5px;
+  font-family: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.admin-drawer-container .admin-table-grid td:last-child,
+.admin-drawer-container .admin-table-grid th:last-child {
+  text-align: right;
+}
+.admin-drawer-container .admin-badge {
+  font-family: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 9.5px;
+  padding: 3px 8px;
+  border-radius: 999px;
 }
 
 /* Drawer Bottom Dock */
@@ -5196,14 +5378,23 @@
 }
 .admin-outbox-item > .admin-outbox-retry {
   flex: 0 0 auto;
-  min-height: 34px;
-  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 28px;
+  height: 28px;
+  padding: 0 10px;
+  margin: 0;
   border: 1px solid #2b5c36;
-  border-radius: 11px;
+  border-radius: 8px;
   background: #102217;
   color: #a9e3b0;
-  font: 600 11px/1 'Montserrat', sans-serif;
+  font: 600 11px/1 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  cursor: pointer;
   touch-action: manipulation;
+  user-select: none;
+  white-space: nowrap;
 }
 .admin-outbox-item > .admin-outbox-retry:disabled { opacity: .6; cursor: progress; }
 .admin-outbox-item > .admin-outbox-retry:active { transform: scale(.97); }
@@ -5256,7 +5447,6 @@
 .admin-outbox-type { display: inline-flex; flex: 0 0 auto; align-items: center; width: fit-content; margin: 0; padding: 2px 6px; border: 1px solid #213b29; border-radius: 999px; color: #a3c59e; font: 500 8px/1.2 'Montserrat', sans-serif; vertical-align: middle; }
 .admin-outbox-item > .admin-outbox-open .admin-outbox-error { display: block; max-width: 100%; overflow: hidden; margin: 0; color: #d8a28e; font: 500 9px/1.3 'Montserrat', sans-serif; text-overflow: ellipsis; white-space: nowrap; }
 .admin-outbox-chevron { color: #778d79; }
-.admin-outbox-item > .admin-outbox-retry { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 30px; padding: 0 9px; border-radius: 9px; font-size: 9px; }
 .admin-outbox-item > .admin-outbox-open:active { background: #0d1710; }
 .admin-outbox-item > .admin-outbox-open:focus-visible,.admin-outbox-item > .admin-outbox-retry:focus-visible { outline: 2px solid #55b86d; outline-offset: 2px; }
 
@@ -5274,7 +5464,7 @@
   .admin-outbox-meta { gap: 4px; font-size: 8px; }
   .admin-outbox-meta time { margin-left: 3px; }
   .admin-outbox-chevron { width: 12px; }
-  .admin-outbox-item > .admin-outbox-retry { min-height: 30px; padding: 0 8px; }
+  .admin-outbox-item > .admin-outbox-retry { min-height: 26px; height: 26px; padding: 0 8px; font-size: 10px; }
 }
 
 @media (hover: hover) and (pointer: fine) {

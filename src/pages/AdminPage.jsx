@@ -322,9 +322,9 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
     <div className="admin-drawer-container">
       {/* Drawer Header */}
       <div className="admin-drawer-header">
-        <h2 id="reservation-detail-heading" className="admin-drawer-title">
+        <span id="reservation-detail-heading" className="admin-drawer-title">
           Member profile
-        </h2>
+        </span>
         <div className="admin-drawer-header-actions">
           <button
             type="button"
@@ -359,13 +359,13 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
         <div className="py-16 text-center text-sm text-[#9ab092]">Loading member profile…</div>
       ) : reservation ? (
         <div className="space-y-4">
-          {/* Profile Hero matching Image 3 */}
+          {/* Profile Hero */}
           <div className="admin-profile-hero">
             <div className="admin-hero-avatar">
               {reservation.full_name?.trim().charAt(0) || 'M'}
             </div>
             <div className="admin-hero-info">
-              <h3 className="admin-hero-name">{reservation.full_name}</h3>
+              <span className="admin-hero-name">{reservation.full_name}</span>
               <div className="admin-hero-meta">
                 <button
                   type="button"
@@ -385,7 +385,7 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
             </div>
           </div>
 
-          {/* WhatsApp Share Card matching Image 3 */}
+          {/* WhatsApp Share Card */}
           {whatsappUrl && (
             <div className="admin-share-section">
               <span className="admin-share-label">Share approval</span>
@@ -402,7 +402,7 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
             </div>
           )}
 
-          {/* Official Payment Receipt Card matching Image 3 */}
+          {/* Official Payment Receipt Card */}
           <div className="admin-receipt-official-card">
             <div className="admin-receipt-card-header">
                 {cashPayment ? (
@@ -429,27 +429,24 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
                   <Clock size={12} /> AWAITING RECEIPT
                 </span>
               )}
-              <span className="admin-receipt-form-no">
-                Form 0012 · {reservation.reference}
-              </span>
             </div>
 
             <div className="admin-receipt-title-group">
-              <h4 className="admin-receipt-card-title">
-              {cashRegistration ? 'Physical cash registration' : cashPayment ? 'Physical cash payment' : 'Ticket reservation fee received (2026)'}
-              </h4>
+              <span className="admin-receipt-card-title">
+                {cashRegistration ? 'Cash registration' : cashPayment ? 'Cash payment' : 'Ticket payment'}
+              </span>
               <span className="admin-receipt-card-sub">
                 {cashPayment
                   ? reservation.status === 'approved'
-                    ? `Physical cash collected by ${adminMap[reservation.payment_received_by] || 'organizer'} · ticket confirmed`
-                      : reservation.status === 'pending_review'
-                      ? `Physical cash collected by ${adminMap[reservation.payment_received_by] || 'admin'} · awaiting organizer review`
-                      : reservation.status === 'rejected'
-                        ? `Physical cash record needs attention${reservation.review_note ? `: ${reservation.review_note}` : ''}`
-                        : `Registration entered by ${adminMap[reservation.registered_by] || 'admin not recorded'} · payment due`
+                    ? `Collected by ${adminMap[reservation.payment_received_by] || 'organizer'}`
+                    : reservation.status === 'pending_review'
+                    ? `Collected by ${adminMap[reservation.payment_received_by] || 'admin'} · awaiting review`
+                    : reservation.status === 'rejected'
+                    ? `Needs attention${reservation.review_note ? `: ${reservation.review_note}` : ''}`
+                    : `Entered by ${adminMap[reservation.registered_by] || 'admin'} · payment due`
                   : reservation.status === 'approved'
-                    ? `Confirmed on ${new Date(details.reviews?.[0]?.created_at || reservation.updated_at || reservation.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} · Gate Pass Active`
-                    : `Reserved on ${new Date(reservation.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} · Single Admission`}
+                    ? `Confirmed on ${new Date(details.reviews?.[0]?.created_at || reservation.updated_at || reservation.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                    : `Reserved on ${new Date(reservation.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`}
               </span>
             </div>
 
@@ -462,53 +459,53 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
               </div>
               <div className="admin-receipt-cell">
                 <span className="admin-cell-label">Member ID</span>
-                <strong className="admin-cell-value font-mono">
+                <strong className="admin-cell-value tabular-nums">
                   {reservation.reference}
                 </strong>
               </div>
               <div className="admin-receipt-cell">
-                <span className="admin-cell-label">Fee amount</span>
-                <strong className="admin-cell-value admin-fee-highlight">
+                <span className="admin-cell-label">Fee</span>
+                <strong className="admin-cell-value admin-fee-highlight tabular-nums">
                   {amount(reservation)}
                 </strong>
               </div>
 
               <div className="admin-receipt-cell">
-                <span className="admin-cell-label">Fee received</span>
+                <span className="admin-cell-label">Status</span>
                 <strong className="admin-cell-value">
                   {cashPayment
-                    ? reservation.status === 'awaiting_payment' ? 'Not recorded yet' : reservation.status === 'pending_review' ? 'Received' : reservation.status === 'approved' ? 'Received · confirmed' : 'Received · correction needed'
-                    : reservation.status === 'approved' ? 'Yes (Bank Slip)' : reservation.status === 'pending_review' ? 'Slip Uploaded' : 'Pending'}
+                    ? reservation.status === 'awaiting_payment' ? 'Due' : reservation.status === 'pending_review' ? 'Recorded' : reservation.status === 'approved' ? 'Confirmed' : 'Needs fix'
+                    : reservation.status === 'approved' ? 'Verified' : reservation.status === 'pending_review' ? 'Uploaded' : 'Pending'}
                 </strong>
               </div>
               <div className="admin-receipt-cell">
-                <span className="admin-cell-label">Joined date</span>
-                <strong className="admin-cell-value">
+                <span className="admin-cell-label">Date</span>
+                <strong className="admin-cell-value tabular-nums">
                   {new Date(reservation.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </strong>
               </div>
               <div className="admin-receipt-cell">
                 <span className="admin-cell-label">Admission No</span>
-                <strong className="admin-cell-value">
+                <strong className="admin-cell-value tabular-nums">
                   {reservation.school_index_number || (reservation.nic_number ? reservation.nic_number.slice(0, 9) : '—')}
                 </strong>
               </div>
             </div>
 
             <div className="admin-receipt-card-footer">
-              <ShieldCheck size={13} className="text-[#52e078]" />
+              <ShieldCheck size={13} className="text-[#52e078] shrink-0" />
               <span>
                 {cashRegistration
-                  ? `Entered by ${adminMap[reservation.registered_by] || 'admin not recorded'} · ${reservation.payment_received_by ? `physical cash collected by ${adminMap[reservation.payment_received_by] || 'admin'}` : 'payment not collected yet'}`
+                  ? `Entered by ${adminMap[reservation.registered_by] || 'admin'}${reservation.payment_received_by ? ` · cash collected by ${adminMap[reservation.payment_received_by] || 'admin'}` : ''}`
                   : cashPayment
-                    ? `Physical cash collected by ${adminMap[reservation.payment_received_by] || 'admin'}${reservation.reviewed_by ? ` · reviewed by ${adminMap[reservation.reviewed_by] || 'admin'}` : ' · awaiting organizer review'}`
+                    ? `Collected by ${adminMap[reservation.payment_received_by] || 'admin'}${reservation.reviewed_by ? ` · reviewed by ${adminMap[reservation.reviewed_by] || 'admin'}` : ''}`
                   : reservation.status === 'approved' && (adminMap[reservation.reviewed_by] || reservation.reviewed_by)
-                    ? `Approved by: ${adminMap[reservation.reviewed_by] || reservation.reviewed_by}`
+                    ? `Approved by ${adminMap[reservation.reviewed_by] || reservation.reviewed_by}`
                     : reservation.status === 'approved'
-                      ? 'Approved by: Organizer Admin'
+                      ? 'Approved by Organizer'
                       : reservation.status === 'rejected' && (adminMap[reservation.reviewed_by] || reservation.reviewed_by)
-                        ? `Reviewed by: ${adminMap[reservation.reviewed_by] || reservation.reviewed_by}`
-                        : 'Processed by: Organizer Desk · Single Gate Pass'}
+                        ? `Reviewed by ${adminMap[reservation.reviewed_by] || reservation.reviewed_by}`
+                        : 'Gate pass'}
               </span>
             </div>
           </div>
