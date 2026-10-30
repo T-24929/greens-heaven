@@ -1,4 +1,4 @@
-export const adminSubRoutes = ['overview', 'tickets', 'revenue', 'attendance', 'arrivals', 'updates']
+export const adminSubRoutes = ['overview', 'tickets', 'revenue', 'attendance', 'arrivals', 'updates', 'financial']
 
 export const adminGateRoutes = ['entrance', 'photobooth']
 

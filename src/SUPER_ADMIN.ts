@@ -6,6 +6,7 @@
  */
 
 export const SUPER_ADMINS = [
+  'hasaridnda986@gmail.com',
   'hasarinda986@gmail.com',
   'sasinduranasinghe121@gmail.com',
 ] as const

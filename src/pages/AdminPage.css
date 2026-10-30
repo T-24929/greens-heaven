@@ -6149,3 +6149,363 @@
   .admin-outbox-item > .admin-outbox-retry:hover:not(:disabled) { border-color: #397a48; background: #13291a; }
 }
 
+/* ==========================================================================
+   Admin Financial Treasury & Bank Management
+   ========================================================================== */
+
+.admin-financial-dashboard {
+  width: 100%;
+}
+
+.admin-financial-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #15803d;
+  color: #f0fdf4;
+  border: 1px solid #22c55e;
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 38px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 4px 12px rgba(22, 101, 52, 0.28);
+}
+.admin-financial-add-btn:active {
+  transform: scale(0.96);
+  background: #166534;
+}
+@media (hover: hover) and (pointer: fine) {
+  .admin-financial-add-btn:hover {
+    background: #16a34a;
+    box-shadow: 0 4px 16px rgba(34, 197, 94, 0.35);
+  }
+}
+
+/* Treasury Bank Card */
+.admin-treasury-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid rgba(82, 224, 120, 0.22);
+  background: radial-gradient(130% 120% at 50% -10%, rgba(18, 48, 28, 0.85) 0%, rgba(8, 18, 12, 0.95) 100%);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(167, 243, 208, 0.12);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.admin-treasury-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(82, 224, 120, 0.12);
+  padding-bottom: 10px;
+}
+.admin-treasury-badge-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(82, 224, 120, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #52e078;
+  flex-shrink: 0;
+}
+.admin-treasury-balance-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.admin-treasury-balance-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8da488;
+}
+.admin-treasury-balance-val {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 641px) {
+  .admin-treasury-balance-val {
+    font-size: 32px;
+  }
+}
+
+/* Treasury 3-Cell Ribbon */
+.admin-treasury-ribbon {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  background: rgba(6, 14, 9, 0.6);
+  border: 1px solid rgba(82, 224, 120, 0.12);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+@media (max-width: 600px) {
+  .admin-treasury-ribbon {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .admin-treasury-ribbon > div:nth-child(2) {
+    border-left: none !important;
+    border-right: none !important;
+    border-top: 1px solid rgba(82, 224, 120, 0.1);
+    border-bottom: 1px solid rgba(82, 224, 120, 0.1);
+    padding: 8px 0 !important;
+  }
+}
+
+/* Visual Budget Ratio Bar */
+.admin-category-ratio-bar {
+  display: flex;
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+  gap: 1px;
+}
+
+/* Category Chips */
+.admin-category-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  background: rgba(14, 28, 18, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  font-size: 10px;
+  color: #d1ded0;
+  white-space: nowrap;
+}
+.admin-category-chip > i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.admin-category-chip > strong {
+  color: #edf5ea;
+  font-variant-numeric: tabular-nums;
+  margin-left: 2px;
+}
+
+/* Financial Subtabs */
+.admin-financial-subtabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #09130b;
+  border: 1px solid #1c3522;
+  border-radius: 12px;
+  padding: 3px;
+  overflow-x: auto;
+  max-width: 100%;
+}
+.admin-financial-subtab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  color: #8da488;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s ease;
+  touch-action: manipulation;
+}
+.admin-financial-subtab.active {
+  background: #1b3823;
+  color: #e5f5e2;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+.admin-badge-count {
+  font-size: 9.5px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #b8ccb5;
+  font-variant-numeric: tabular-nums;
+}
+.admin-financial-subtab.active .admin-badge-count {
+  background: rgba(82, 224, 120, 0.2);
+  color: #83d798;
+}
+
+/* Search Controls */
+.admin-financial-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #09130b;
+  border: 1px solid #1c3522;
+  border-radius: 10px;
+  padding: 4px 8px;
+  min-height: 32px;
+  min-width: 180px;
+  flex: 1;
+  max-width: 280px;
+}
+@media (max-width: 640px) {
+  .admin-financial-search-wrap {
+    min-width: 100%;
+    max-width: 100%;
+  }
+}
+.admin-financial-search-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #edf5ea;
+  font-size: 16px; /* 16px for iOS auto-zoom prevention */
+  width: 100%;
+  min-width: 0;
+}
+@media (min-width: 641px) {
+  .admin-financial-search-input {
+    font-size: 11.5px;
+  }
+}
+.admin-financial-clear-btn {
+  background: transparent;
+  border: none;
+  color: #8da488;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Statement Stream */
+.admin-financial-statement-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.admin-financial-statement-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(10, 20, 13, 0.6);
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.admin-financial-statement-item:hover {
+  background: rgba(14, 28, 18, 0.85);
+  border-color: rgba(82, 224, 120, 0.2);
+}
+.admin-financial-type-pip {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.admin-financial-type-pip.inflow {
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(82, 224, 120, 0.3);
+  color: #52e078;
+}
+.admin-financial-type-pip.outflow {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: #f87171;
+}
+
+/* Expense Card */
+.admin-expense-card {
+  padding: 11px 13px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(10, 20, 13, 0.65);
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+/* Modals */
+.admin-financial-modal {
+  width: 94vw;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 20px;
+  background: #0d1a11;
+  border: 1px solid rgba(82, 224, 120, 0.25);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  padding: 16px 18px;
+  color: #e2eadd;
+}
+
+/* Restricted Access Panel */
+.admin-restricted-access-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  padding: 24px 16px;
+}
+.admin-restricted-access-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 420px;
+  gap: 12px;
+}
+.admin-restricted-access-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f87171;
+}
+
+.admin-treasury-deductions-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+
+.admin-financial-type-pip.free {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  color: #fbbf24;
+}
+
+
+

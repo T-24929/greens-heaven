@@ -358,4 +358,53 @@ select test_support.ok((select deduction_lkr = 0 and deduction_reason is null an
   from public.reservations where id = current_setting('test.reservation_id')::uuid),
   'reset clears deduction fields');
 
+-- Super Admin Financial & Expenses Management Tests
+-- Ordinary attendee cannot record, update, or delete expenses
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
+select test_support.denied($sql$select public.record_expense('Sound System', 'sound_music', 25000)$sql$, '42501', 'ordinary attendee cannot record expenses');
+
+-- Regular admin (non-super-admin) cannot record expenses
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000003', true);
+select test_support.denied($sql$select public.record_expense('Sound System', 'sound_music', 25000)$sql$, '42501', 'regular admin cannot record expenses');
+
+-- Super Admin can record expenses
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000006', true);
+select test_support.denied($sql$select public.record_expense('Invalid zero amount', 'venue', 0)$sql$, '22023', 'expense amount must be positive');
+
+select set_config('test.expense_id', (public.record_expense(
+  'Sound & Lighting Advance',
+  'sound_music',
+  35000,
+  'bank_transfer',
+  current_date,
+  'DJ Sunimal',
+  'TXN-98231',
+  '50% deposit for sound console',
+  'paid'
+)).id::text, true);
+
+select test_support.ok((select amount_lkr = 35000 and category = 'sound_music' and recipient = 'DJ Sunimal'
+  from public.expenses where id = current_setting('test.expense_id')::uuid),
+  'super admin can record expense with valid details');
+
+-- Super admin can update expense
+select test_support.ok((public.update_expense(
+  current_setting('test.expense_id')::uuid,
+  'Sound & Lighting Full Payment',
+  'sound_music',
+  50000,
+  'bank_transfer',
+  current_date,
+  'DJ Sunimal',
+  'TXN-98231',
+  'Settled full payment',
+  'paid'
+)).amount_lkr = 50000, 'super admin can update expense amount');
+
+-- Super admin can delete expense
+select test_support.ok((public.delete_expense(current_setting('test.expense_id')::uuid)) = true,
+  'super admin can delete expense');
+select test_support.ok((select count(*) = 0 from public.expenses where id = current_setting('test.expense_id')::uuid),
+  'expense record is deleted');
+
 rollback;

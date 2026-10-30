@@ -21,6 +21,8 @@ import {
   CircleDollarSign,
   Clock3,
   Tag,
+  Landmark,
+  ShieldAlert,
 } from 'lucide-react'
 import FadeContent from '../FadeContent.jsx'
 import { supabase } from '../../utils/supabase.js'
@@ -29,6 +31,8 @@ import { Loader } from '../motion/loader.jsx'
 import GateDesk from './GateDesk.jsx'
 import AdminArrivals from './AdminArrivals.jsx'
 import AdminRevenueDashboard from './AdminRevenueDashboard.jsx'
+import AdminFinancialDashboard from './AdminFinancialDashboard.jsx'
+import { isSuperAdmin } from '../../SUPER_ADMIN.ts'
 import { getAdminTabFromPath, getAdminGateFromPath, navigateAdmin } from '../../lib/adminNavigation.js'
 import { useToast } from '../../lib/toasts.js'
 import { getAdminsList, buildAdminMap } from '../../lib/admins.js'
@@ -125,6 +129,22 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
   const [selected, setSelected] = useState(initialTicket)
   const [adminMap, setAdminMap] = useState({})
   const [adminDirectory, setAdminDirectory] = useState([])
+
+  const userIsSuperAdmin = isSuperAdmin(currentUser?.email)
+  const workspaceTabs = useMemo(() => {
+    if (userIsSuperAdmin) {
+      return [
+        ['overview', 'Overview', LayoutDashboard],
+        ['tickets', 'Tickets', Tickets],
+        ['revenue', 'Revenue', CircleDollarSign],
+        ['financial', 'Financial', Landmark],
+        ['attendance', 'Attendance', ScanLine],
+        ['arrivals', 'Arrivals', Clock3],
+        ['updates', 'Updates', Bell],
+      ]
+    }
+    return tabs
+  }, [userIsSuperAdmin])
 
   useEffect(() => {
     let active = true
@@ -821,6 +841,33 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
         currentUser={currentUser}
       />
     )}
+    {tab === 'financial' && (
+      userIsSuperAdmin ? (
+        <AdminFinancialDashboard
+          currentUser={currentUser}
+          onSelectTicket={setSelected}
+        />
+      ) : (
+        <section className="admin-panel admin-restricted-access-panel">
+          <div className="admin-restricted-access-card">
+            <div className="admin-restricted-access-icon">
+              <ShieldAlert size={36} aria-hidden="true" />
+            </div>
+            <h2>Super Admin Only</h2>
+            <p className="muted">
+              Only super admins can view financial accounts.
+            </p>
+            <button
+              type="button"
+              className="admin-button"
+              onClick={() => setTab('overview')}
+            >
+              Back to Overview
+            </button>
+          </div>
+        </section>
+      )
+    )}
     {tab === 'updates' && <section className="admin-panel stack admin-delivery-panel">
       <div className="admin-delivery-heading">
         <div><h2>Delivery updates</h2><p className="muted">Email activity and account codes</p></div>
@@ -875,7 +922,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
       </div>
     </MorphingModal>
     <AdminBottomNav
-      tabs={tabs}
+      tabs={workspaceTabs}
       activeTab={tab}
       onSelectTab={setTab}
       attentionCount={summary?.email_attention || 0}
