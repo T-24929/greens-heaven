@@ -407,4 +407,54 @@ select test_support.ok((public.delete_expense(current_setting('test.expense_id')
 select test_support.ok((select count(*) = 0 from public.expenses where id = current_setting('test.expense_id')::uuid),
   'expense record is deleted');
 
+-- Super Admin Financial & External Incomes Management Tests
+-- Ordinary attendee cannot record external incomes
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
+select test_support.denied($sql$select public.record_external_income('Dialog Sponsor', 'sponsorship', 100000)$sql$, '42501', 'ordinary attendee cannot record external incomes');
+
+-- Regular admin (non-super-admin) cannot record external incomes
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000003', true);
+select test_support.denied($sql$select public.record_external_income('Dialog Sponsor', 'sponsorship', 100000)$sql$, '42501', 'regular admin cannot record external incomes');
+
+-- Super Admin can record external incomes
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000006', true);
+select test_support.denied($sql$select public.record_external_income('Invalid zero amount', 'sponsorship', 0)$sql$, '22023', 'external income amount must be positive');
+select test_support.denied($sql$select public.record_external_income('   ', 'sponsorship', 50000)$sql$, '22023', 'external income title cannot be blank');
+
+select set_config('test.income_id', (public.record_external_income(
+  'Dialog Axiata Title Sponsor',
+  'sponsorship',
+  150000,
+  'bank_transfer',
+  current_date,
+  'Dialog Axiata PLC',
+  'TXN-SPON-990',
+  'Platinum package agreement signed',
+  'received'
+)).id::text, true);
+
+select test_support.ok((select amount_lkr = 150000 and category = 'sponsorship' and payer = 'Dialog Axiata PLC' and status = 'received'
+  from public.external_incomes where id = current_setting('test.income_id')::uuid),
+  'super admin can record external income with valid details');
+
+-- Super admin can update external income
+select test_support.ok((public.update_external_income(
+  current_setting('test.income_id')::uuid,
+  'Dialog Axiata Title Sponsor (Full Settlement)',
+  'sponsorship',
+  200000,
+  'bank_transfer',
+  current_date,
+  'Dialog Axiata PLC',
+  'TXN-SPON-990-B',
+  'Full sponsor payment settled',
+  'received'
+)).amount_lkr = 200000, 'super admin can update external income amount');
+
+-- Super admin can delete external income
+select test_support.ok((public.delete_external_income(current_setting('test.income_id')::uuid)) = true,
+  'super admin can delete external income');
+select test_support.ok((select count(*) = 0 from public.external_incomes where id = current_setting('test.income_id')::uuid),
+  'external income record is deleted');
+
 rollback;

@@ -769,6 +769,171 @@
   box-shadow: 0 0 6px #f59e0b;
   border: 1.5px solid #0d140f;
 }
+
+/* Desktop / Mobile Visibility for Bottom Nav */
+.admin-nav-desktop-only {
+  display: grid;
+}
+.admin-nav-mobile-only {
+  display: none !important;
+}
+
+@media (max-width: 767px) {
+  .admin-nav-desktop-only {
+    display: none !important;
+  }
+  .admin-nav-mobile-only {
+    display: grid !important;
+  }
+}
+
+/* Floating Action Menu / FAB Popover for Secondary Options (Arrivals & Updates) */
+.admin-bottom-nav-fab-popover {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 10%;
+  transform: translateX(-50%);
+  width: min(290px, calc(100vw - 32px));
+  background: rgba(10, 16, 12, 0.94);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 22px;
+  padding: 8px;
+  box-shadow:
+    0 24px 50px -4px rgba(0, 0, 0, 0.85),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+    0 1px 3px rgba(82, 224, 120, 0.14) inset;
+  z-index: 60;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-bottom-nav-fab-header {
+  padding: 4px 10px 2px;
+}
+
+.admin-bottom-nav-fab-heading {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #7b947a;
+}
+
+.admin-bottom-nav-fab-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-bottom-nav-fab-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  color: #d1ded0;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 140ms ease, border-color 140ms ease, transform 100ms ease;
+}
+
+.admin-bottom-nav-fab-btn:active {
+  transform: scale(0.97);
+  background: rgba(46, 160, 67, 0.18);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .admin-bottom-nav-fab-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+  }
+}
+
+.admin-bottom-nav-fab-btn.is-active {
+  background: rgba(46, 160, 67, 0.18);
+  border-color: rgba(82, 224, 120, 0.35);
+  color: #ffffff;
+}
+
+.admin-bottom-nav-fab-icon-wrap {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: #8fa88d;
+}
+
+.admin-bottom-nav-fab-btn.is-active .admin-bottom-nav-fab-icon-wrap {
+  background: #23853c;
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(46, 160, 67, 0.5);
+}
+
+.admin-bottom-nav-fab-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 9999px;
+  background: #f59e0b;
+  color: #0b120c;
+  font-size: 10px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+}
+
+.admin-bottom-nav-fab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5px;
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-bottom-nav-fab-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #edf7eb;
+  line-height: 1.2;
+}
+
+.admin-bottom-nav-fab-desc {
+  font-size: 11px;
+  color: #7b947a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-bottom-nav-fab-active-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #52e078;
+  box-shadow: 0 0 8px #52e078;
+  flex-shrink: 0;
+}
+
 .admin-sync-note { font-size: 10px; color: #82977b; text-align: center; margin-top: 28px; }
 .gh-modal:has(.admin-detail-dialog) { width: min(700px, calc(100vw - 32px)); max-height: min(840px, calc(100dvh - 48px)); border-radius: 24px; border: 1px solid #233e28; background: #08150c; }
 .gh-modal:has(.admin-detail-dialog) .gh-modal-inner { padding: 22px; }
@@ -4607,14 +4772,21 @@
   .admin-shell .admin-bento-solid-btn,
   .admin-shell .admin-bento-outline-btn { min-height: 44px; }
   .admin-shell .admin-bottom-nav-capsule {
-    gap: clamp(6px, 3vw, 12px);
-    max-width: calc(100vw - 24px);
-    padding: 6px clamp(8px, 3vw, 12px);
+    gap: clamp(4px, 2vw, 10px);
+    max-width: calc(100vw - 20px);
+    padding: 6px clamp(6px, 2vw, 12px);
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+  }
+  .admin-shell .admin-bottom-nav-capsule::-webkit-scrollbar {
+    display: none;
   }
   .admin-shell .admin-bottom-nav-dot-btn {
-    width: clamp(42px, 12vw, 48px);
-    height: auto;
-    flex-basis: clamp(42px, 12vw, 48px);
+    width: clamp(38px, 11vw, 46px);
+    height: clamp(38px, 11vw, 46px);
+    flex: 0 0 clamp(38px, 11vw, 46px);
     aspect-ratio: 1;
   }
   .admin-shell .admin-id-lookup .identity-digits { width: 126px; flex-basis: 126px; }
@@ -4629,8 +4801,8 @@
 }
 
 @media (max-width: 360px) {
-  .admin-shell .admin-bottom-nav-capsule { gap: 4px; padding-inline: 8px; }
-  .admin-shell .admin-bottom-nav-dot-btn { width: 42px; flex-basis: 42px; }
+  .admin-shell .admin-bottom-nav-capsule { gap: 4px; padding: 4px 6px; }
+  .admin-shell .admin-bottom-nav-dot-btn { width: 36px; height: 36px; flex: 0 0 36px; }
   .admin-shell .admin-camera-ready-actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
   .admin-shell .admin-camera-device-chip,
   .admin-shell .admin-camera-start-btn { width: 100%; }
@@ -6156,24 +6328,29 @@
 .admin-financial-dashboard {
   width: 100%;
 }
+@media (max-width: 640px) {
+  .admin-financial-dashboard {
+    padding-bottom: 96px;
+  }
+}
 
 .admin-financial-add-btn {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 5px;
   background: #15803d;
   color: #f0fdf4;
   border: 1px solid #22c55e;
-  border-radius: 12px;
-  padding: 8px 14px;
-  font-size: 12px;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
-  min-height: 38px;
+  min-height: 32px;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   transition: transform 0.12s ease, background-color 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: 0 4px 12px rgba(22, 101, 52, 0.28);
+  box-shadow: 0 2px 8px rgba(22, 101, 52, 0.28);
 }
 .admin-financial-add-btn:active {
   transform: scale(0.96);
@@ -6186,61 +6363,99 @@
   }
 }
 
-/* Treasury Bank Card */
+.admin-financial-add-income-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #0284c7;
+  color: #f0f9ff;
+  border: 1px solid #38bdf8;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 32px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.28);
+}
+.admin-financial-add-income-btn:active {
+  transform: scale(0.96);
+  background: #0369a1;
+}
+@media (hover: hover) and (pointer: fine) {
+  .admin-financial-add-income-btn:hover {
+    background: #0ea5e9;
+    box-shadow: 0 4px 16px rgba(56, 189, 248, 0.35);
+  }
+}
+
+/* Treasury Bank Card - Modern Minimal & Native-grade */
 .admin-treasury-card {
   position: relative;
   overflow: hidden;
-  border-radius: 20px;
-  border: 1px solid rgba(82, 224, 120, 0.22);
-  background: radial-gradient(130% 120% at 50% -10%, rgba(18, 48, 28, 0.85) 0%, rgba(8, 18, 12, 0.95) 100%);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(167, 243, 208, 0.12);
-  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #09130c;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 11px 13px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 9px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+@media (min-width: 641px) {
+  .admin-treasury-card {
+    padding: 14px 16px;
+    gap: 11px;
+  }
 }
 .admin-treasury-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  border-bottom: 1px solid rgba(82, 224, 120, 0.12);
-  padding-bottom: 10px;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 7px;
 }
 .admin-treasury-badge-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: rgba(34, 197, 94, 0.15);
-  border: 1px solid rgba(82, 224, 120, 0.28);
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #52e078;
+  color: #86efac;
   flex-shrink: 0;
 }
 .admin-treasury-balance-block {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 .admin-treasury-balance-lbl {
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 9.5px;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #8da488;
+  color: #6e8a6d;
 }
 .admin-treasury-balance-val {
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
+  color: #edf5ea;
 }
 @media (min-width: 641px) {
   .admin-treasury-balance-val {
-    font-size: 32px;
+    font-size: 28px;
   }
 }
 
@@ -6248,23 +6463,26 @@
 .admin-treasury-ribbon {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  background: rgba(6, 14, 9, 0.6);
-  border: 1px solid rgba(82, 224, 120, 0.12);
-  border-radius: 14px;
-  padding: 10px 12px;
+  gap: 5px;
+  background: #050b07;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 6px 8px;
 }
-@media (max-width: 600px) {
+@media (min-width: 641px) {
   .admin-treasury-ribbon {
-    grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 7px;
+    padding: 8px 12px;
   }
+}
+.admin-treasury-ribbon > div:nth-child(2) {
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0 6px;
+}
+@media (min-width: 641px) {
   .admin-treasury-ribbon > div:nth-child(2) {
-    border-left: none !important;
-    border-right: none !important;
-    border-top: 1px solid rgba(82, 224, 120, 0.1);
-    border-bottom: 1px solid rgba(82, 224, 120, 0.1);
-    padding: 8px 0 !important;
+    padding: 0 8px;
   }
 }
 
@@ -6356,14 +6574,20 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #09130b;
-  border: 1px solid #1c3522;
+  background: rgba(9, 19, 11, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
-  padding: 4px 8px;
-  min-height: 32px;
-  min-width: 180px;
+  padding: 4px 10px;
+  min-height: 34px;
+  min-width: 170px;
   flex: 1;
-  max-width: 280px;
+  max-width: 300px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.admin-financial-search-wrap:focus-within {
+  border-color: rgba(82, 224, 120, 0.45);
+  background: rgba(9, 19, 11, 0.95);
+  box-shadow: 0 0 0 3px rgba(82, 224, 120, 0.12);
 }
 @media (max-width: 640px) {
   .admin-financial-search-wrap {
@@ -6400,7 +6624,7 @@
 .admin-financial-statement-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   list-style: none;
   padding: 0;
   margin: 0;
@@ -6409,8 +6633,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 7px 11px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(10, 20, 13, 0.6);
@@ -6421,9 +6645,9 @@
   border-color: rgba(82, 224, 120, 0.2);
 }
 .admin-financial-type-pip {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6442,12 +6666,139 @@
 
 /* Expense Card */
 .admin-expense-card {
-  padding: 11px 13px;
+  padding: 8px 11px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.07);
   background: rgba(10, 20, 13, 0.65);
-  transition: border-color 0.12s ease, background-color 0.12s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
+.admin-expense-card.selected {
+  border-color: rgba(82, 224, 120, 0.5);
+  background: rgba(14, 38, 22, 0.75);
+  box-shadow: 0 0 16px rgba(82, 224, 120, 0.08);
+}
+.admin-expense-checkbox-btn {
+  background: transparent;
+  border: none;
+  padding: 3px;
+  margin: -3px 2px -3px -3px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #607963;
+  transition: color 0.15s ease, transform 0.1s ease;
+  touch-action: manipulation;
+}
+.admin-expense-checkbox-btn:hover {
+  color: #8da488;
+}
+.admin-expense-checkbox-btn.checked {
+  color: #52e078;
+}
+
+/* Selective Financial Board Banner */
+.admin-selective-financial-board {
+  border-radius: 13px;
+  padding: 9px 11px;
+  background: linear-gradient(135deg, rgba(12, 35, 20, 0.95), rgba(8, 22, 13, 0.95));
+  border: 1px solid rgba(82, 224, 120, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), 0 0 12px rgba(82, 224, 120, 0.05);
+  margin-bottom: 8px;
+}
+
+.admin-sim-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2.5px 7px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #c2dec0;
+  background: rgba(22, 54, 30, 0.85);
+  border: 1px solid rgba(82, 224, 120, 0.3);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.admin-sim-action-btn:hover {
+  background: rgba(30, 75, 42, 0.95);
+  color: #edf5ea;
+  border-color: rgba(82, 224, 120, 0.5);
+}
+.admin-sim-action-btn:active {
+  transform: scale(0.95);
+}
+.admin-sim-action-btn.reset {
+  color: #fca5a5;
+  background: rgba(60, 20, 20, 0.7);
+  border-color: rgba(248, 113, 113, 0.35);
+}
+.admin-sim-action-btn.reset:hover {
+  background: rgba(80, 25, 25, 0.9);
+  color: #fee2e2;
+}
+
+.admin-expense-card.sim-included {
+  border-color: rgba(82, 224, 120, 0.22);
+  background: rgba(10, 22, 14, 0.7);
+}
+.admin-expense-card.sim-excluded {
+  border-color: rgba(255, 255, 255, 0.08);
+  border-style: dashed;
+  background: rgba(12, 16, 13, 0.45);
+  opacity: 0.75;
+}
+.admin-expense-card.sim-excluded:hover {
+  opacity: 0.95;
+  border-color: rgba(251, 191, 36, 0.35);
+}
+
+/* Modern Minimal Sim Toggle Icon Button */
+.admin-sim-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+.admin-sim-icon-btn.included {
+  background: rgba(16, 44, 23, 0.85);
+  border: 1px solid rgba(82, 224, 120, 0.35);
+  color: #52e078;
+}
+.admin-sim-icon-btn.included:hover {
+  background: rgba(24, 64, 34, 0.95);
+  border-color: rgba(82, 224, 120, 0.5);
+}
+.admin-sim-icon-btn.included:active {
+  transform: scale(0.92);
+}
+.admin-sim-icon-btn.excluded {
+  background: rgba(45, 30, 10, 0.85);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+}
+.admin-sim-icon-btn.excluded:hover {
+  background: rgba(65, 42, 14, 0.95);
+  border-color: rgba(245, 158, 11, 0.6);
+}
+.admin-sim-icon-btn.excluded:active {
+  transform: scale(0.92);
+}
+
+
 
 /* Modals */
 .admin-financial-modal {
@@ -6462,6 +6813,75 @@
   padding: 16px 18px;
   color: #e2eadd;
 }
+
+/* MorphingModal Financial Dialog Overrides (beUI 3xl Baseline) */
+.gh-modal.admin-financial-dialog-wrap {
+  width: min(540px, calc(100vw - 24px));
+  max-height: calc(100dvh - 32px);
+  border-radius: 28px;
+  border: 1px solid rgba(82, 224, 120, 0.22);
+  background: rgba(9, 23, 14, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05), 0 0 40px rgba(82, 224, 120, 0.06);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(82, 224, 120, 0.25) transparent;
+}
+.gh-modal.admin-financial-dialog-wrap::-webkit-scrollbar {
+  width: 6px;
+}
+.gh-modal.admin-financial-dialog-wrap::-webkit-scrollbar-thumb {
+  background: rgba(82, 224, 120, 0.25);
+  border-radius: 999px;
+}
+.gh-modal.admin-financial-dialog-wrap::backdrop {
+  background: rgba(2, 7, 4, 0.84);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.gh-modal.admin-financial-dialog-wrap .gh-modal-inner {
+  padding: 24px 26px;
+}
+@media (max-width: 640px) {
+  .gh-modal.admin-financial-dialog-wrap {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 20px);
+    border-radius: 22px;
+  }
+  .gh-modal.admin-financial-dialog-wrap .gh-modal-inner {
+    padding: 18px 20px;
+  }
+}
+
+.gh-modal.admin-financial-confirm-wrap {
+  width: min(400px, calc(100vw - 24px));
+  border-radius: 24px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(18, 12, 12, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 28px 64px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.04), 0 0 32px rgba(239, 68, 68, 0.08);
+}
+.gh-modal.admin-financial-confirm-wrap::backdrop {
+  background: rgba(4, 2, 2, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.gh-modal.admin-financial-confirm-wrap .gh-modal-inner {
+  padding: 22px 24px;
+}
+
+/* Date picker indicator dark mode styling */
+.admin-financial-dialog input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.8) sepia(20%) saturate(300%) hue-rotate(85deg);
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 0.15s ease;
+}
+.admin-financial-dialog input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
 
 /* Restricted Access Panel */
 .admin-restricted-access-panel {

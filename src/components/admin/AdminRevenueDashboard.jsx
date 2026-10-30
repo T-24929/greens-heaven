@@ -555,104 +555,82 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
               </div>
             </div>
 
-            {/* Two Tier Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
+            {/* Two Tier Cards (2-Column Bento Grid) */}
+            <div className="grid grid-cols-2 gap-2 sm:gap-2.5 pt-0.5">
               {/* Rs. 6,500 Tier */}
               <div
                 onClick={() => setTierFilter(tierFilter === '6500' ? 'all' : '6500')}
-                className={`admin-tier-card p-2.5 sm:p-3 rounded-xl border flex flex-col justify-between gap-1.5 cursor-pointer transition-all ${
+                className={`admin-tier-card p-2.5 sm:p-3 rounded-2xl border flex flex-col justify-between gap-1.5 cursor-pointer transition-all ${
                   tierFilter === '6500'
-                    ? 'bg-[#132818] border-[#4ade80] ring-1 ring-[#4ade80]/40'
-                    : 'bg-[#08150c] border-[#1b3422] hover:border-[#2a5435]'
+                    ? 'bg-[#122818] border-[#4ade80] ring-1 ring-[#4ade80]/30 shadow-xs'
+                    : 'bg-[#09150d]/80 border-[#1b3422] hover:border-[#2f5c3b]'
                 }`}
                 role="button"
                 tabIndex={0}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#8ca889]">Tier 1</span>
-                    <strong className="text-xs font-semibold text-[#edf5ea]">Rs. 6,500</strong>
-                  </div>
-                  <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-[#2a1d08] text-[#fbbf24] border border-[#5c3e10]">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[11px] sm:text-xs font-semibold text-[#edf5ea] truncate">
+                    Tier 1 · 6.5k
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-[#2a1d08] text-[#fbbf24] border border-[#5c3e10]/60 shrink-0">
                     Sold Out
                   </span>
                 </div>
 
-                <div className="flex items-baseline justify-between pt-1 pb-1 border-y border-[#152e1b]">
+                <div className="my-0.5">
                   <div className="flex items-baseline gap-1">
-                    <span className="text-base font-bold text-[#edf5ea] tabular-nums">
+                    <span className="text-xl sm:text-2xl font-bold text-[#edf5ea] tabular-nums">
                       {tierStats.t6500.count}
                     </span>
-                    <span className="text-[10px] text-[#7f997a]">tickets</span>
-                  </div>
-                  <div className="text-right">
-                    <strong className="text-xs font-bold text-[#7ce698] tabular-nums block">
-                      {formatMoney(tierStats.t6500.revenue)}
-                    </strong>
-                    {tierStats.t6500.deduction > 0 && (
-                      <span className="text-[9px] text-[#f59e0b] block">
-                        -{formatMoney(tierStats.t6500.deduction)}
-                      </span>
-                    )}
+                    <span className="text-[11px] sm:text-xs font-medium text-[#7f997a]">
+                      sold
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-[10px] text-[#7f997a]">
-                  <span>120 / 120 sold</span>
-                  <span className="text-[#7ce698] text-[10px] font-medium flex items-center gap-0.5">
-                    {tierFilter === '6500' ? 'Filtered' : 'Filter'}
-                    <ChevronRight size={10} />
-                  </span>
+                <div className="flex items-center justify-between text-[10px] text-[#6b8566] pt-0.5">
+                  <span>Rs. 6,500</span>
+                  <span>{tierStats.t6500.pct}% cap</span>
                 </div>
               </div>
 
               {/* Rs. 7,000 Tier */}
               <div
                 onClick={() => setTierFilter(tierFilter === '7000' ? 'all' : '7000')}
-                className={`admin-tier-card p-2.5 sm:p-3 rounded-xl border flex flex-col justify-between gap-1.5 cursor-pointer transition-all ${
+                className={`admin-tier-card p-2.5 sm:p-3 rounded-2xl border flex flex-col justify-between gap-1.5 cursor-pointer transition-all ${
                   tierFilter === '7000'
-                    ? 'bg-[#132818] border-[#4ade80] ring-1 ring-[#4ade80]/40'
-                    : 'bg-[#08150c] border-[#1b3422] hover:border-[#2a5435]'
+                    ? 'bg-[#122818] border-[#4ade80] ring-1 ring-[#4ade80]/30 shadow-xs'
+                    : 'bg-[#09150d]/80 border-[#1b3422] hover:border-[#2f5c3b]'
                 }`}
                 role="button"
                 tabIndex={0}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7ce698]">Tier 2</span>
-                    <strong className="text-xs font-semibold text-[#edf5ea]">Rs. 7,000</strong>
-                    <Sparkles size={11} className="text-[#7ce698]" />
+                <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-1 min-w-0">
+                    <span className="text-[11px] sm:text-xs font-semibold text-[#edf5ea] truncate">
+                      Tier 2 · 7k
+                    </span>
+                    <Sparkles size={10} className="text-[#7ce698] shrink-0" />
                   </div>
-                  <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-[#102b17] text-[#7ce698] border border-[#21572e]">
-                    25 Left
+                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-[#102b17] text-[#7ce698] border border-[#21572e]/60 shrink-0">
+                    {tierStats.t7000.remaining} Left
                   </span>
                 </div>
 
-                <div className="flex items-baseline justify-between pt-1 pb-1 border-y border-[#152e1b]">
+                <div className="my-0.5">
                   <div className="flex items-baseline gap-1">
-                    <span className="text-base font-bold text-[#edf5ea] tabular-nums">
+                    <span className="text-xl sm:text-2xl font-bold text-[#edf5ea] tabular-nums">
                       {tierStats.t7000.count}
                     </span>
-                    <span className="text-[10px] text-[#7f997a]">tickets</span>
-                  </div>
-                  <div className="text-right">
-                    <strong className="text-xs font-bold text-[#7ce698] tabular-nums block">
-                      {formatMoney(tierStats.t7000.revenue)}
-                    </strong>
-                    {tierStats.t7000.deduction > 0 && (
-                      <span className="text-[9px] text-[#f59e0b] block">
-                        -{formatMoney(tierStats.t7000.deduction)}
-                      </span>
-                    )}
+                    <span className="text-[11px] sm:text-xs font-medium text-[#7ce698]">
+                      sold
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-[10px] text-[#7f997a]">
-                  <span>25 remaining</span>
-                  <span className="text-[#7ce698] text-[10px] font-medium flex items-center gap-0.5">
-                    {tierFilter === '7000' ? 'Filtered' : 'Filter'}
-                    <ChevronRight size={10} />
-                  </span>
+                <div className="flex items-center justify-between text-[10px] text-[#6b8566] pt-0.5">
+                  <span>Rs. 7,000</span>
+                  <span>{tierStats.t7000.remaining} left</span>
                 </div>
               </div>
             </div>
@@ -665,16 +643,15 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
                 <div className="flex items-center gap-1.5">
                   <ShieldCheck size={14} className="text-[#f59e0b]" />
                   <span className="admin-rev-title text-xs font-semibold text-[#edf5ea]">Deductions</span>
-               
                 </div>
                 <span className="text-xs font-semibold text-[#f59e0b] tabular-nums">
-                  {formatMoney(confirmedDeductions)} deducted ({deductedTicketsCount} tickets)
+                  -{formatMoney(confirmedDeductions)} ({deductedTicketsCount})
                 </span>
               </div>
 
               {deductedTicketsCount === 0 ? (
-                <div className="py-3 px-3.5 rounded-xl bg-[#08150c] border border-[#182f1d] text-xs text-[#8ca889]">
-                  <p className="m-0">No tickets have financial concessions or free pass deductions yet. Open any confirmed ticket in the Tickets tab to apply a deduction.</p>
+                <div className="py-3 px-3.5 rounded-2xl bg-[#08150c] border border-[#182f1d] text-xs text-[#8ca889]">
+                  <p className="m-0">No concessions applied yet.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
@@ -691,42 +668,51 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
                         <div
                           key={r.id}
                           onClick={() => onSelectTicket && onSelectTicket(r.id)}
-                          className="p-2.5 rounded-xl bg-[#09160d] border border-[#2b3a1a] hover:border-[#f59e0b]/50 transition-colors cursor-pointer flex flex-col justify-between gap-1.5"
+                          className="p-2.5 sm:p-3 rounded-2xl bg-[#09160d]/90 border border-[#1b3422] hover:border-[#4ade80]/40 transition-all cursor-pointer flex items-center justify-between gap-2.5"
                           role="button"
                           tabIndex={0}
                         >
-                          <div className="flex items-center justify-between gap-2">
-                            <strong className="text-xs font-semibold text-[#edf5ea] truncate">
-                              {r.full_name}
-                            </strong>
-                            <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded border ${
-                              isFree
-                                ? 'bg-[#331c17] text-[#fca5a5] border-[#7f1d1d]'
-                                : isHalf
-                                ? 'bg-[#291e0a] text-[#fbbf24] border-[#78350f]'
-                                : 'bg-[#182a1c] text-[#86efac] border-[#166534]'
-                            }`}>
-                              {isFree ? '100% Free pass' : isHalf ? '50% Half paid' : 'Custom deduction'}
-                            </span>
+                          {/* Avatar Circle */}
+                          <div className="w-8 h-8 rounded-full bg-[#142819] border border-[#234e2c] flex items-center justify-center text-[11px] font-bold text-[#86efac] shrink-0">
+                            {r.full_name?.charAt(0)?.toUpperCase() || '#'}
                           </div>
 
-                          <div className="flex items-center justify-between text-xs pt-1 border-t border-[#182f1d]">
-                            <div className="flex items-center gap-1.5 text-[11px] text-[#9eb598]">
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <strong className="text-xs font-semibold text-[#edf5ea] truncate block">
+                              {r.full_name}
+                            </strong>
+                            <div className="flex items-center gap-1 text-[11px] text-[#7f997a] truncate">
                               <span className="font-mono text-[#86efac]">{r.reference}</span>
                               {r.deduction_reason && (
-                                <span className="text-[#d8e5cd] truncate max-w-[160px] italic">
+                                <span className="truncate italic">
                                   · &quot;{r.deduction_reason}&quot;
                                 </span>
                               )}
                             </div>
-                            <div className="text-right">
-                              <span className="text-[10px] text-[#8ca889] line-through mr-1 tabular-nums">
-                                {formatMoney(gross)}
-                              </span>
-                              <strong className="text-xs font-bold text-[#7ce698] tabular-nums">
-                                {formatMoney(net)}
+                          </div>
+
+                          {/* Amount & Pill */}
+                          <div className="text-right shrink-0">
+                            <div className="flex items-baseline justify-end gap-1">
+                              {gross > net && (
+                                <span className="text-[10px] text-[#6d856b] line-through tabular-nums">
+                                  {formatMoney(gross)}
+                                </span>
+                              )}
+                              <strong className={`text-xs font-bold tabular-nums ${isFree ? 'text-[#86efac]' : 'text-[#7ce698]'}`}>
+                                {isFree ? 'Free' : formatMoney(net)}
                               </strong>
                             </div>
+                            <span className={`inline-block text-[9px] font-semibold px-1.5 py-0.2 rounded-full border ${
+                              isFree
+                                ? 'bg-[#331c17]/60 text-[#fca5a5] border-[#7f1d1d]/50'
+                                : isHalf
+                                ? 'bg-[#291e0a]/60 text-[#fbbf24] border-[#78350f]/50'
+                                : 'bg-[#182a1c]/60 text-[#86efac] border-[#166534]/50'
+                            }`}>
+                              {isFree ? '100% Free' : isHalf ? '50% Off' : 'Deduction'}
+                            </span>
                           </div>
                         </div>
                       )
