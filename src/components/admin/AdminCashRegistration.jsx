@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
-import { Check, CheckCircle2, CircleDollarSign, Copy, LoaderCircle, Mail, Plus, UserRound, X, ArrowLeft, ArrowRight } from 'lucide-react'
+import { Check, CheckCircle2, CircleDollarSign, Copy, LoaderCircle, Mail, Plus, Receipt, UserRound, X, ArrowLeft, ArrowRight } from 'lucide-react'
 import { supabase } from '../../utils/supabase.js'
-import { normalizeFullName, normalizeNic, normalizePhone, normalizeSchoolIndex, normalizeJoinedYear, validateAttendee, formatMoney } from '../../lib/tickets.js'
+import { normalizeFullName, normalizeNic, normalizePhone, normalizeSchoolIndex, normalizeJoinedYear, validateAttendee, formatMoney, validateReceipt } from '../../lib/tickets.js'
 import ReservationField from '../ReservationField.jsx'
 import ReservationProgress from '../ReservationProgress.jsx'
 import ReviewDialog from '../ReviewDialog.jsx'
+import ReceiptUpload from '../ReceiptUpload.jsx'
 
 const validators = { fullName: normalizeFullName, phone: normalizePhone, nic: normalizeNic, schoolJoinedYear: normalizeJoinedYear, schoolIndex: normalizeSchoolIndex }
 const phoneFormat = value => value.replace(/[\s()-]/g, '').replace(/^\+94(?:0)?/, '0').replace(/\D/g, '')
@@ -23,6 +24,10 @@ function validEmail(value) {
 export default function AdminCashRegistration({ onCreated, schemaReady = true, admins = [], currentAdminId = '' }) {
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState(1)
+  const [paymentMethod, setPaymentMethod] = useState('cash') // 'cash' | 'bank_transfer'
+  const [receiptFile, setReceiptFile] = useState(null)
+  const [preparingReceipt, setPreparingReceipt] = useState(false)
+  const [bank, setBank] = useState(null)
   const [values, setValues] = useState(initialValues)
   const [touched, setTouched] = useState({})
   const [requestId, setRequestId] = useState(() => crypto.randomUUID())
@@ -52,9 +57,13 @@ export default function AdminCashRegistration({ onCreated, schemaReady = true, a
     setError('')
     setValues(current => ({ ...current, paymentCollector: current.paymentCollector || currentAdminId }))
     try {
-      const { data, error: priceError } = await supabase.from('event_settings').select('ticket_price_lkr').eq('id', 'greens-heaven-2026').single()
+      const [{ data: priceData, error: priceError }, { data: bankData }] = await Promise.all([
+        supabase.from('event_settings').select('ticket_price_lkr').eq('id', 'greens-heaven-2026').single(),
+        supabase.from('bank_details').select('*').eq('event_id', 'greens-heaven-2026').maybeSingle(),
+      ])
       if (priceError) throw priceError
-      setPrice(data.ticket_price_lkr)
+      setPrice(priceData.ticket_price_lkr)
+      setBank(bankData)
     } catch {
       setError('Could not load the current ticket price. Refresh and try again.')
     }
@@ -64,6 +73,8 @@ export default function AdminCashRegistration({ onCreated, schemaReady = true, a
     if (pending) return
     setOpen(false)
     setStep(1)
+    setPaymentMethod('cash')
+    setReceiptFile(null)
     setValues(initialValues())
     setTouched({})
     setRequestId(crypto.randomUUID())
@@ -97,7 +108,11 @@ export default function AdminCashRegistration({ onCreated, schemaReady = true, a
     try {
       const attendee = validateAttendee(values.fullName, values.phone, values.nic, values.schoolIndex, values.schoolJoinedYear)
       const email = validEmail(values.email)
-      if (values.cashReceived && !values.paymentCollector) throw new Error('Choose which admin collected the physical cash.')
+      if (paymentMethod === 'cash') {
+        if (values.cashReceived && !values.paymentCollector) throw new Error('Choose which admin collected the physical cash.')
+      } else {
+        if (!receiptFile) throw new Error('Attach a payment receipt slip before reviewing.')
+      }
       setReview({ ...attendee, email })
     } catch (validationError) {
       setError(validationError.message)
@@ -124,29 +139,67 @@ export default function AdminCashRegistration({ onCreated, schemaReady = true, a
   async function saveRegistration() {
     if (!review || pending) return
     setPending(true)
+    setError('')
     try {
-      const { data, error: saveError } = await supabase.rpc('create_cash_registration', {
-        p_request_id: requestId,
-        p_full_name: review.fullName,
-        p_email: review.email,
-        p_whatsapp: review.whatsapp,
-        p_nic_number: review.nicNumber,
-        p_school_index_number: review.schoolIndexNumber,
-        p_school_joined_year: review.schoolJoinedYear,
-        p_cash_received: values.cashReceived,
-        p_payment_collector: values.cashReceived ? values.paymentCollector : null,
-      })
-      if (saveError || !data) throw saveError || new Error('Registration could not be saved.')
-      setCreated(data)
-      setSetupStatus(data.user_id ? 'linked' : 'idle')
+      let savedData
+      if (paymentMethod === 'cash') {
+        const { data, error: saveError } = await supabase.rpc('create_admin_registration', {
+          p_request_id: requestId,
+          p_full_name: review.fullName,
+          p_email: review.email,
+          p_whatsapp: review.whatsapp,
+          p_nic_number: review.nicNumber,
+          p_school_index_number: review.schoolIndexNumber,
+          p_school_joined_year: review.schoolJoinedYear,
+          p_payment_method: 'cash',
+          p_cash_received: values.cashReceived,
+          p_payment_collector: values.cashReceived ? values.paymentCollector : null,
+          p_receipt_path: null,
+        })
+        if (saveError || !data) throw saveError || new Error('Registration could not be saved.')
+        savedData = data
+      } else {
+        // Upload receipt to storage bucket 'receipts'
+        const ext = await validateReceipt(receiptFile)
+        const path = `${currentAdminId || 'admin'}/${requestId}/${crypto.randomUUID()}.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from('receipts')
+          .upload(path, receiptFile, { contentType: receiptFile.type, upsert: false, cacheControl: '0' })
+        if (uploadError) throw uploadError
+
+        const { data, error: saveError } = await supabase.rpc('create_admin_registration', {
+          p_request_id: requestId,
+          p_full_name: review.fullName,
+          p_email: review.email,
+          p_whatsapp: review.whatsapp,
+          p_nic_number: review.nicNumber,
+          p_school_index_number: review.schoolIndexNumber,
+          p_school_joined_year: review.schoolJoinedYear,
+          p_payment_method: 'bank_transfer',
+          p_cash_received: false,
+          p_payment_collector: null,
+          p_receipt_path: path,
+        })
+        if (saveError || !data) throw saveError || new Error('Registration could not be saved.')
+        savedData = data
+      }
+
+      setCreated(savedData)
+      setSetupStatus(savedData.user_id ? 'linked' : 'idle')
       onCreated?.()
     } catch (saveError) {
       const message = saveError?.message || ''
-      if (['PGRST202', 'PGRST204', '42703'].includes(saveError?.code) || /schema cache|create_cash_registration.*does not exist/i.test(message)) setError('Cash registration is not connected to the database yet. Apply the latest Supabase migrations, then refresh the admin panel.')
-      else if (saveError?.code === '23505' && /email/i.test(message)) setError('This email already has a ticket. Ask the attendee to sign in to that account.')
-      else if (saveError?.code === '23505' && /nic/i.test(message)) setError('This NIC is already linked to a ticket. Check the number or contact an organizer.')
-      else if (saveError?.code === '23505' && /school.index/i.test(message)) setError('This school index is already linked to a ticket. Check the number or contact an organizer.')
-      else setError(message || 'Registration could not be saved. Check the details and try again.')
+      if (['PGRST202', 'PGRST204', '42703'].includes(saveError?.code) || /schema cache|create_admin_registration.*does not exist/i.test(message)) {
+        setError('Admin registration is not connected to the database yet. Apply the latest Supabase migrations, then refresh the admin panel.')
+      } else if (saveError?.code === '23505' && /email/i.test(message)) {
+        setError('This email already has a ticket. Ask the attendee to sign in to that account.')
+      } else if (saveError?.code === '23505' && /nic/i.test(message)) {
+        setError('This NIC is already linked to a ticket. Check the number or contact an organizer.')
+      } else if (saveError?.code === '23505' && /school.index/i.test(message)) {
+        setError('This school index is already linked to a ticket. Check the number or contact an organizer.')
+      } else {
+        setError(message || 'Registration could not be saved. Check the details and try again.')
+      }
     } finally {
       setPending(false)
     }
@@ -162,15 +215,15 @@ export default function AdminCashRegistration({ onCreated, schemaReady = true, a
 
   return <>
     <div className="admin-cash-registration-bar">
-      <div><strong>In-person registration</strong><span>Record attendee details and physical cash.</span></div>
+      <div><strong>In-person registration</strong><span>Record attendee details and cash or bank transfer receipt.</span></div>
       <button type="button" className="admin-button primary" onClick={start} disabled={!schemaReady} title={!schemaReady ? 'Apply the latest Supabase migration first' : undefined}><Plus size={16} />New registration</button>
     </div>
-    {!schemaReady && <p className="admin-cash-schema-notice" role="status">Ticket records are shown in compatibility mode. Apply the latest Supabase migrations to enable cash registration and payment tracking.</p>}
+    {!schemaReady && <p className="admin-cash-schema-notice" role="status">Ticket records are shown in compatibility mode. Apply the latest Supabase migrations to enable in-person registration and payment tracking.</p>}
     {open && <div className="admin-cash-overlay" onMouseDown={event => { if (event.target === event.currentTarget) close() }}>
       <section className="admin-cash-dialog p-4" role="dialog" aria-modal="true" aria-labelledby="cash-registration-title" onKeyDown={event => { if (event.key === 'Escape' && !pending) close() }}>
         <header className="admin-cash-header">
           <div className="admin-cash-title-icon"><UserRound size={18} /></div>
-          <div><p className="admin-eyebrow">PHYSICAL CASH</p><h2 id="cash-registration-title">{created ? 'Registration saved' : 'New attendee'}</h2></div>
+          <div><p className="admin-eyebrow">IN-PERSON DESK</p><h2 id="cash-registration-title">{created ? 'Registration saved' : 'New attendee'}</h2></div>
           <button type="button" className="admin-dialog-icon-btn" onClick={close} disabled={pending} aria-label="Close registration"><X size={17} /></button>
         </header>
         {created ? <div className="admin-cash-success" role="status">
@@ -179,11 +232,23 @@ export default function AdminCashRegistration({ onCreated, schemaReady = true, a
           <button type="button" className="admin-cash-reference" onClick={copyReference} title="Copy ticket ID">
             <span>{created.reference}</span>{copied ? <Check size={15} /> : <Copy size={14} />}
           </button>
-          <p className="admin-cash-paid"><CircleDollarSign size={16} />{created.status === 'awaiting_payment'
-            ? `${formatMoney(created.amount_lkr)} · physical cash due`
-            : created.status === 'pending_review'
-              ? `${formatMoney(created.amount_lkr)} · physical cash recorded`
-              : `${formatMoney(created.amount_lkr)} · physical cash received · ticket confirmed`}</p>
+          <p className="admin-cash-paid">
+            {created.payment_method === 'cash' ? (
+              <>
+                <CircleDollarSign size={16} />
+                {created.status === 'awaiting_payment'
+                  ? `${formatMoney(created.amount_lkr)} · physical cash due`
+                  : created.status === 'pending_review'
+                    ? `${formatMoney(created.amount_lkr)} · physical cash recorded`
+                    : `${formatMoney(created.amount_lkr)} · physical cash received · ticket confirmed`}
+              </>
+            ) : (
+              <>
+                <Receipt size={16} />
+                {`${formatMoney(created.amount_lkr)} · Bank transfer · Receipt sent for review`}
+              </>
+            )}
+          </p>
           <div className={`admin-cash-account-state ${setupStatus}`}>
             {setupStatus === 'sending' ? <><LoaderCircle size={15} className="admin-cash-spinner" />Sending account setup email…</>
               : setupStatus === 'sent' ? <><Mail size={15} />Setup link sent to {created.email}</>
@@ -215,17 +280,77 @@ export default function AdminCashRegistration({ onCreated, schemaReady = true, a
             {error && <p className="admin-error" role="alert">{error}</p>}
             <footer className="admin-cash-actions mb-12"><button type="button" className="admin-button" onClick={close}>Cancel</button><button type="submit" className="admin-button primary">Continue to payment<ArrowRight size={16} /></button></footer>
           </form> : <form className="admin-cash-form admin-cash-payment-form" onSubmit={showReview} noValidate>
-            <div className="admin-cash-step-heading"><h3>Payment and account</h3><p>Use an email the attendee can open to set their password.</p></div>
+            <div className="admin-cash-step-heading"><h3>Payment and account</h3><p>Choose payment method and enter attendee email address.</p></div>
             <label className="reserve-field admin-cash-email-field"><span>Email address</span><input type="email" inputMode="email" autoComplete="email" value={values.email} onChange={event => change('email', event.target.value)} maxLength={254} placeholder="attendee@example.com" required /></label>
-            <div className="admin-cash-amount"><span><CircleDollarSign size={17} />Physical cash</span><strong>{formatMoney(price)}</strong></div>
-            <label className="admin-cash-confirm"><input type="checkbox" checked={values.cashReceived} onChange={event => setValues(current => ({ ...current, cashReceived: event.target.checked, paymentCollector: event.target.checked ? current.paymentCollector || currentAdminId : '' }))} /><span><strong>Cash already collected</strong><small>Leave unchecked to save this as payment due. If it has been collected, select the admin who received it.</small></span></label>
-            {values.cashReceived && <label className="reserve-field admin-cash-collector-field"><span>Cash collected by</span><select value={values.paymentCollector} onChange={event => change('paymentCollector', event.target.value)} required><option value="">Choose admin</option>{currentAdminId && !admins.some(admin => (admin.user_id || admin.id) === currentAdminId) && <option value={currentAdminId}>You</option>}{admins.map(admin => { const id = admin.user_id || admin.id; return id ? <option value={id} key={id}>{id === currentAdminId ? `${admin.full_name || admin.email || 'Admin'} (you)` : admin.full_name || admin.email || 'Admin'}</option> : null })}</select></label>}
+
+            <div className="admin-payment-mode-tabs" role="tablist" aria-label="Payment method">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={paymentMethod === 'cash'}
+                className={`admin-payment-mode-tab ${paymentMethod === 'cash' ? 'active' : ''}`}
+                onClick={() => { setPaymentMethod('cash'); setError('') }}
+                disabled={pending}
+              >
+                <CircleDollarSign size={16} />
+                <span>Physical cash</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={paymentMethod === 'bank_transfer'}
+                className={`admin-payment-mode-tab ${paymentMethod === 'bank_transfer' ? 'active' : ''}`}
+                onClick={() => { setPaymentMethod('bank_transfer'); setError('') }}
+                disabled={pending}
+              >
+                <Receipt size={16} />
+                <span>Bank transfer receipt</span>
+              </button>
+            </div>
+
+            {paymentMethod === 'cash' ? <>
+              <div className="admin-cash-amount"><span><CircleDollarSign size={17} />Physical cash</span><strong>{formatMoney(price)}</strong></div>
+              <label className="admin-cash-confirm"><input type="checkbox" checked={values.cashReceived} onChange={event => setValues(current => ({ ...current, cashReceived: event.target.checked, paymentCollector: event.target.checked ? current.paymentCollector || currentAdminId : '' }))} /><span><strong>Cash already collected</strong><small>Leave unchecked to save this as payment due. If it has been collected, select the admin who received it.</small></span></label>
+              {values.cashReceived && <label className="reserve-field admin-cash-collector-field"><span>Cash collected by</span><select value={values.paymentCollector} onChange={event => change('paymentCollector', event.target.value)} required><option value="">Choose admin</option>{currentAdminId && !admins.some(admin => (admin.user_id || admin.id) === currentAdminId) && <option value={currentAdminId}>You</option>}{admins.map(admin => { const id = admin.user_id || admin.id; return id ? <option value={id} key={id}>{id === currentAdminId ? `${admin.full_name || admin.email || 'Admin'} (you)` : admin.full_name || admin.email || 'Admin'}</option> : null })}</select></label>}
+            </> : <>
+              <div className="admin-cash-amount"><span><Receipt size={17} />Bank transfer (Online)</span><strong>{formatMoney(price)}</strong></div>
+              {bank && <div className="admin-bank-info-box">
+                <span className="admin-bank-info-title">Event Bank Account</span>
+                <div className="admin-bank-info-grid">
+                  <div><span className="muted">Bank:</span> <strong>{bank.bank_name} {bank.branch && `(${bank.branch})`}</strong></div>
+                  <div><span className="muted">Account:</span> <strong>{bank.account_number}</strong></div>
+                  <div><span className="muted">Name:</span> <strong>{bank.account_name}</strong></div>
+                </div>
+              </div>}
+              <ReceiptUpload
+                file={receiptFile}
+                onFileChange={file => { setReceiptFile(file); setError('') }}
+                disabled={pending}
+                error=""
+                onError={setError}
+                onPreparingChange={setPreparingReceipt}
+                idPrefix="admin-receipt"
+              />
+            </>}
+
             {error && <p className="admin-error" role="alert">{error}</p>}
-            <footer className="admin-cash-actions mb-12"><button type="button" className="admin-button" onClick={() => { setError(''); setStep(1) }} disabled={pending}><ArrowLeft size={15} />Back</button><button type="submit" className="admin-button primary" disabled={pending}>Review registration<ArrowRight size={16} /></button></footer>
+            <footer className="admin-cash-actions mb-12"><button type="button" className="admin-button" onClick={() => { setError(''); setStep(1) }} disabled={pending || preparingReceipt}><ArrowLeft size={15} />Back</button><button type="submit" className="admin-button primary" disabled={pending || preparingReceipt}>Review registration<ArrowRight size={16} /></button></footer>
           </form>}
         </>}
-        <ReviewDialog open={Boolean(review)} title="Check this registration." description="Confirm the attendee details and whether cash has been collected." confirmLabel="Save registration" onClose={() => setReview(null)} onConfirm={saveRegistration}
-          fields={review ? [['Full name', review.fullName], ['Mobile', review.whatsapp], ['NIC', review.nicNumber], ['School index', review.schoolIndexNumber], ['Joined school', review.schoolJoinedYear], ['Email', review.email], ['Payment', values.cashReceived ? `Physical cash received · ${formatMoney(price)}` : `Physical cash due · ${formatMoney(price)}`], ...(values.cashReceived ? [['Cash collected by', admins.find(admin => (admin.user_id || admin.id) === values.paymentCollector)?.full_name || admins.find(admin => (admin.user_id || admin.id) === values.paymentCollector)?.email || 'Selected admin']] : [])] : []} />
+        <ReviewDialog open={Boolean(review)} title="Check this registration." description="Confirm the attendee details and payment record." confirmLabel="Save registration" onClose={() => setReview(null)} onConfirm={saveRegistration}
+          fields={review ? [
+            ['Full name', review.fullName],
+            ['Mobile', review.whatsapp],
+            ['NIC', review.nicNumber],
+            ['School index', review.schoolIndexNumber],
+            ['Joined school', review.schoolJoinedYear],
+            ['Email', review.email],
+            ['Payment', paymentMethod === 'cash'
+              ? values.cashReceived ? `Physical cash received · ${formatMoney(price)}` : `Physical cash due · ${formatMoney(price)}`
+              : `Bank transfer (Online) · ${formatMoney(price)}`],
+            ...(paymentMethod === 'cash' && values.cashReceived ? [['Cash collected by', admins.find(admin => (admin.user_id || admin.id) === values.paymentCollector)?.full_name || admins.find(admin => (admin.user_id || admin.id) === values.paymentCollector)?.email || 'Selected admin']] : []),
+            ...(paymentMethod === 'bank_transfer' ? [['Receipt file', receiptFile?.name || 'Attached']] : []),
+          ] : []} />
       </section>
     </div>}
   </>

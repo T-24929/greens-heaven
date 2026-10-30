@@ -102,11 +102,11 @@ Deno.serve(async request => {
 
   if (value.reservation_id) {
     const { data: reservation, error: lookupError } = await service.from('reservations')
-      .select('id,registration_source,user_id')
+      .select('id,registration_source,user_id,registered_by')
       .eq('id', String(value.reservation_id))
       .maybeSingle()
     if (lookupError) return respond({ error: 'Could not load this registration.' }, 503)
-    if (!reservation || reservation.registration_source !== 'in_person') return respond({ error: 'In-person registration not found.' }, 404)
+    if (!reservation || (reservation.registration_source !== 'in_person' && !reservation.registered_by)) return respond({ error: 'In-person registration not found.' }, 404)
     if (reservation.user_id) return respond({ status: 'already_linked' })
 
     const { data: queued, error: queueError } = await service.rpc('queue_account_setup_notification', {
@@ -215,7 +215,6 @@ Deno.serve(async request => {
   const { error: updateError } = await service.from('reservations')
     .update({ account_setup_sent_at: new Date().toISOString() })
     .eq('id', notification.reservation_id)
-    .eq('registration_source', 'in_person')
     .is('user_id', null)
   if (updateError) console.error('Could not store account setup timestamp:', updateError.message)
 

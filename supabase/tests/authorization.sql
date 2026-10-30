@@ -294,4 +294,68 @@ select test_support.ok((select user_id = '10000000-0000-4000-8000-000000000004':
 reset role;
 select test_support.ok((select email_confirmed_at is not null from auth.users where id = '10000000-0000-4000-8000-000000000004'::uuid), 'cash registration auto-confirms unconfirmed user account');
 
+-- Admin in-person bank transfer receipt registration
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000003', true);
+select set_config('test.admin_receipt_req_id', '20000000-0000-4000-8000-000000000003', true);
+select set_config('test.admin_receipt_path', '10000000-0000-4000-8000-000000000003/20000000-0000-4000-8000-000000000003/30000000-0000-4000-8000-000000000001.jpg', true);
+insert into storage.objects(bucket_id, name, owner_id, metadata)
+values ('receipts', current_setting('test.admin_receipt_path'), '10000000-0000-4000-8000-000000000003', jsonb_build_object('mimetype', 'image/jpeg', 'size', 102400));
+select test_support.ok((select count(*) = 1 from storage.objects where name = current_setting('test.admin_receipt_path')), 'admin can upload receipt object');
+
+select set_config('test.admin_bt_res_id', (public.create_admin_registration(
+  current_setting('test.admin_receipt_req_id')::uuid, 'Bank Attendee', 'bank-attendee@example.test',
+  '+94770000003', '200000000003', null, 2016, 'bank_transfer', false, null, current_setting('test.admin_receipt_path')
+)).id::text, true);
+
+select test_support.ok((select status = 'pending_review' and payment_method = 'bank_transfer'
+  and registration_source = 'online' and registered_by = '10000000-0000-4000-8000-000000000003'::uuid
+  and receipt_path = current_setting('test.admin_receipt_path')
+  from public.reservations where id = current_setting('test.admin_bt_res_id')::uuid),
+  'admin registration creates online bank transfer reservation in pending_review');
+
+select test_support.ok((select count(*) = 1 from public.receipt_submissions
+  where reservation_id = current_setting('test.admin_bt_res_id')::uuid and receipt_path = current_setting('test.admin_receipt_path')),
+  'admin bank transfer registration records receipt submission');
+
+select set_config('test.admin_bt_review', (public.review_reservation(
+  current_setting('test.admin_bt_res_id')::uuid, 'approved', current_setting('test.admin_receipt_path'), null
+)->>'reservation')::text, true);
+
+select test_support.ok((select status = 'approved' from public.reservations where id = current_setting('test.admin_bt_res_id')::uuid),
+  'admin can review and approve admin bank transfer registration');
+
+-- Super Admin ticket deduction permissions & business constraints
+insert into auth.users(id, email, email_confirmed_at, is_anonymous) values
+  ('10000000-0000-4000-8000-000000000006', 'hasarinda986@gmail.com', now(), false);
+insert into private.admins(user_id) values ('10000000-0000-4000-8000-000000000006');
+
+-- Ordinary attendee cannot call set_reservation_deduction
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
+select test_support.denied($sql$select public.set_reservation_deduction(current_setting('test.reservation_id')::uuid, 3500, 'Test')$sql$, '42501', 'ordinary attendee cannot adjust deductions');
+
+-- Regular admin (non-super-admin) cannot call set_reservation_deduction
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000003', true);
+select test_support.denied($sql$select public.set_reservation_deduction(current_setting('test.reservation_id')::uuid, 3500, 'Test')$sql$, '42501', 'regular admin cannot adjust deductions');
+
+-- Super admin can adjust deductions on approved reservations
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000006', true);
+select test_support.denied($sql$select public.set_reservation_deduction(current_setting('test.other_reservation_id')::uuid, 3500, 'Test')$sql$, '22023', 'cannot deduct from non-approved reservation');
+select test_support.denied($sql$select public.set_reservation_deduction(current_setting('test.reservation_id')::uuid, 999999, 'Test')$sql$, '22023', 'cannot deduct more than ticket amount');
+
+select test_support.ok((public.set_reservation_deduction(current_setting('test.reservation_id')::uuid, 3500, 'Financial hardship concession')).deduction_lkr = 3500,
+  'super admin can record 50% half-paid concession');
+select test_support.ok((select deduction_lkr = 3500 and deduction_reason = 'Financial hardship concession'
+  and deducted_by = '10000000-0000-4000-8000-000000000006'::uuid and deducted_at is not null
+  from public.reservations where id = current_setting('test.reservation_id')::uuid),
+  'deduction values and super admin actor recorded on reservation');
+
+select test_support.ok((public.set_reservation_deduction(current_setting('test.reservation_id')::uuid, 6500, '100% free pass')).deduction_lkr = 6500,
+  'super admin can record 100% free ticket concession');
+
+select test_support.ok((public.set_reservation_deduction(current_setting('test.reservation_id')::uuid, 0, null)).deduction_lkr = 0,
+  'super admin can reset deduction to 0');
+select test_support.ok((select deduction_lkr = 0 and deduction_reason is null and deducted_by is null and deducted_at is null
+  from public.reservations where id = current_setting('test.reservation_id')::uuid),
+  'reset clears deduction fields');
+
 rollback;

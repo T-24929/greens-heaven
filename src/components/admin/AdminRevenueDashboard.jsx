@@ -17,12 +17,24 @@ import {
 import { supabase } from '../../utils/supabase.js'
 import { formatMoney } from '../../lib/tickets.js'
 import { getAdminDisplayName } from '../../lib/admins.js'
+import { isSuperAdmin } from '../../SUPER_ADMIN.ts'
 import { Loader } from '../motion/loader.jsx'
 import FadeContent from '../FadeContent.jsx'
 
 const TICKET_PRICE = 7000
 const TOTAL_CAPACITY = 175
-const VIP_DEDUCTION = 6500 + 6500 + 7000 + 7000
+
+function getReservationDeduction(r) {
+  const val = Number(r?.deduction_lkr)
+  if (val && !isNaN(val) && val > 0) return val
+  return 0
+}
+
+function getReservationNetAmount(r) {
+  const gross = getReservationAmount(r)
+  const deduction = getReservationDeduction(r)
+  return Math.max(0, gross - deduction)
+}
 
 
 function getColomboDateKey(isoString) {
@@ -87,17 +99,18 @@ function getReservationTier(r) {
   return amt >= 7000 ? 7000 : 6500
 }
 
-export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, onNavigateTab }) {
+export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, onNavigateTab, currentUser }) {
   const [reservations, setReservations] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [timeFilter, setTimeFilter] = useState('all') // 'all', '30d', '7d', 'today'
   const [tierFilter, setTierFilter] = useState('all') // 'all', '6500', '7000'
-  const [selectedBatch, setSelectedBatch] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [revision, setRevision] = useState(0)
   const [chartMetric, setChartMetric] = useState('tickets') // 'tickets' | 'revenue'
   const [focusedDayKey, setFocusedDayKey] = useState(null)
+
+  const userIsSuperAdmin = isSuperAdmin(currentUser?.email)
 
   // Pure snapshot reference for date diffs
   const [referenceTime] = useState(() => Date.now())
@@ -106,7 +119,7 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
     let active = true
     supabase
       .from('reservations')
-      .select('id, reference, full_name, email, status, amount_lkr, created_at, reviewed_at, reviewed_by, school_joined_year')
+      .select('id, reference, full_name, email, status, amount_lkr, deduction_lkr, deduction_reason, deducted_by, deducted_at, created_at, reviewed_at, reviewed_by, school_joined_year')
       .order('created_at', { ascending: false })
       .then(({ data, error: fetchErr }) => {
         if (!active) return
@@ -150,10 +163,12 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
     const approved7000 = approved.filter((r) => getReservationTier(r) === 7000)
 
     const gross6500 = approved6500.reduce((sum, r) => sum + getReservationAmount(r), 0)
-    const net6500 = Math.max(0, gross6500 - VIP_DEDUCTION)
+    const deduction6500 = approved6500.reduce((sum, r) => sum + getReservationDeduction(r), 0)
+    const net6500 = Math.max(0, gross6500 - deduction6500)
 
     const gross7000 = approved7000.reduce((sum, r) => sum + getReservationAmount(r), 0)
-    const net7000 = gross7000
+    const deduction7000 = approved7000.reduce((sum, r) => sum + getReservationDeduction(r), 0)
+    const net7000 = Math.max(0, gross7000 - deduction7000)
 
     const pending6500 = pending.filter((r) => getReservationTier(r) === 6500).length
     const pending7000 = pending.filter((r) => getReservationTier(r) === 7000).length
@@ -170,6 +185,8 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
       t6500: {
         count: approved6500.length,
         revenue: net6500,
+        gross: gross6500,
+        deduction: deduction6500,
         pending: pending6500,
         awaiting: awaiting6500,
         pct: pct6500,
@@ -178,6 +195,8 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
       t7000: {
         count: approved7000.length,
         revenue: net7000,
+        gross: gross7000,
+        deduction: deduction7000,
         pending: pending7000,
         awaiting: awaiting7000,
         pct: pct7000,
@@ -193,6 +212,8 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
     activePending,
     activeAwaiting,
     confirmedRevenue,
+    confirmedDeductions,
+    deductedTicketsCount,
     pendingRevenue,
     awaitingRevenue,
     totalProjectedGross,
@@ -209,10 +230,10 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
       awa = awaiting.filter((r) => getReservationTier(r) === targetTier)
     }
 
-    const deduction = tierFilter === '7000' ? 0 : VIP_DEDUCTION
-
     const gross = app.reduce((sum, r) => sum + getReservationAmount(r), 0)
+    const deduction = app.reduce((sum, r) => sum + getReservationDeduction(r), 0)
     const conf = Math.max(0, gross - deduction)
+    const deductedCount = app.filter((r) => getReservationDeduction(r) > 0).length
 
     const pend = pen.reduce((sum, r) => sum + (Number(r.amount_lkr) || TICKET_PRICE), 0)
     const awai = awa.reduce((sum, r) => sum + (Number(r.amount_lkr) || TICKET_PRICE), 0)
@@ -225,6 +246,9 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
       activePending: pen,
       activeAwaiting: awa,
       confirmedRevenue: conf,
+      confirmedGross: gross,
+      confirmedDeductions: deduction,
+      deductedTicketsCount: deductedCount,
       pendingRevenue: pend,
       awaitingRevenue: awai,
       totalProjectedGross: projected,
@@ -255,7 +279,7 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
         count7000: 0,
       }
       const tier = getReservationTier(r)
-      const amt = getReservationAmount(r)
+      const amt = getReservationNetAmount(r)
       current.count += 1
       current.revenue += amt
       if (tier === 6500) current.count6500 += 1
@@ -308,17 +332,22 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
     return todayMatch || dailyTimelineChronological[dailyTimelineChronological.length - 1]
   }, [dailyTimelineChronological, focusedDayKey, todayKey])
 
-  // Batch Options for transaction filter
-  const batchOptions = useMemo(() => {
-    const counts = new Map()
+  // Time duration counts for the dropdown
+  const timeFilterCounts = useMemo(() => {
+    let today = 0
+    let t7d = 0
+    let t30d = 0
+    const cutoff7d = new Date(referenceTime - 7 * 86400000).toISOString()
+    const cutoff30d = new Date(referenceTime - 30 * 86400000).toISOString()
+
     for (const r of approved) {
-      const year = r.school_joined_year
-      if (year) counts.set(year, (counts.get(year) || 0) + 1)
+      const stamp = r.reviewed_at || r.created_at
+      if (getColomboDateKey(stamp) === todayKey) today++
+      if (stamp >= cutoff7d) t7d++
+      if (stamp >= cutoff30d) t30d++
     }
-    return Array.from(counts.entries())
-      .map(([year, count]) => ({ year, count }))
-      .sort((a, b) => b.year - a.year)
-  }, [approved])
+    return { today, t7d, t30d }
+  }, [approved, todayKey, referenceTime])
 
   // Filtered transactions for the ledger
   const filteredApproved = useMemo(() => {
@@ -328,11 +357,6 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
     if (tierFilter !== 'all') {
       const targetTier = Number(tierFilter)
       list = list.filter((r) => getReservationTier(r) === targetTier)
-    }
-
-    // Batch filter
-    if (selectedBatch !== 'all') {
-      list = list.filter((r) => String(r.school_joined_year) === String(selectedBatch))
     }
 
     // Time filter
@@ -346,25 +370,25 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
       list = list.filter((r) => (r.reviewed_at || r.created_at) >= cutoff)
     }
 
-    // Text search query
+    // Text search query (supports name, reference, email, and batch year)
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase()
       list = list.filter((r) => {
         const name = (r.full_name || '').toLowerCase()
         const ref = (r.reference || '').toLowerCase()
         const email = (r.email || '').toLowerCase()
-        return name.includes(q) || ref.includes(q) || email.includes(q)
+        const batch = String(r.school_joined_year || '')
+        return name.includes(q) || ref.includes(q) || email.includes(q) || batch.includes(q)
       })
     }
 
     return list
-  }, [approved, tierFilter, selectedBatch, timeFilter, searchQuery, todayKey, referenceTime])
+  }, [approved, tierFilter, timeFilter, searchQuery, todayKey, referenceTime])
 
-  const isFiltering = tierFilter !== 'all' || selectedBatch !== 'all' || timeFilter !== 'all' || searchQuery.trim() !== ''
+  const isFiltering = tierFilter !== 'all' || timeFilter !== 'all' || searchQuery.trim() !== ''
 
   const clearAllFilters = () => {
     setTierFilter('all')
-    setSelectedBatch('all')
     setTimeFilter('all')
     setSearchQuery('')
   }
@@ -413,7 +437,11 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
                 <strong className="admin-rev-number text-[#7ce698] block">
                   {formatMoney(confirmedRevenue)}
                 </strong>
-                <span className="admin-rev-label block">Confirmed</span>
+                <span className="admin-rev-label block">
+                  {confirmedDeductions > 0
+                    ? `Net (${deductedTicketsCount} conceded)`
+                    : 'Confirmed'}
+                </span>
               </div>
             </div>
 
@@ -557,9 +585,16 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
                     </span>
                     <span className="text-[10px] text-[#7f997a]">tickets</span>
                   </div>
-                  <strong className="text-xs font-bold text-[#7ce698] tabular-nums">
-                    {formatMoney(tierStats.t6500.revenue)}
-                  </strong>
+                  <div className="text-right">
+                    <strong className="text-xs font-bold text-[#7ce698] tabular-nums block">
+                      {formatMoney(tierStats.t6500.revenue)}
+                    </strong>
+                    {tierStats.t6500.deduction > 0 && (
+                      <span className="text-[9px] text-[#f59e0b] block">
+                        -{formatMoney(tierStats.t6500.deduction)}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between text-[10px] text-[#7f997a]">
@@ -600,9 +635,16 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
                     </span>
                     <span className="text-[10px] text-[#7f997a]">tickets</span>
                   </div>
-                  <strong className="text-xs font-bold text-[#7ce698] tabular-nums">
-                    {formatMoney(tierStats.t7000.revenue)}
-                  </strong>
+                  <div className="text-right">
+                    <strong className="text-xs font-bold text-[#7ce698] tabular-nums block">
+                      {formatMoney(tierStats.t7000.revenue)}
+                    </strong>
+                    {tierStats.t7000.deduction > 0 && (
+                      <span className="text-[9px] text-[#f59e0b] block">
+                        -{formatMoney(tierStats.t7000.deduction)}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between text-[10px] text-[#7f997a]">
@@ -615,6 +657,84 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
               </div>
             </div>
           </section>
+
+          {/* Super Admin Concessions & Deductions Panel */}
+          {userIsSuperAdmin && (
+            <section className="admin-panel stack" aria-label="Ticket deductions and financial concessions">
+              <div className="flex items-center justify-between gap-2 border-b border-[#182f1d] pb-2">
+                <div className="flex items-center gap-1.5">
+                  <ShieldCheck size={14} className="text-[#f59e0b]" />
+                  <span className="admin-rev-title text-xs font-semibold text-[#edf5ea]">Deductions</span>
+               
+                </div>
+                <span className="text-xs font-semibold text-[#f59e0b] tabular-nums">
+                  {formatMoney(confirmedDeductions)} deducted ({deductedTicketsCount} tickets)
+                </span>
+              </div>
+
+              {deductedTicketsCount === 0 ? (
+                <div className="py-3 px-3.5 rounded-xl bg-[#08150c] border border-[#182f1d] text-xs text-[#8ca889]">
+                  <p className="m-0">No tickets have financial concessions or free pass deductions yet. Open any confirmed ticket in the Tickets tab to apply a deduction.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  {activeApproved
+                    .filter((r) => getReservationDeduction(r) > 0)
+                    .map((r) => {
+                      const gross = getReservationAmount(r)
+                      const deduction = getReservationDeduction(r)
+                      const net = Math.max(0, gross - deduction)
+                      const isFree = deduction >= gross
+                      const isHalf = deduction === Math.round(gross / 2)
+
+                      return (
+                        <div
+                          key={r.id}
+                          onClick={() => onSelectTicket && onSelectTicket(r.id)}
+                          className="p-2.5 rounded-xl bg-[#09160d] border border-[#2b3a1a] hover:border-[#f59e0b]/50 transition-colors cursor-pointer flex flex-col justify-between gap-1.5"
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <strong className="text-xs font-semibold text-[#edf5ea] truncate">
+                              {r.full_name}
+                            </strong>
+                            <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded border ${
+                              isFree
+                                ? 'bg-[#331c17] text-[#fca5a5] border-[#7f1d1d]'
+                                : isHalf
+                                ? 'bg-[#291e0a] text-[#fbbf24] border-[#78350f]'
+                                : 'bg-[#182a1c] text-[#86efac] border-[#166534]'
+                            }`}>
+                              {isFree ? '100% Free pass' : isHalf ? '50% Half paid' : 'Custom deduction'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs pt-1 border-t border-[#182f1d]">
+                            <div className="flex items-center gap-1.5 text-[11px] text-[#9eb598]">
+                              <span className="font-mono text-[#86efac]">{r.reference}</span>
+                              {r.deduction_reason && (
+                                <span className="text-[#d8e5cd] truncate max-w-[160px] italic">
+                                  · &quot;{r.deduction_reason}&quot;
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[10px] text-[#8ca889] line-through mr-1 tabular-nums">
+                                {formatMoney(gross)}
+                              </span>
+                              <strong className="text-xs font-bold text-[#7ce698] tabular-nums">
+                                {formatMoney(net)}
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
+              )}
+            </section>
+          )}
 
           {/* Date-Based Timeline & Daily Intake Visualizer */}
           <section className="admin-panel stack">
@@ -868,7 +988,7 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
 
               {/* Toolbar Controls */}
               <div className="admin-rev-toolbar">
-                {/* Top Row: Search Input + Batch Select */}
+                {/* Top Row: Search Input + Time Duration Select */}
                 <div className="admin-rev-toolbar-top">
                   <div className="admin-rev-search-wrap">
                     <Search size={15} className="admin-rev-search-icon" aria-hidden="true" />
@@ -876,7 +996,7 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search attendee, GH-xxx, email…"
+                      placeholder="Search attendee, GH-xxx, batch…"
                       autoComplete="off"
                       spellCheck="false"
                     />
@@ -892,25 +1012,21 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
                     )}
                   </div>
 
-                  {batchOptions.length > 0 && (
-                    <select
-                      value={selectedBatch}
-                      onChange={(e) => setSelectedBatch(e.target.value)}
-                      className="admin-rev-batch-select"
-                    >
-                      <option value="all">All batches</option>
-                      {batchOptions.map((b) => (
-                        <option key={b.year} value={b.year}>
-                          Batch {b.year} ({b.count})
-                        </option>
-                      ))}
-                    </select>
-                  )}
+                  <select
+                    value={timeFilter}
+                    onChange={(e) => setTimeFilter(e.target.value)}
+                    className={`admin-rev-time-select ${timeFilter !== 'all' ? 'active' : ''}`}
+                    aria-label="Filter transactions by duration"
+                  >
+                    <option value="all">All Time ({approved.length})</option>
+                    <option value="today">Today ({timeFilterCounts.today})</option>
+                    <option value="7d">Last 7d ({timeFilterCounts.t7d})</option>
+                    <option value="30d">Last 30d ({timeFilterCounts.t30d})</option>
+                  </select>
                 </div>
 
-                {/* Bottom Row: Tier Filter Pills + Time Filter Pills */}
+                {/* Bottom Row: Tier Filter Segmented Pills */}
                 <div className="admin-rev-toolbar-bottom">
-                  {/* Tier Filter Tabs */}
                   <div className="admin-rev-pill-group">
                     {[
                       ['all', `All Tiers (${approved.length})`],
@@ -922,25 +1038,6 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
                         type="button"
                         onClick={() => setTierFilter(val)}
                         className={`admin-rev-pill-btn ${tierFilter === val ? 'active' : ''}`}
-                      >
-                        {lbl}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Time Filter Pills */}
-                  <div className="admin-rev-pill-group">
-                    {[
-                      ['all', 'All Time'],
-                      ['30d', '30d'],
-                      ['7d', '7d'],
-                      ['today', 'Today'],
-                    ].map(([val, lbl]) => (
-                      <button
-                        key={val}
-                        type="button"
-                        onClick={() => setTimeFilter(val)}
-                        className={`admin-rev-pill-btn ${timeFilter === val ? 'active' : ''}`}
                       >
                         {lbl}
                       </button>
@@ -1025,9 +1122,16 @@ export default function AdminRevenueDashboard({ adminMap = {}, onSelectTicket, o
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0 pl-2">
-                        <strong className="text-xs font-bold tabular-nums text-[#7ce698]">
-                          {formatMoney(amount)}
-                        </strong>
+                        <div className="text-right">
+                          <strong className="text-xs font-bold tabular-nums text-[#7ce698] block">
+                            {formatMoney(getReservationNetAmount(r))}
+                          </strong>
+                          {getReservationDeduction(r) > 0 && (
+                            <span className="text-[9px] font-semibold text-[#fbbf24] bg-[#291e0a] px-1 py-0.2 rounded border border-[#5a3f12]">
+                              {getReservationDeduction(r) >= amount ? 'Free pass' : `-${formatMoney(getReservationDeduction(r))}`}
+                            </span>
+                          )}
+                        </div>
                         <ChevronRight size={14} className="text-[#4e6b4a]" />
                       </div>
                     </div>

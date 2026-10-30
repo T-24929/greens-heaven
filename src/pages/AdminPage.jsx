@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { reservationWhatsappLink } from '../lib/admin-messages.js'
 import { supabase } from '../utils/supabase.js'
+import { isSuperAdmin } from '../SUPER_ADMIN.ts'
 
 import AdminWorkspace from '../components/admin/AdminWorkspace.jsx'
 import ErrorPage from '../components/ErrorPage.jsx'
@@ -31,7 +32,7 @@ function scannedTicket() {
     return TICKET_ID.test(saved || '') ? saved : null
   } catch { return null }
 }
-const RESERVATION_FIELDS = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,amount_lkr,status,receipt_path,review_note,created_at,updated_at,reviewed_at,reviewed_by,registration_source,payment_method,payment_received_at,payment_received_by,account_setup_sent_at,user_id,registered_by,images'
+const RESERVATION_FIELDS = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,amount_lkr,status,receipt_path,review_note,created_at,updated_at,reviewed_at,reviewed_by,registration_source,payment_method,payment_received_at,payment_received_by,account_setup_sent_at,user_id,registered_by,images,deduction_lkr,deduction_reason,deducted_by,deducted_at'
 const CASH_RESERVATION_FIELDS = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,amount_lkr,status,receipt_path,review_note,created_at,updated_at,reviewed_at,reviewed_by,registration_source,payment_method,payment_received_at,payment_received_by,account_setup_sent_at,user_id,images'
 const LEGACY_RESERVATION_FIELDS = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,amount_lkr,status,receipt_path,review_note,created_at,updated_at,reviewed_at,reviewed_by'
 const STATUS_LABELS = {
@@ -89,7 +90,7 @@ async function sendEmail(notificationId, notificationType = 'reservation_decisio
   }
 }
 
-function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, admins = [], currentAdminId = '' }) {
+function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, admins = [], currentAdminId = '', currentUser = null }) {
   const [details, setDetails] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -107,6 +108,41 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
   const [copied, setCopied] = useState(false)
   const [cashCollectorId, setCashCollectorId] = useState('')
   const selectedCashCollectorId = cashCollectorId || currentAdminId
+
+  const userIsSuperAdmin = isSuperAdmin(currentUser?.email)
+  const [isEditingDeduction, setIsEditingDeduction] = useState(false)
+  const [deductionAmount, setDeductionAmount] = useState('')
+  const [deductionReason, setDeductionReason] = useState('')
+  const [deductionBusy, setDeductionBusy] = useState(false)
+  const [deductionError, setDeductionError] = useState('')
+
+  async function handleSaveDeduction(amountToSet, reasonToSet) {
+    if (!details?.reservation) return
+    setDeductionBusy(true)
+    setDeductionError('')
+    try {
+      const numericAmount = Math.max(0, Math.min(Number(amountToSet) || 0, details.reservation.amount_lkr))
+      const { data, error } = await supabase.rpc('set_reservation_deduction', {
+        p_reservation_id: details.reservation.id,
+        p_deduction_lkr: numericAmount,
+        p_reason: reasonToSet ? reasonToSet.trim() : null,
+      })
+      if (error) throw error
+      setDetails((prev) => ({
+        ...prev,
+        reservation: {
+          ...prev.reservation,
+          ...data,
+        },
+      }))
+      setIsEditingDeduction(false)
+      window.dispatchEvent(new CustomEvent('admin:refresh'))
+    } catch (err) {
+      setDeductionError(err?.message || 'Could not update payment deduction.')
+    } finally {
+      setDeductionBusy(false)
+    }
+  }
 
   useEffect(() => {
     let active = true
@@ -494,8 +530,15 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
               <div className="admin-receipt-cell">
                 <span className="admin-cell-label">Fee</span>
                 <strong className="admin-cell-value admin-fee-highlight tabular-nums">
-                  {amount(reservation)}
+                  {reservation.deduction_lkr > 0
+                    ? `Rs. ${new Intl.NumberFormat('en-LK').format(reservation.amount_lkr - reservation.deduction_lkr)}`
+                    : amount(reservation)}
                 </strong>
+                {reservation.deduction_lkr > 0 && (
+                  <span className="text-[9px] text-[#fbbf24] block">
+                    {reservation.deduction_lkr >= reservation.amount_lkr ? '100% Free' : `(-Rs. ${new Intl.NumberFormat('en-LK').format(reservation.deduction_lkr)})`}
+                  </span>
+                )}
               </div>
 
               <div className="admin-receipt-cell">
@@ -563,6 +606,191 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
           {/* Tab 1: Slip & Verification */}
           {step === 'receipt' && (
             <div className="space-y-3">
+              {/* Super Admin Payment Deduction & Concession Card */}
+              {userIsSuperAdmin && reservation.status === 'approved' && (() => {
+                const deductionNum = Number(deductionAmount) || 0
+                const is100Free = reservation.amount_lkr > 0 && deductionNum === reservation.amount_lkr
+                const is50Half = reservation.amount_lkr > 0 && deductionNum === Math.round(reservation.amount_lkr / 2)
+                const isReset0 = deductionAmount !== '' && deductionNum === 0
+
+                return (
+                  <div className="admin-concession-card">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <ShieldCheck size={13} className="text-[#f59e0b] shrink-0" />
+                        <strong className="text-xs font-semibold text-[#fef3c7] truncate">
+                          Concession / Deduction
+                        </strong>
+                        {reservation.deduction_lkr > 0 && (
+                          <span className={`admin-concession-pill shrink-0 !mt-0 ${
+                            reservation.deduction_lkr >= reservation.amount_lkr ? 'free' :
+                            reservation.deduction_lkr >= reservation.amount_lkr / 2 ? 'half' : 'custom'
+                          }`}>
+                            {reservation.deduction_lkr >= reservation.amount_lkr ? '100% Free' :
+                             reservation.deduction_lkr >= reservation.amount_lkr / 2 ? '50% Half' :
+                             `-Rs. ${Number(reservation.deduction_lkr).toLocaleString('en-LK')}`}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[9px] font-semibold text-[#f59e0b] bg-[#291e0a] px-1.5 py-0.5 rounded border border-[#5a3f12] shrink-0">
+                        Super Admin
+                      </span>
+                    </div>
+
+                    <div className="admin-concession-metrics">
+                      <div>
+                        <span className="admin-concession-metric-lbl text-[#8e8a6f]">Ticket</span>
+                        <strong className="admin-concession-metric-val text-[#e2eadd]">{amount(reservation)}</strong>
+                      </div>
+                      <div>
+                        <span className="admin-concession-metric-lbl text-[#f59e0b]">Deduction</span>
+                        <strong className="admin-concession-metric-val text-[#f59e0b]">
+                          {reservation.deduction_lkr > 0 ? `-Rs. ${Number(reservation.deduction_lkr).toLocaleString('en-LK')}` : 'None'}
+                        </strong>
+                      </div>
+                      <div>
+                        <span className="admin-concession-metric-lbl text-[#52e078]">Net</span>
+                        <strong className="admin-concession-metric-val text-[#52e078]">
+                          Rs. {Math.max(0, reservation.amount_lkr - (Number(reservation.deduction_lkr) || 0)).toLocaleString('en-LK')}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {reservation.deduction_reason && !isEditingDeduction && (
+                      <div className="text-[11px] text-[#d8d3b5] bg-[#16150a] px-2 py-0.5 rounded border border-[#2b2914] flex items-baseline gap-1">
+                        <span className="text-[#9a9474] font-medium shrink-0">Note:</span>
+                        <span className="truncate">&quot;{reservation.deduction_reason}&quot;</span>
+                      </div>
+                    )}
+
+                    {reservation.deducted_by && !isEditingDeduction && (
+                      <p className="text-[9px] text-[#8e8a6f] m-0 truncate">
+                        Concession by {adminMap[reservation.deducted_by] || 'Admin'}
+                        {reservation.deducted_at ? ` • ${dateTime(reservation.deducted_at)}` : ''}
+                      </p>
+                    )}
+
+                    {!isEditingDeduction ? (
+                      <button
+                        type="button"
+                        className="admin-concession-btn secondary w-full"
+                        onClick={() => {
+                          setDeductionAmount(String(reservation.deduction_lkr || 0))
+                          setDeductionReason(reservation.deduction_reason || '')
+                          setIsEditingDeduction(true)
+                        }}
+                        disabled={deductionBusy}
+                      >
+                        <span>{reservation.deduction_lkr > 0 ? 'Modify Concession / Deduction' : '+ Grant Concession / Free Pass'}</span>
+                      </button>
+                    ) : (
+                      <div className="space-y-2 pt-1 border-t border-[#262410]">
+                        <div className="admin-concession-segmented" role="group" aria-label="Concession preset">
+                          <button
+                            type="button"
+                            className={`admin-concession-seg-btn ${is100Free ? 'active' : ''}`}
+                            onClick={() => {
+                              setDeductionAmount(String(reservation.amount_lkr))
+                              if (!deductionReason || deductionReason === '50% Half paid concession') {
+                                setDeductionReason('100% Free ticket')
+                              }
+                            }}
+                          >
+                            Free (100%)
+                          </button>
+                          <button
+                            type="button"
+                            className={`admin-concession-seg-btn ${is50Half ? 'active' : ''}`}
+                            onClick={() => {
+                              setDeductionAmount(String(Math.round(reservation.amount_lkr / 2)))
+                              if (!deductionReason || deductionReason === '100% Free ticket') {
+                                setDeductionReason('50% Half paid concession')
+                              }
+                            }}
+                          >
+                            Half (50%)
+                          </button>
+                          <button
+                            type="button"
+                            className={`admin-concession-seg-btn ${isReset0 ? 'active' : ''}`}
+                            onClick={() => {
+                              setDeductionAmount('0')
+                              if (deductionReason === '100% Free ticket' || deductionReason === '50% Half paid concession') {
+                                setDeductionReason('')
+                              }
+                            }}
+                          >
+                            Reset (Rs. 0)
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-[105px_minmax(0,1fr)] gap-1.5 items-end">
+                          <div>
+                            <label className="text-[10px] text-[#8e8a6f] font-medium block mb-0.5 truncate">
+                              Amount (LKR)
+                            </label>
+                            <div className="relative">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#8e8a6f] pointer-events-none select-none">
+                                Rs.
+                              </span>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                min="0"
+                                max={reservation.amount_lkr}
+                                value={deductionAmount}
+                                onChange={(e) => setDeductionAmount(e.target.value)}
+                                placeholder="0"
+                                className="admin-concession-input !pl-7 !pr-1.5 font-semibold"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-[#8e8a6f] font-medium block mb-0.5 truncate">
+                              Reason / Financial Notes
+                            </label>
+                            <input
+                              type="text"
+                              maxLength="500"
+                              value={deductionReason}
+                              onChange={(e) => setDeductionReason(e.target.value)}
+                              placeholder="e.g. Hardship, VIP..."
+                              className="admin-concession-input"
+                            />
+                          </div>
+                        </div>
+
+                        {deductionError && (
+                          <p className="text-xs text-[#fca5a5] m-0" role="alert">{deductionError}</p>
+                        )}
+
+                        <div className="flex items-center gap-1.5 pt-0.5">
+                          <button
+                            type="button"
+                            className="admin-concession-btn primary flex-1"
+                            onClick={() => handleSaveDeduction(deductionAmount, deductionReason)}
+                            disabled={deductionBusy}
+                          >
+                            {deductionBusy ? 'Saving…' : 'Save Concession'}
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-concession-btn secondary px-3 shrink-0"
+                            onClick={() => {
+                              setIsEditingDeduction(false)
+                              setDeductionError('')
+                            }}
+                            disabled={deductionBusy}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
               {canRecordCash && (
                 <div className="rounded-xl border border-[#24432d] bg-[#0b1710] p-3.5">
                   <strong className="block text-sm text-[#e2eadd]">
@@ -821,6 +1049,23 @@ function ReservationDetails({ reservationId, onReview, onClose, adminMap = {}, a
                         <tr><th scope="row">Received at</th><td className="text-xs text-[#a2b59d]">{reservation.payment_received_at ? dateTime(reservation.payment_received_at) : 'Not collected'}</td></tr>
                         {cashPayment && !cashRegistration && <tr><th scope="row">Reviewed by</th><td><strong className="text-[#e2eadd]">{adminMap[reservation.reviewed_by] || (reservation.reviewed_by ? `Admin (${reservation.reviewed_by.slice(0, 8)}…)` : 'Not reviewed')}</strong></td></tr>}
                       </>}
+                      {reservation.deduction_lkr > 0 && (
+                        <tr>
+                          <th scope="row">Concession</th>
+                          <td>
+                            <strong className="text-[#fbbf24]">
+                              {reservation.deduction_lkr >= reservation.amount_lkr
+                                ? '100% Free Pass'
+                                : `Rs. ${Number(reservation.deduction_lkr).toLocaleString('en-LK')} deduction`}
+                            </strong>
+                            {reservation.deduction_reason && (
+                              <span className="block text-xs text-[#a2b59d] italic mt-0.5">
+                                Note: {reservation.deduction_reason}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      )}
                       <tr>
                         <th scope="row">Outcome</th>
                         <td>
@@ -1152,5 +1397,5 @@ export default function AdminPage({ user, currentPath }) {
   if (access.userId !== user.id) return <p role="status">Checking admin access…</p>
   if (access.error) return <ErrorPage status={503} description={access.error} primaryAction={{ label: 'Try again', onClick: () => setRevision(current => current + 1) }} />
   if (!access.allowed) return <ErrorPage status={403} primaryAction={{ label: 'Check admin access again', onClick: () => setRevision(current => current + 1) }} />
-  return <AdminWorkspace key={user.id} Detail={ReservationDetails} initialTicket={scannedTicket()} currentPath={currentPath} currentAdminId={user.id} />
+  return <AdminWorkspace key={user.id} Detail={ReservationDetails} initialTicket={scannedTicket()} currentPath={currentPath} currentAdminId={user.id} currentUser={user} />
 }

@@ -1,9 +1,8 @@
 import ReviewDialog from '../components/ReviewDialog.jsx'
 import { Loader } from '../components/motion/loader.jsx'
-import ReceiptPdfPreview from '../components/ReceiptPdfPreview.jsx'
+import ReceiptUpload from '../components/ReceiptUpload.jsx'
 import { useToast } from '../lib/toasts.js'
-import { Copy, Check, Upload, FileText, Image as ImageIcon, ArrowRight, ShieldCheck, Trash2 } from 'lucide-react'
-import { prepareReceipt } from '../lib/prepareReceipt.js'
+import { Copy, Check, ArrowRight, ShieldCheck } from 'lucide-react'
 import ReservationProgress from '../components/ReservationProgress.jsx'
 import { navigateReservation } from '../lib/reservationNavigation.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -49,28 +48,7 @@ function ReceiptForm({ reservation, user, bank, onSaved, onRefresh }) {
   const [pending, setPending] = useState(false)
   const [preparing, setPreparing] = useState(false)
   const [stage, setStage] = useState('')
-  const [originalSize, setOriginalSize] = useState(0)
-  const [preview, setPreview] = useState('')
   const [error, setError] = useState('')
-  const selection = useRef(0)
-  const input = useRef(null)
-  const previewRef = useRef('')
-  function clearPreview() {
-    URL.revokeObjectURL(previewRef.current)
-    previewRef.current = ''
-    setPreview('')
-  }
-  useEffect(() => () => { selection.current++; URL.revokeObjectURL(previewRef.current) }, [])
-  async function choose(selected) {
-    const request = ++selection.current
-    setFile(null); clearPreview(); setError(''); setPreparing(true)
-    try {
-      const result = await prepareReceipt(selected)
-      if (request === selection.current) { setFile(result.file); setOriginalSize(result.originalSize); if (result.file.type !== 'application/pdf') { previewRef.current = URL.createObjectURL(result.file); setPreview(previewRef.current) } }
-    } catch (err) { if (request === selection.current) setError(err.message) }
-    finally { if (request === selection.current) setPreparing(false) }
-  }
-  const fileSize = bytes => bytes < 1024 * 1024 ? `${Math.ceil(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
   const inFlight = useRef(false)
 
   async function submit() {
@@ -110,17 +88,13 @@ function ReceiptForm({ reservation, user, bank, onSaved, onRefresh }) {
     <Notice kind="error">{error}</Notice>
     <ReviewDialog open={confirmUpload} title="Send this receipt?" description="The organizers will check it before confirming your ticket." fields={[['Receipt', file?.name], ['Reference', reservation.reference], ['Amount', formatMoney(reservation.amount_lkr)]]} confirmLabel="Submit receipt" onClose={() => setConfirmUpload(false)} onConfirm={submit} />
     <form className="stack" onSubmit={e => { e.preventDefault(); if (!pending && !preparing && bank && (file || uploaded)) setConfirmUpload(true) }} aria-busy={pending || preparing}>
-      <label className="receipt-picker">
-        <Upload size={24} aria-hidden="true" /><strong>{file ? 'Choose a different receipt' : 'Choose your receipt'}</strong><span>Tap to browse · JPG, PNG or PDF</span>
-        <input ref={input} type="file" aria-label="Payment receipt" accept="image/jpeg,image/png,application/pdf" disabled={pending || preparing || !bank || Boolean(uploaded)} onChange={e => { if (e.target.files?.[0]) void choose(e.target.files[0]) }} aria-describedby="receipt-help" />
-      </label>
-      <p id="receipt-help" className="payment-help">PDF up to 5 MB · JPG/PNG up to 20 MB. Large photos are reduced automatically.</p>
-      {preparing && <p className="payment-help"><Loader size={18} label="Preparing receipt" /> Preparing your receipt…</p>}
-      {file && <div className="receipt-preview">
-        {file.type !== 'application/pdf' && preview ? <a href={preview} target="_blank" rel="noreferrer" aria-label="Open receipt image preview"><img src={preview} alt="Your selected receipt. Check that the payment details are readable." /></a> : <ReceiptPdfPreview file={file} />}
-        <div className="receipt-file-info">{file.type === 'application/pdf' ? <FileText size={18} /> : <ImageIcon size={18} />}<div><strong title={file.name}>{file.name}</strong><span>{fileSize(file.size)}{file.size < originalSize && ` · Reduced from ${fileSize(originalSize)}`}</span></div>
-        <button type="button" className="receipt-remove" aria-label="Remove receipt" title="Remove receipt" disabled={pending || Boolean(uploaded)} onClick={() => { selection.current++; setFile(null); clearPreview(); setError(''); if (input.current) { input.current.value = ''; input.current.focus() } }}><Trash2 size={18} aria-hidden="true" /></button></div>
-      </div>}
+      <ReceiptUpload
+        file={file}
+        onFileChange={newFile => { setFile(newFile); setUploaded(null) }}
+        disabled={pending || !bank || Boolean(uploaded)}
+        onError={setError}
+        onPreparingChange={setPreparing}
+      />
       {uploaded && !pending && <p role="status" className="payment-help">Your file is uploaded. Retry to finish submitting it for review.</p>}
       <p className="payment-private"><ShieldCheck size={16} />Your receipt stays private.</p>
       <button className="reserve-submit" type="submit" disabled={pending || preparing || !bank || (!file && !uploaded)}>{pending ? stage : uploaded ? 'Retry submission' : 'Send receipt for review'}{pending ? <Loader size={18} label={stage} /> : <ArrowRight size={18} />}</button>

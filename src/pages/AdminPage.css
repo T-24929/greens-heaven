@@ -1500,6 +1500,7 @@
 .admin-shell .admin-ticket-status-cell { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
 .admin-shell .admin-ticket-status-cell .admin-status-dot-badge { min-height: 25px; padding: 3px 8px; font-size: 10px; }
 .admin-shell .admin-ticket-status-cell .admin-cash-row-badge { flex: 0 0 auto; margin: 0; padding: 2px 6px; font-size: 9px; }
+.admin-shell .admin-ticket-status-cell .admin-concession-pill { flex: 0 0 auto; margin: 0; padding: 2px 6px; font-size: 9px; }
 
 @media (max-width: 640px) {
   .admin-shell .admin-metrics-grid {
@@ -2437,6 +2438,185 @@
   background: #102317;
   font: 600 9px/1.25 'Montserrat', sans-serif;
 }
+.admin-shell .admin-concession-pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 3px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font: 600 9px/1.25 'Montserrat', sans-serif;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.admin-shell .admin-concession-pill.free {
+  border: 1px solid #7f1d1d;
+  color: #fca5a5;
+  background: #331c17;
+}
+.admin-shell .admin-concession-pill.half {
+  border: 1px solid #78350f;
+  color: #fbbf24;
+  background: #291e0a;
+}
+.admin-shell .admin-concession-pill.custom {
+  border: 1px solid #166534;
+  color: #86efac;
+  background: #182a1c;
+}
+
+/* Compact Super Admin Concession Card */
+.admin-shell .admin-concession-card {
+  border-radius: 12px;
+  border: 1px solid #3b3519;
+  background: #111208;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.admin-shell .admin-concession-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #080904;
+  border: 1px solid #24220f;
+  text-align: center;
+}
+.admin-shell .admin-concession-metric-lbl {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: block;
+}
+.admin-shell .admin-concession-metric-val {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  display: block;
+  white-space: nowrap;
+}
+.admin-shell .admin-concession-segmented {
+  display: flex;
+  background: #070803;
+  border: 1px solid #26230f;
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.admin-shell .admin-concession-seg-btn {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 4px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: inherit;
+  color: #a39e80;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 100ms ease, background-color 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+.admin-shell .admin-concession-seg-btn:active {
+  transform: scale(0.96);
+}
+.admin-shell .admin-concession-seg-btn.active {
+  background: #2a1f0a;
+  border-color: #78350f;
+  color: #fbbf24;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+@media (hover: hover) and (pointer: fine) {
+  .admin-shell .admin-concession-seg-btn:hover:not(.active) {
+    background: #141409;
+    color: #e2eadd;
+  }
+}
+.admin-shell .admin-concession-input {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #3b3519;
+  background: #080904;
+  color: #edf5ea;
+  font-size: 16px; /* Essential: prevents iOS Safari viewport auto-zoom */
+  min-height: 34px;
+  padding: 6px 10px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+  transition: border-color 120ms ease;
+}
+.admin-shell .admin-concession-input:focus {
+  outline: none;
+  border-color: #f59e0b;
+}
+@media (min-width: 641px) and (pointer: fine) {
+  .admin-shell .admin-concession-input {
+    font-size: 12px;
+    min-height: 32px;
+  }
+}
+.admin-shell .admin-concession-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 100ms ease, background-color 100ms ease, border-color 100ms ease;
+}
+.admin-shell .admin-concession-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.admin-shell .admin-concession-btn.primary {
+  background: #15803d;
+  border: 1px solid #22c55e;
+  color: #f0fdf4;
+}
+.admin-shell .admin-concession-btn.secondary {
+  background: #19180b;
+  border: 1px solid #5a3f12;
+  color: #fef3c7;
+}
+@media (hover: hover) and (pointer: fine) {
+  .admin-shell .admin-concession-btn.primary:hover:not(:disabled) {
+    background: #16a34a;
+    border-color: #4ade80;
+  }
+  .admin-shell .admin-concession-btn.secondary:hover:not(:disabled) {
+    background: #2b220e;
+    border-color: #855314;
+  }
+}
+.admin-shell .admin-concession-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .admin-shell .admin-cash-overlay {
   position: fixed;
   z-index: 150;
@@ -2576,7 +2756,151 @@
 }
 .admin-shell .admin-cash-amount > span { display: inline-flex; align-items: center; gap: 8px; color: #a8b9a2; font-size: 11px; }
 .admin-shell .admin-cash-amount svg { color: #70d985; }
-.admin-shell .admin-cash-amount strong { color: #e1f2da; font-size: 14px; }
+.admin-shell .admin-payment-mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: #060c08;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid #1a2a1d;
+}
+.admin-shell .admin-payment-mode-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #8da18a;
+  font: 500 11.5px 'Montserrat', sans-serif;
+  cursor: pointer;
+  transition: all 180ms ease;
+}
+.admin-shell .admin-payment-mode-tab:hover:not(:disabled) {
+  color: #c0d8af;
+  background: rgba(255, 255, 255, 0.03);
+}
+.admin-shell .admin-payment-mode-tab.active {
+  background: #102418;
+  color: #6bd984;
+  border-color: #274c32;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.admin-shell .admin-bank-info-box {
+  display: grid;
+  gap: 6px;
+  padding: 11px 13px;
+  border: 1px solid #1d3323;
+  border-radius: 12px;
+  background: #09130c;
+  font-size: 11px;
+}
+.admin-shell .admin-bank-info-title {
+  color: #79d78d;
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.admin-shell .admin-bank-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+  color: #cbd8c7;
+}
+.admin-shell .admin-bank-info-grid strong {
+  color: #e4ece0;
+}
+.admin-shell .admin-cash-dialog .receipt-upload-container {
+  display: grid;
+  gap: 8px;
+}
+.admin-shell .admin-cash-dialog .receipt-picker {
+  position: relative;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  border: 1px dashed #3d5a42;
+  border-radius: 14px;
+  background: #0a140d;
+  cursor: pointer;
+  color: #c4d6bc;
+  transition: border-color 150ms ease;
+}
+.admin-shell .admin-cash-dialog .receipt-picker:hover {
+  border-color: #55805c;
+}
+.admin-shell .admin-cash-dialog .receipt-picker input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.admin-shell .admin-cash-dialog .receipt-picker span {
+  font-size: 11px;
+  color: #8da18a;
+}
+.admin-shell .admin-cash-dialog .receipt-preview {
+  overflow: hidden;
+  border: 1px solid #233b2a;
+  border-radius: 14px;
+  background: #09120b;
+}
+.admin-shell .admin-cash-dialog .receipt-preview img {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  background: #050a06;
+}
+.admin-shell .admin-cash-dialog .receipt-file-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #0d1b11;
+  border-top: 1px solid #1c3222;
+}
+.admin-shell .admin-cash-dialog .receipt-file-info > div {
+  flex: 1;
+  min-width: 0;
+}
+.admin-shell .admin-cash-dialog .receipt-file-info strong {
+  display: block;
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+  color: #e2eadd;
+}
+.admin-shell .admin-cash-dialog .receipt-file-info span {
+  display: block;
+  color: #8da18a;
+  font-size: 10px;
+  margin-top: 2px;
+}
+.admin-shell .admin-cash-dialog .receipt-remove {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: #f0aaa1;
+  background: #2b1715;
+  border: 1px solid #4a2420;
+  cursor: pointer;
+}
+.admin-shell .admin-cash-dialog .receipt-remove:hover {
+  background: #3c1e1a;
+}
 .admin-shell .admin-cash-confirm {
   display: flex;
   align-items: flex-start;
@@ -5552,11 +5876,11 @@
 }
 .admin-shell .admin-rev-search-wrap input {
   width: 100%;
-  height: 38px;
+  height: 36px;
   background: #08150d;
   border: 1px solid #1a3821;
   border-radius: 10px;
-  padding: 0 34px 0 36px;
+  padding: 0 32px 0 32px;
   font-size: 13px;
   color: #edf5ea;
   outline: none;
@@ -5566,6 +5890,7 @@
 @media (max-width: 640px) {
   .admin-shell .admin-rev-search-wrap input {
     font-size: 16px; /* Prevents iOS Safari auto-zoom */
+    height: 36px;
   }
 }
 .admin-shell .admin-rev-search-wrap input:focus {
@@ -5594,29 +5919,73 @@
   background: #23472c;
   color: #edf5ea;
 }
+.admin-shell .admin-rev-time-select,
 .admin-shell .admin-rev-batch-select {
-  height: 38px;
+  height: 36px;
   background: #08150d;
   color: #8fa88a;
   border: 1px solid #1a3821;
   border-radius: 10px;
-  padding: 0 10px;
-  font-size: 12px;
+  padding: 0 26px 0 10px;
+  font-size: 16px; /* Prevents iOS Safari auto-zoom on mobile */
   outline: none;
   cursor: pointer;
   touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
   flex-shrink: 0;
-  max-width: 140px;
+  max-width: 145px;
+  transition: all 0.15s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235a7d57' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
 }
+@media (min-width: 641px) and (pointer: fine) {
+  .admin-shell .admin-rev-time-select,
+  .admin-shell .admin-rev-batch-select {
+    font-size: 12px;
+    height: 34px;
+    max-width: 155px;
+  }
+}
+.admin-shell .admin-rev-time-select:focus,
 .admin-shell .admin-rev-batch-select:focus {
   border-color: #4ade80;
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.15);
+}
+.admin-shell .admin-rev-time-select.active {
+  background-color: #102517;
+  border-color: #2b643a;
+  color: #7ce698;
+  font-weight: 600;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237ce698' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
 .admin-shell .admin-rev-toolbar-bottom {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
+  width: 100%;
+}
+.admin-shell .admin-rev-toolbar-bottom .admin-rev-pill-group {
+  width: 100%;
+  display: flex;
+}
+.admin-shell .admin-rev-toolbar-bottom .admin-rev-pill-btn {
+  flex: 1;
+  text-align: center;
+  padding: 5px 4px;
+  font-size: 11px;
+}
+@media (min-width: 641px) {
+  .admin-shell .admin-rev-toolbar-bottom .admin-rev-pill-group {
+    width: auto;
+  }
+  .admin-shell .admin-rev-toolbar-bottom .admin-rev-pill-btn {
+    flex: initial;
+    padding: 4px 10px;
+  }
 }
 .admin-shell .admin-rev-pill-group {
   display: inline-flex;

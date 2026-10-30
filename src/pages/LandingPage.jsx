@@ -140,7 +140,7 @@ export default function LandingPage({ user }) {
   const brandRef = useRef(null)
   const phase = useLandingIntro(brandRef)
   const [imageSettled, setImageSettled] = useState(false)
-  const [ticketAvailability, setTicketAvailability] = useState({ total_tickets: 90, tickets_left: 90, approved_tickets: 0 })
+  const [, setTicketAvailability] = useState({ total_tickets: 90, tickets_left: 90, approved_tickets: 0 })
   const [eventSettings, setEventSettings] = useState(() => ({
     starts_at: EVENT.starts_at,
   }))

@@ -48,7 +48,7 @@ const tabs = [
   ['updates', 'Updates', Bell],
 ]
 const pageSize = 20
-const listFields = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,status,amount_lkr,created_at,reviewed_by,registration_source,payment_method,user_id,account_setup_sent_at,registered_by,payment_received_by,payment_received_at'
+const listFields = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,status,amount_lkr,deduction_lkr,deduction_reason,deducted_by,deducted_at,created_at,reviewed_by,registration_source,payment_method,user_id,account_setup_sent_at,registered_by,payment_received_by,payment_received_at'
 const cashListFields = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,status,amount_lkr,created_at,reviewed_by,registration_source,payment_method,user_id,account_setup_sent_at,payment_received_by,payment_received_at'
 const legacyListFields = 'id,reference,full_name,email,whatsapp,nic_number,school_index_number,school_joined_year,status,amount_lkr,created_at,reviewed_by'
 
@@ -118,7 +118,7 @@ function AttendanceGateChooser() {
   )
 }
 
-export default function AdminWorkspace({ Detail, initialTicket, currentPath, currentAdminId }) {
+export default function AdminWorkspace({ Detail, initialTicket, currentPath, currentAdminId, currentUser }) {
   const toast = useToast()
   const activePath = currentPath || (typeof window !== 'undefined' ? window.location.pathname : '')
   const tab = getAdminTabFromPath(activePath, { hasInitialTicket: Boolean(initialTicket) }) || 'overview'
@@ -771,6 +771,14 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
                       {row.registration_source === 'in_person' && (
                         <span className="admin-cash-row-badge" title="Physical cash registration">Cash</span>
                       )}
+                      {row.deduction_lkr > 0 && (
+                        <span
+                          className={`admin-concession-pill ${row.deduction_lkr >= row.amount_lkr ? 'free' : row.deduction_lkr === Math.round(row.amount_lkr / 2) ? 'half' : 'custom'}`}
+                          title={row.deduction_reason ? `Concession: ${row.deduction_reason}` : 'Payment deduction'}
+                        >
+                          {row.deduction_lkr >= row.amount_lkr ? 'Free pass' : row.deduction_lkr === Math.round(row.amount_lkr / 2) ? 'Half paid' : `-${row.deduction_lkr}`}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="text-right" onClick={e => e.stopPropagation()}>
@@ -810,6 +818,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
         adminMap={adminMap}
         onSelectTicket={setSelected}
         onNavigateTab={setTab}
+        currentUser={currentUser}
       />
     )}
     {tab === 'updates' && <section className="admin-panel stack admin-delivery-panel">
@@ -860,6 +869,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
             adminMap={adminMap}
             admins={adminDirectory}
             currentAdminId={currentAdminId}
+            currentUser={currentUser}
           />
         )}
       </div>
