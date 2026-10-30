@@ -129,8 +129,6 @@ export default function AdminFinancialDashboard({ currentUser, onSelectTicket })
     pendingInflow,
     confirmedCount,
     pendingCount,
-    onlineInflow,
-    cashInflow,
   } = useMemo(() => {
     let conf = 0
     let grossConf = 0
@@ -139,8 +137,6 @@ export default function AdminFinancialDashboard({ currentUser, onSelectTicket })
     let pend = 0
     let confCount = 0
     let pendCount = 0
-    let online = 0
-    let cash = 0
 
     for (const r of reservations) {
       const gross = Number(r.amount_lkr) || 0
@@ -154,11 +150,6 @@ export default function AdminFinancialDashboard({ currentUser, onSelectTicket })
         if (deduction > 0) {
           deductions += Math.min(deduction, gross)
           concededCount++
-        }
-        if (r.payment_method === 'cash') {
-          cash += net
-        } else {
-          online += net
         }
       } else if (r.status === 'pending_review') {
         pend += gross
@@ -174,8 +165,6 @@ export default function AdminFinancialDashboard({ currentUser, onSelectTicket })
       pendingInflow: pend,
       confirmedCount: confCount,
       pendingCount: pendCount,
-      onlineInflow: online,
-      cashInflow: cash,
     }
   }, [reservations])
 
@@ -488,7 +477,6 @@ export default function AdminFinancialDashboard({ currentUser, onSelectTicket })
             <strong className="text-sm font-bold text-[#edf5ea] tabular-nums block mt-0.5">
               {formatMoney(confirmedInflow)}
             </strong>
-          
             {totalDeductions > 0 && (
               <span className="text-[9.5px] text-[#fbbf24] block mt-0.5 tabular-nums">
                 (-{formatMoney(totalDeductions)} in concessions)
