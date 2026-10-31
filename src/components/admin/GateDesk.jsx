@@ -420,7 +420,7 @@ export default function GateDesk({ initialGate = 'entrance', lockedGate = null, 
                           </a>
                         </div>
                       ) : recorded?.identity_checked === true ? (
-                        <div className="admin-attendance-recorded-wrap">
+                        <div className="admin-attendance-recorded-wrap relative ">
                           <div className="admin-attendance-recorded">
                             <CheckCircle2 size={17} aria-hidden="true" />
                             <span><strong>{label} admitted</strong><small>{time(recorded.checked_in_at)}</small></span>
