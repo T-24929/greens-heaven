@@ -29,10 +29,11 @@ import {
   CheckCircle2,
   ArrowRight,
   ArrowLeft,
+  Eye,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { supabase } from '../../utils/supabase.js'
-import { isSuperAdmin } from '../../SUPER_ADMIN.ts'
+import { canAccessFinancialTab, canManageFinancials } from '../../SUPER_ADMIN.ts'
 import FadeContent from '../FadeContent.jsx'
 import { MorphingModal } from '../motion/morphing-modal.jsx'
 import { Input } from '../motion/input.jsx'
@@ -164,7 +165,8 @@ function formatMoney(amount) {
 }
 
 export default function AdminFinancialDashboard({ currentUser, onSelectTicket }) {
-  const userIsSuperAdmin = isSuperAdmin(currentUser?.email)
+  const userCanAccess = canAccessFinancialTab(currentUser?.email)
+  const isReadOnly = !canManageFinancials(currentUser?.email)
 
   const [reservations, setReservations] = useState([])
   const [expenses, setExpenses] = useState([])
@@ -584,6 +586,7 @@ export default function AdminFinancialDashboard({ currentUser, onSelectTicket })
 
   // Open modal for editing expense
   function openEditModal(exp) {
+    if (isReadOnly) return
     setEditingExpense(exp)
     setFormTitle(exp.title || '')
     setFormCategory(exp.category || 'misc')
@@ -602,6 +605,10 @@ export default function AdminFinancialDashboard({ currentUser, onSelectTicket })
   // Handle Save Expense (Create or Update)
   async function handleSubmitExpense(e) {
     e.preventDefault()
+    if (isReadOnly) {
+      setFormError('View-only access: you do not have permission to modify expenses.')
+      return
+    }
     if (!formTitle.trim()) {
       setFormError('Please enter an expense title or payee.')
       return
@@ -663,6 +670,7 @@ export default function AdminFinancialDashboard({ currentUser, onSelectTicket })
 
   // Handle Delete Expense
   async function handleDeleteExpense(id) {
+    if (isReadOnly) return
     setFormBusy(true)
     try {
       const { error: delErr } = await supabase.rpc('delete_expense', { p_id: id })
@@ -695,6 +703,7 @@ export default function AdminFinancialDashboard({ currentUser, onSelectTicket })
 
   // Open modal for editing external income
   function openEditIncomeModal(inc) {
+    if (isReadOnly) return
     setEditingIncome(inc)
     setIncomeFormTitle(inc.title || '')
     setIncomeFormCategory(inc.category || 'misc')
@@ -713,6 +722,10 @@ export default function AdminFinancialDashboard({ currentUser, onSelectTicket })
   // Handle Save External Income (Create or Update)
   async function handleSubmitIncome(e) {
     e.preventDefault()
+    if (isReadOnly) {
+      setIncomeFormError('View-only access: you do not have permission to modify external incomes.')
+      return
+    }
     if (!incomeFormTitle.trim()) {
       setIncomeFormError('Please enter an income title or source.')
       return
@@ -774,6 +787,7 @@ export default function AdminFinancialDashboard({ currentUser, onSelectTicket })
 
   // Handle Delete External Income
   async function handleDeleteIncome(id) {
+    if (isReadOnly) return
     setIncomeFormBusy(true)
     try {
       const { error: delErr } = await supabase.rpc('delete_external_income', { p_id: id })
@@ -788,13 +802,13 @@ export default function AdminFinancialDashboard({ currentUser, onSelectTicket })
     }
   }
 
-  if (!userIsSuperAdmin) {
+  if (!userCanAccess) {
     return (
       <div className="admin-panel p-6 text-center space-y-3">
         <ShieldCheck size={36} className="mx-auto text-[#f59e0b]" />
         <h3 className="text-sm font-semibold text-[#fef3c7]">Super Admin Only</h3>
         <p className="text-xs text-[#9a9474]">
-          Only super admins can view financial accounts.
+          Only authorized administrators can view financial accounts.
         </p>
       </div>
     )
@@ -810,37 +824,44 @@ export default function AdminFinancialDashboard({ currentUser, onSelectTicket })
             <h2 className="text-base sm:text-lg font-bold text-[#e2eadd] tracking-tight m-0">
               Treasury &amp; Bank
             </h2>
-           
+            {isReadOnly && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#162f1c] border border-[#2b5934] text-[10.5px] font-medium text-[#86efac]">
+                <Eye size={11} className="text-[#52e078]" />
+                <span>View Only</span>
+              </span>
+            )}
           </div>
           <p className="text-xs text-[#8e8a6f] mt-0.5 mb-0">
             Track ticket income, expenses, and cash in hand.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={() => {
-              resetIncomeForm()
-              setIsRecordIncomeModalOpen(true)
-            }}
-            className="admin-financial-add-income-btn"
-          >
-            <PlusCircle size={15} />
-            <span>Add Income</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              resetForm()
-              setIsRecordModalOpen(true)
-            }}
-            className="admin-financial-add-btn"
-          >
-            <PlusCircle size={15} />
-            <span>Add Expense</span>
-          </button>
-        </div>
+        {!isReadOnly && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                resetIncomeForm()
+                setIsRecordIncomeModalOpen(true)
+              }}
+              className="admin-financial-add-income-btn"
+            >
+              <PlusCircle size={15} />
+              <span>Add Income</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                resetForm()
+                setIsRecordModalOpen(true)
+              }}
+              className="admin-financial-add-btn"
+            >
+              <PlusCircle size={15} />
+              <span>Add Expense</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {error && <p className="admin-error" role="alert">{error}</p>}
@@ -1226,17 +1247,19 @@ export default function AdminFinancialDashboard({ currentUser, onSelectTicket })
           filteredIncomes.length === 0 ? (
             <div className="admin-empty text-center py-6">
               <p className="text-xs text-[#7f997a] m-0">No external income records found.</p>
-              <button
-                type="button"
-                onClick={() => {
-                  resetIncomeForm()
-                  setIsRecordIncomeModalOpen(true)
-                }}
-                className="admin-financial-add-income-btn mt-3 mx-auto"
-              >
-                <PlusCircle size={14} />
-                <span>Add external income</span>
-              </button>
+              {!isReadOnly && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetIncomeForm()
+                    setIsRecordIncomeModalOpen(true)
+                  }}
+                  className="admin-financial-add-income-btn mt-3 mx-auto"
+                >
+                  <PlusCircle size={14} />
+                  <span>Add external income</span>
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-1.5">
@@ -1270,11 +1293,13 @@ export default function AdminFinancialDashboard({ currentUser, onSelectTicket })
                             <strong className="text-xs sm:text-[13px] font-bold text-[#52e078] tabular-nums">
                               +{formatMoney(inc.amount_lkr)}
                             </strong>
-                            <TransactionActionMenu
-                              title={inc.title}
-                              onEdit={() => openEditIncomeModal(inc)}
-                              onDelete={() => setDeleteIncomeId(inc.id)}
-                            />
+                            {!isReadOnly && (
+                              <TransactionActionMenu
+                                title={inc.title}
+                                onEdit={() => openEditIncomeModal(inc)}
+                                onDelete={() => setDeleteIncomeId(inc.id)}
+                              />
+                            )}
                           </div>
                         </div>
 
@@ -1347,17 +1372,19 @@ export default function AdminFinancialDashboard({ currentUser, onSelectTicket })
           filteredExpenses.length === 0 ? (
             <div className="admin-empty text-center py-6">
               <p className="text-xs text-[#7f997a] m-0">No expenses recorded yet.</p>
-              <button
-                type="button"
-                onClick={() => {
-                  resetForm()
-                  setIsRecordModalOpen(true)
-                }}
-                className="admin-financial-add-btn mt-3 mx-auto"
-              >
-                <PlusCircle size={14} />
-                <span>Add an expense</span>
-              </button>
+              {!isReadOnly && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetForm()
+                    setIsRecordModalOpen(true)
+                  }}
+                  className="admin-financial-add-btn mt-3 mx-auto"
+                >
+                  <PlusCircle size={14} />
+                  <span>Add an expense</span>
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-1.5">
@@ -1537,11 +1564,13 @@ export default function AdminFinancialDashboard({ currentUser, onSelectTicket })
                             <strong className={`text-xs sm:text-[13px] font-bold tabular-nums ${isExcluded ? 'text-[#718b6e] line-through' : 'text-[#fca5a5]'}`}>
                               -{formatMoney(exp.amount_lkr)}
                             </strong>
-                            <TransactionActionMenu
-                              title={exp.title}
-                              onEdit={() => openEditModal(exp)}
-                              onDelete={() => setDeleteExpenseId(exp.id)}
-                            />
+                            {!isReadOnly && (
+                              <TransactionActionMenu
+                                title={exp.title}
+                                onEdit={() => openEditModal(exp)}
+                                onDelete={() => setDeleteExpenseId(exp.id)}
+                              />
+                            )}
                           </div>
                         </div>
 

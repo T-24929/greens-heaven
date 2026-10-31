@@ -457,4 +457,39 @@ select test_support.ok((public.delete_external_income(current_setting('test.inco
 select test_support.ok((select count(*) = 0 from public.external_incomes where id = current_setting('test.income_id')::uuid),
   'external income record is deleted');
 
+-- View-Only Financial Admin Tests (nethmithakariyawasam@gmail.com)
+insert into auth.users(id, email, email_confirmed_at, is_anonymous) values
+  ('10000000-0000-4000-8000-000000000007', 'nethmithakariyawasam@gmail.com', now(), false);
+insert into private.admins(user_id) values ('10000000-0000-4000-8000-000000000007');
+
+-- Set up records as super admin
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000006', true);
+select set_config('test.view_only_exp_id', (public.record_expense('Stage Lighting', 'sound_music', 45000)).id::text, true);
+select set_config('test.view_only_inc_id', (public.record_external_income('Gold Sponsor', 'sponsorship', 75000)).id::text, true);
+
+-- Switch to nethmithakariyawasam@gmail.com
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000007', true);
+
+-- Can view/select expenses and external incomes
+select test_support.ok((select count(*) >= 1 from public.expenses where id = current_setting('test.view_only_exp_id')::uuid),
+  'view-only financial admin can read expenses');
+select test_support.ok((select count(*) >= 1 from public.external_incomes where id = current_setting('test.view_only_inc_id')::uuid),
+  'view-only financial admin can read external incomes');
+
+-- Cannot record, update, or delete expenses
+select test_support.denied($sql$select public.record_expense('Unauthorized Expense', 'misc', 10000)$sql$, '42501', 'view-only admin cannot record expenses');
+select test_support.denied($sql$select public.update_expense(current_setting('test.view_only_exp_id')::uuid, 'Hacked', 'misc', 10000)$sql$, '42501', 'view-only admin cannot update expenses');
+select test_support.denied($sql$select public.delete_expense(current_setting('test.view_only_exp_id')::uuid)$sql$, '42501', 'view-only admin cannot delete expenses');
+select test_support.denied($sql$insert into public.expenses(title, category, amount_lkr) values ('Direct', 'misc', 5000)$sql$, '42501', 'view-only admin cannot directly insert expenses');
+
+-- Cannot record, update, or delete external incomes
+select test_support.denied($sql$select public.record_external_income('Unauthorized Income', 'misc', 10000)$sql$, '42501', 'view-only admin cannot record external incomes');
+select test_support.denied($sql$select public.update_external_income(current_setting('test.view_only_inc_id')::uuid, 'Hacked', 'misc', 10000)$sql$, '42501', 'view-only admin cannot update external incomes');
+select test_support.denied($sql$select public.delete_external_income(current_setting('test.view_only_inc_id')::uuid)$sql$, '42501', 'view-only admin cannot delete external incomes');
+select test_support.denied($sql$insert into public.external_incomes(title, category, amount_lkr) values ('Direct', 'misc', 5000)$sql$, '42501', 'view-only admin cannot directly insert external incomes');
+
+-- Cannot adjust ticket deductions
+select test_support.denied($sql$select public.set_reservation_deduction(current_setting('test.reservation_id')::uuid, 1000, 'Test')$sql$, '42501', 'view-only admin cannot adjust ticket deductions');
+
 rollback;

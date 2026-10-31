@@ -32,7 +32,7 @@ import GateDesk from './GateDesk.jsx'
 import AdminArrivals from './AdminArrivals.jsx'
 import AdminRevenueDashboard from './AdminRevenueDashboard.jsx'
 import AdminFinancialDashboard from './AdminFinancialDashboard.jsx'
-import { isSuperAdmin } from '../../SUPER_ADMIN.ts'
+import { canAccessFinancialTab } from '../../SUPER_ADMIN.ts'
 import { getAdminTabFromPath, getAdminGateFromPath, navigateAdmin } from '../../lib/adminNavigation.js'
 import { useToast } from '../../lib/toasts.js'
 import { getAdminsList, buildAdminMap } from '../../lib/admins.js'
@@ -130,9 +130,9 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
   const [adminMap, setAdminMap] = useState({})
   const [adminDirectory, setAdminDirectory] = useState([])
 
-  const userIsSuperAdmin = isSuperAdmin(currentUser?.email)
+  const userCanAccessFinancial = canAccessFinancialTab(currentUser?.email)
   const workspaceTabs = useMemo(() => {
-    if (userIsSuperAdmin) {
+    if (userCanAccessFinancial) {
       return [
         ['overview', 'Overview', LayoutDashboard],
         ['tickets', 'Tickets', Tickets],
@@ -144,7 +144,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
       ]
     }
     return tabs
-  }, [userIsSuperAdmin])
+  }, [userCanAccessFinancial])
 
   useEffect(() => {
     let active = true
@@ -842,7 +842,7 @@ export default function AdminWorkspace({ Detail, initialTicket, currentPath, cur
       />
     )}
     {tab === 'financial' && (
-      userIsSuperAdmin ? (
+      userCanAccessFinancial ? (
         <AdminFinancialDashboard
           currentUser={currentUser}
           onSelectTicket={setSelected}
