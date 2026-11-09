@@ -295,6 +295,39 @@ export default function DepthRibbon({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedPhoto, isCommentsOpen]);
 
+  // Keyboard travel along the 3D path (Arrow keys, PageUp/Down, Home/End)
+  useEffect(() => {
+    const handleRibbonKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(e.target?.tagName)) return;
+      if (isCommentsOpen) return;
+
+      const step = 1 / Math.max(1, totalCount - 1);
+
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        scrollTargetRef.current = Math.min(1, scrollTargetRef.current + step);
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        scrollTargetRef.current = Math.max(0, scrollTargetRef.current - step);
+      } else if (e.key === 'PageDown') {
+        e.preventDefault();
+        scrollTargetRef.current = Math.min(1, scrollTargetRef.current + step * 5);
+      } else if (e.key === 'PageUp') {
+        e.preventDefault();
+        scrollTargetRef.current = Math.max(0, scrollTargetRef.current - step * 5);
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        scrollTargetRef.current = 0;
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        scrollTargetRef.current = 1;
+      }
+    };
+
+    window.addEventListener('keydown', handleRibbonKeyDown);
+    return () => window.removeEventListener('keydown', handleRibbonKeyDown);
+  }, [totalCount, isCommentsOpen]);
+
   // Fetch likes & comment count ONLY when an image is clicked and selected
   useEffect(() => {
     if (!selectedPhotoId) return;
@@ -363,7 +396,6 @@ export default function DepthRibbon({
   // ─── Scroll-Driven Physics State ─────────────────────────────────────────────
   const scrollTargetRef = useRef(0);
   const scrollCurrentRef = useRef(0);
-  const hasInitCamRef = useRef(false);
 
   // Orbit rotation in 3D overview
   const orbitAngleRef = useRef(15);
@@ -371,7 +403,7 @@ export default function DepthRibbon({
   const isDraggingOrbitRef = useRef(false);
   const orbitDragStartRef = useRef({ x: 0, y: 0, angle: 0, pitch: 0 });
 
-  const pointerDownPosRef = useRef({ x: 0, y: 0, time: 0 });
+  const pointerDownPosRef = useRef({ x: 0, y: 0 });
 
   // Hovered card for pauseOnHover
   const hoveredCardRef = useRef(null);
@@ -745,7 +777,7 @@ export default function DepthRibbon({
       window.removeEventListener('resize', handleResize);
       renderer.dispose();
     };
-  }, [pool, totalCount, path, fov, fog, thread, shadow, accentColor, backgroundColor, dpr]);
+  }, [pool, totalCount, path, fov, fog, thread, shadow, accentColor, backgroundColor, dpr, aspect, cardSize, offset]);
 
   // ─── Gesture & Event Handlers (Zero Re-renders during scroll) ───────────────
   const handleWheel = useCallback((e) => {
@@ -770,7 +802,6 @@ export default function DepthRibbon({
     pointerDownPosRef.current = {
       x: e.clientX,
       y: e.clientY,
-      time: performance.now(),
     };
 
     if (e.target.closest('.depth-ribbon-v-track') || e.target.closest('.depth-ribbon-engagement-bar') || e.target.closest('.photo-comments-overlay')) {

@@ -382,6 +382,7 @@ export default function DomeGallery({
           tapTargetRef.current = null;
 
           if (cancelTapRef.current) setTimeout(() => (cancelTapRef.current = false), 120);
+          // eslint-disable-next-line react-hooks/purity
           if (movedRef.current) lastDragEndAt.current = performance.now();
           movedRef.current = false;
           if (pointerTypeRef.current === 'touch') unlockScroll();

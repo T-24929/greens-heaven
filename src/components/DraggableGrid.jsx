@@ -20,7 +20,7 @@ export default function DraggableGrid({
   const animFrameRef = useRef(null);
   const isDraggingRef = useRef(false);
 
-  const [scale, setScale] = useState(1);
+  const [, setScale] = useState(1);
 
   // Apply CSS translate3d & scale with hardware acceleration
   const applyTransform = useCallback((x, y, s) => {

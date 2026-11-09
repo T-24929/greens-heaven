@@ -19,7 +19,7 @@ export default function InfiniteGrid({ photos = [], onPhotoClick }) {
     hoveredPhoto: null,
   });
 
-  const [hoveredTitle, setHoveredTitle] = useState(null);
+  const [, setHoveredTitle] = useState(null);
 
   // Grid layout geometry
   const cols = 9; // 9 columns of photos
