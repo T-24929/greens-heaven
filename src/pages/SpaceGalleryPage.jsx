@@ -12,6 +12,7 @@ import {
 import DepthRibbon from '../components/DepthRibbon.jsx';
 import { supabase } from '../utils/supabase.js';
 import { getThankYouCardPhoto } from '../utils/thankYouCard.js';
+import { downloadPhotoFile } from '../utils/photoDownload.js';
 import './SpaceGalleryPage.css';
 
 export default function SpaceGalleryPage({ user: propUser }) {
@@ -95,48 +96,11 @@ export default function SpaceGalleryPage({ user: propUser }) {
     setDownloadingPhoto(true);
     setDownloadSuccess(false);
 
-    const preferredUrl = photo.originalUrl || photo.thumbnailUrl;
-    const fallbackUrl = photo.thumbnailUrl || photo.originalUrl;
-    const filename = photo.filename || `${photo.title || 'photo'}.jpg`;
-
-    if (preferredUrl && preferredUrl.startsWith('data:')) {
-      const link = document.createElement('a');
-      link.href = preferredUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setDownloadSuccess(true);
-      setDownloadingPhoto(false);
-      setTimeout(() => setDownloadSuccess(false), 2000);
-      return;
-    }
-
     try {
-      let res = await fetch(preferredUrl);
-      if (!res.ok && fallbackUrl && fallbackUrl !== preferredUrl) {
-        res = await fetch(fallbackUrl);
-      }
-      if (!res.ok) throw new Error('Download failed');
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
-      setDownloadSuccess(true);
+      const ok = await downloadPhotoFile(photo);
+      setDownloadSuccess(Boolean(ok));
     } catch {
-      const link = document.createElement('a');
-      link.href = fallbackUrl || preferredUrl;
-      link.download = filename;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setDownloadSuccess(true);
+      setDownloadSuccess(false);
     } finally {
       setDownloadingPhoto(false);
       setTimeout(() => setDownloadSuccess(false), 2000);

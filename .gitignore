@@ -56,6 +56,5 @@ supabase/.branches/
 graphify-out/
 .graphify-cache/
 
-# Space Gallery original album sources
+# Space Gallery raw album backup (1.5 GB uncompressed sources)
 album-source/
-public/gallery/originals/

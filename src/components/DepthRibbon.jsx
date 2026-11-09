@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { Heart, MessageSquare, Maximize2, Download, Check, Loader2, Share2, X } from 'lucide-react';
 import { getOrCreateClientId, getPhotoLikes, togglePhotoLike, getPhotoComments } from '../utils/photoSocial.js';
 import { getThankYouCardAsset, getThankYouCardPhoto } from '../utils/thankYouCard.js';
+import { downloadPhotoFile } from '../utils/photoDownload.js';
 import PhotoCommentsDrawer from './PhotoCommentsDrawer.jsx';
 import './DepthRibbon.css';
 
@@ -275,6 +276,9 @@ export default function DepthRibbon({
     selectedPhotoIdxRef.current = selectedPhotoIdx;
   }, [selectedPhotoIdx]);
 
+  const cardMeshesRef = useRef([]);
+  const loadCardTextureRef = useRef(null);
+
   // ─── Social Engagement State (Synced with Supabase + In-Memory Cache) ───────
   const [likeCount, setLikeCount] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
@@ -330,48 +334,11 @@ export default function DepthRibbon({
     if (!photo || downloadStatus === 'downloading') return;
     setDownloadStatus('downloading');
 
-    const preferredUrl = photo.originalUrl || photo.thumbnailUrl || photo.src;
-    const fallbackUrl = photo.thumbnailUrl || photo.originalUrl || photo.src;
-    const filename = photo.filename || `${photo.title || 'photo'}.jpg`;
-
-    if (preferredUrl && preferredUrl.startsWith('data:')) {
-      const link = document.createElement('a');
-      link.href = preferredUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setDownloadStatus('done');
-      setTimeout(() => setDownloadStatus('idle'), 2000);
-      return;
-    }
-
     try {
-      let res = await fetch(preferredUrl);
-      if (!res.ok && fallbackUrl && fallbackUrl !== preferredUrl) {
-        res = await fetch(fallbackUrl);
-      }
-      if (!res.ok) throw new Error('Fetch failed');
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
-      setDownloadStatus('done');
+      const ok = await downloadPhotoFile(photo);
+      setDownloadStatus(ok ? 'done' : 'idle');
     } catch {
-      // Direct link fallback
-      const link = document.createElement('a');
-      link.href = fallbackUrl || preferredUrl;
-      link.download = filename;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setDownloadStatus('done');
+      setDownloadStatus('idle');
     } finally {
       setTimeout(() => setDownloadStatus('idle'), 2000);
     }
@@ -514,6 +481,12 @@ export default function DepthRibbon({
         scrollTargetRef.current = idx / Math.max(1, totalCount - 1);
         setSelectedPhoto(pool[idx]);
         setSelectedPhotoIdx(idx);
+
+        // Upgrade target hash photo to high quality render
+        const targetMesh = cardMeshesRef.current?.[idx];
+        if (targetMesh && pool[idx]?.originalUrl && !pool[idx].isThankYouCard) {
+          loadCardTextureRef.current?.(pool[idx].originalUrl, targetMesh);
+        }
       }
     };
     window.addEventListener('hashchange', onHashChange);
@@ -734,7 +707,16 @@ export default function DepthRibbon({
 
       ribbonGroup.add(mesh);
       cardMeshes.push(mesh);
+
+      // On initial mount, if this card is targeted via URL (#503), render high quality
+      if (selectedPhotoIdxRef.current === i && photo.originalUrl && !photo.isThankYouCard) {
+        loadCardTexture(photo.originalUrl, mesh);
+        mesh.userData.textureLoaded = true;
+      }
     }
+
+    cardMeshesRef.current = cardMeshes;
+    loadCardTextureRef.current = loadCardTexture;
 
     // Camera target vectors - initialize immediately at current progress to prevent (0,0,0) jump
     const initU = 0.015 + scrollCurrentRef.current * 0.97;
@@ -789,6 +771,11 @@ export default function DepthRibbon({
             setSelectedPhoto(clickedPhoto);
             setSelectedPhotoIdx(clickedIdx);
             onFocusChangeRef.current?.(clickedPhoto, clickedIdx);
+
+            // UPGRADE THIS CLICKED IMAGE ONLY TO HIGH QUALITY!
+            if (clickedPhoto?.originalUrl && !clickedPhoto.isThankYouCard) {
+              loadCardTexture(clickedPhoto.originalUrl, clickedMesh);
+            }
           }
         }
       } else {
@@ -940,6 +927,8 @@ export default function DepthRibbon({
       cancelAnimationFrame(animId);
       canvas.removeEventListener('click', handleClick);
       window.removeEventListener('resize', handleResize);
+      cardMeshesRef.current = [];
+      loadCardTextureRef.current = null;
       textureCache.forEach((tex) => tex.dispose());
       textureCache.clear();
       renderer.dispose();
