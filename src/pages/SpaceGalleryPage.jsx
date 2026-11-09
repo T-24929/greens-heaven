@@ -16,20 +16,16 @@ import './SpaceGalleryPage.css';
 
 export default function SpaceGalleryPage({ user: propUser }) {
   const [manifest, setManifest] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(propUser || null);
+  const [authUser, setAuthUser] = useState(null);
+  const user = propUser ?? authUser;
 
   useEffect(() => {
-    if (propUser) {
-      setUser(propUser);
-      return;
-    }
-    if (!supabase) return;
+    if (propUser || !supabase) return;
     supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) setUser(data.user);
+      if (data?.user) setAuthUser(data.user);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
+      setAuthUser(session?.user || null);
     });
     return () => subscription?.unsubscribe();
   }, [propUser]);
@@ -43,7 +39,6 @@ export default function SpaceGalleryPage({ user: propUser }) {
   useEffect(() => {
     async function loadAlbum() {
       try {
-        setLoading(true);
         const res = await fetch('/gallery/space-manifest.json');
         if (res.ok) {
           const data = await res.json();
@@ -51,8 +46,6 @@ export default function SpaceGalleryPage({ user: propUser }) {
         }
       } catch (err) {
         console.warn('Could not load space manifest:', err.message);
-      } finally {
-        setLoading(false);
       }
     }
     loadAlbum();

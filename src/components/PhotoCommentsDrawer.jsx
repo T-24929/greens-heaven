@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Send, Heart, User, LogIn, MessageSquare, AlertCircle } from 'lucide-react';
+import { X, Send, LogIn, MessageSquare, AlertCircle } from 'lucide-react';
 import { getPhotoComments, addPhotoComment } from '../utils/photoSocial.js';
 import './PhotoCommentsDrawer.css';
 
