@@ -792,6 +792,7 @@ export default function DepthRibbon({
     const abs = Math.abs(rawDelta);
     const subtleDelta = sign * Math.min(abs, 130) * 0.000032;
 
+    // eslint-disable-next-line react-hooks/immutability
     scrollTargetRef.current = Math.max(0, Math.min(1, scrollTargetRef.current + subtleDelta));
   }, [wheel]);
 
@@ -840,6 +841,7 @@ export default function DepthRibbon({
       orbitPitchRef.current = Math.max(-35, Math.min(65, orbitDragStartRef.current.pitch - dy * 0.22));
     } else if (draggable) {
       const delta = -(dy * 0.00018);
+      // eslint-disable-next-line react-hooks/immutability
       scrollTargetRef.current = Math.max(0, Math.min(1, orbitDragStartRef.current.scroll + delta));
     }
   };
@@ -853,6 +855,7 @@ export default function DepthRibbon({
     if (!vTrackRef.current) return;
     const rect = vTrackRef.current.getBoundingClientRect();
     const yFrac = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+    // eslint-disable-next-line react-hooks/immutability
     scrollTargetRef.current = yFrac;
   };
 
