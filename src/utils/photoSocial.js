@@ -9,7 +9,9 @@ export function getOrCreateClientId() {
     cid = 'guest_' + Math.random().toString(36).slice(2, 11) + '_' + Date.now().toString(36);
     try {
       localStorage.setItem('gh_photo_client_id', cid);
-    } catch (_) {}
+    } catch {
+      // Ignore localStorage restrictions in private/incognito mode
+    }
   }
   return cid;
 }
@@ -62,7 +64,9 @@ function getLocalCache(key, defaultVal) {
 function setLocalCache(key, val) {
   try {
     localStorage.setItem(`gh_photo_${key}`, JSON.stringify(val));
-  } catch (_) {}
+  } catch {
+    // Ignore localStorage quota errors
+  }
 }
 
 // ─── Likes API ────────────────────────────────────────────────────────────────
