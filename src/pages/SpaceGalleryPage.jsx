@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   ArrowLeft,
   ChevronLeft,
@@ -6,10 +6,12 @@ import {
   Download,
   Check,
   Loader2,
+  Share2,
   X,
 } from 'lucide-react';
 import DepthRibbon from '../components/DepthRibbon.jsx';
 import { supabase } from '../utils/supabase.js';
+import { getThankYouCardPhoto } from '../utils/thankYouCard.js';
 import './SpaceGalleryPage.css';
 
 export default function SpaceGalleryPage({ user: propUser }) {
@@ -48,6 +50,14 @@ export default function SpaceGalleryPage({ user: propUser }) {
     loadAlbum();
   }, []);
 
+  // Derive complete photo collection with commemorative grand finale memorial card
+  const manifestPhotos = manifest?.photos;
+  const allPhotos = useMemo(() => {
+    if (!manifestPhotos || manifestPhotos.length === 0) return null;
+    const thankYouPhoto = getThankYouCardPhoto();
+    return [...manifestPhotos, thankYouPhoto];
+  }, [manifestPhotos]);
+
   const openInspection = useCallback((photo) => {
     setFocusedPhoto(photo);
     setIsZoomedIn(false);
@@ -55,25 +65,26 @@ export default function SpaceGalleryPage({ user: propUser }) {
 
   // Keyboard navigation for Fullscreen Inspection Lightbox (Arrow keys & Escape)
   useEffect(() => {
-    if (!focusedPhoto || !manifest?.photos?.length) return;
+    const list = allPhotos || manifest?.photos || [];
+    if (!focusedPhoto || !list.length) return;
 
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         setFocusedPhoto(null);
       } else if (e.key === 'ArrowLeft') {
-        const idx = manifest.photos.findIndex((p) => p.id === focusedPhoto.id);
-        const prev = manifest.photos[(idx - 1 + manifest.photos.length) % manifest.photos.length];
+        const idx = list.findIndex((p) => p.id === focusedPhoto.id);
+        const prev = list[(idx - 1 + list.length) % list.length];
         setFocusedPhoto(prev);
       } else if (e.key === 'ArrowRight') {
-        const idx = manifest.photos.findIndex((p) => p.id === focusedPhoto.id);
-        const next = manifest.photos[(idx + 1) % manifest.photos.length];
+        const idx = list.findIndex((p) => p.id === focusedPhoto.id);
+        const next = list[(idx + 1) % list.length];
         setFocusedPhoto(next);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [focusedPhoto, manifest?.photos]);
+  }, [focusedPhoto, allPhotos, manifest?.photos]);
 
   // Full-Res Master Download Handler
   const [downloadingPhoto, setDownloadingPhoto] = useState(false);
@@ -87,6 +98,19 @@ export default function SpaceGalleryPage({ user: propUser }) {
     const preferredUrl = photo.originalUrl || photo.thumbnailUrl;
     const fallbackUrl = photo.thumbnailUrl || photo.originalUrl;
     const filename = photo.filename || `${photo.title || 'photo'}.jpg`;
+
+    if (preferredUrl && preferredUrl.startsWith('data:')) {
+      const link = document.createElement('a');
+      link.href = preferredUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setDownloadSuccess(true);
+      setDownloadingPhoto(false);
+      setTimeout(() => setDownloadSuccess(false), 2000);
+      return;
+    }
 
     try {
       let res = await fetch(preferredUrl);
@@ -119,6 +143,51 @@ export default function SpaceGalleryPage({ user: propUser }) {
     }
   }, [downloadingPhoto]);
 
+  // Share Photo Link Handler with Photo Progress Parameter
+  const [shareSuccess, setShareSuccess] = useState(false);
+  const handleSharePhoto = useCallback(async (photo) => {
+    const list = allPhotos || manifest?.photos || [];
+    const p = photo || focusedPhoto;
+    if (!p) return;
+    const total = list.length || 514;
+    const idx = list.findIndex((item) => item.id === p.id);
+    const pNum = idx >= 0 ? idx + 1 : 1;
+    const progressVal = (pNum - 1) / Math.max(1, total - 1);
+
+    const origin = window.location.origin;
+    const pathname = window.location.pathname;
+    const shareUrl = `${origin}${pathname}?p=${pNum}&prog=${progressVal.toFixed(4)}`;
+
+    const titleText = p.isThankYouCard
+      ? "Greens Heaven 2026 · Thank You For Attending"
+      : `Greens Heaven · ${p.title || `Photo #${pNum}`}`;
+
+    const shareData = {
+      title: titleText,
+      text: `View ${p.title || `photo #${pNum}`} in the Greens Heaven 3D space gallery!`,
+      url: shareUrl,
+    };
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData);
+        setShareSuccess(true);
+        setTimeout(() => setShareSuccess(false), 2000);
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareSuccess(true);
+      setTimeout(() => setShareSuccess(false), 2000);
+    } catch {
+      window.prompt('Copy gallery link:', shareUrl);
+    }
+  }, [allPhotos, focusedPhoto, manifest?.photos]);
+
   return (
     <div className="camera-space-root" style={{ background: '#040805' }}>
       {/* Top Header: "The Event" Back Link on left, Web Logo on right */}
@@ -148,10 +217,10 @@ export default function SpaceGalleryPage({ user: propUser }) {
       {/* =========================================================
           3D DEPTH RIBBON VIEWPORT (React Bits Pro Spec)
          ========================================================= */}
-      {manifest?.photos && (
+      {allPhotos && (
         <DepthRibbon
-          items={manifest.photos}
-          photos={manifest.photos}
+          items={allPhotos}
+          photos={allPhotos}
           user={user}
           onPhotoClick={openInspection}
           path="spiral"
@@ -191,6 +260,19 @@ export default function SpaceGalleryPage({ user: propUser }) {
               </button>
 
               <button
+                className={`action-pill-btn share-pill-btn ${shareSuccess ? 'text-emerald-400 border-emerald-500/40' : ''}`}
+                onClick={() => handleSharePhoto(focusedPhoto)}
+                title={shareSuccess ? 'Link copied!' : 'Share photo'}
+              >
+                {shareSuccess ? (
+                  <Check size={16} className="text-emerald-400" />
+                ) : (
+                  <Share2 size={16} />
+                )}
+                <span>{shareSuccess ? 'Copied' : 'Share'}</span>
+              </button>
+
+              <button
                 className="action-pill-btn close-pill-btn text-gray-300 hover:text-white"
                 onClick={() => setFocusedPhoto(null)}
                 title="Close"
@@ -205,8 +287,9 @@ export default function SpaceGalleryPage({ user: propUser }) {
             <button
               className="nav-dolly-btn nav-dolly-prev"
               onClick={() => {
-                const idx = manifest.photos.findIndex((p) => p.id === focusedPhoto.id);
-                const prev = manifest.photos[(idx - 1 + manifest.photos.length) % manifest.photos.length];
+                const list = allPhotos || manifest?.photos || [];
+                const idx = list.findIndex((p) => p.id === focusedPhoto.id);
+                const prev = list[(idx - 1 + list.length) % list.length];
                 setFocusedPhoto(prev);
               }}
               title="Previous Photo"
@@ -217,8 +300,9 @@ export default function SpaceGalleryPage({ user: propUser }) {
             <button
               className="nav-dolly-btn nav-dolly-next"
               onClick={() => {
-                const idx = manifest.photos.findIndex((p) => p.id === focusedPhoto.id);
-                const next = manifest.photos[(idx + 1) % manifest.photos.length];
+                const list = allPhotos || manifest?.photos || [];
+                const idx = list.findIndex((p) => p.id === focusedPhoto.id);
+                const next = list[(idx + 1) % list.length];
                 setFocusedPhoto(next);
               }}
               title="Next Photo"

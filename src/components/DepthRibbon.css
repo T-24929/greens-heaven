@@ -449,18 +449,21 @@
 
 .engagement-btn.inspect-btn,
 .engagement-btn.download-btn,
+.engagement-btn.share-btn,
 .engagement-btn.close-tray-btn {
   padding: 0;
   width: 28px;
   height: 28px;
 }
 
-.engagement-btn.download-btn:hover {
+.engagement-btn.download-btn:hover,
+.engagement-btn.share-btn:hover {
   color: #5ef38e;
   border-color: rgba(94, 243, 142, 0.4);
 }
 
-.engagement-btn.download-btn.downloaded {
+.engagement-btn.download-btn.downloaded,
+.engagement-btn.share-btn.copied {
   color: #5ef38e;
   background: rgba(94, 243, 142, 0.15);
   border-color: rgba(94, 243, 142, 0.4);

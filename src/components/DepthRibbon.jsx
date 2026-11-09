@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import * as THREE from 'three';
-import { Heart, MessageSquare, Maximize2, Download, Check, Loader2, X } from 'lucide-react';
+import { Heart, MessageSquare, Maximize2, Download, Check, Loader2, Share2, X } from 'lucide-react';
 import { getOrCreateClientId, getPhotoLikes, togglePhotoLike, getPhotoComments } from '../utils/photoSocial.js';
+import { getThankYouCardAsset, getThankYouCardPhoto } from '../utils/thankYouCard.js';
 import PhotoCommentsDrawer from './PhotoCommentsDrawer.jsx';
 import './DepthRibbon.css';
 
@@ -200,7 +201,7 @@ export default function DepthRibbon({
   const pool = useMemo(() => {
     const raw = (items && items.length > 0) ? items : (photos && photos.length > 0) ? photos : images;
     if (raw && raw.length > 0) {
-      return raw.map((item, i) => {
+      const list = raw.map((item, i) => {
         if (typeof item === 'string') {
           return { id: `i-${i}`, thumbnailUrl: item, originalUrl: item, title: `Photo #${i + 1}` };
         }
@@ -213,8 +214,17 @@ export default function DepthRibbon({
           width: item.width,
           height: item.height,
           aspectRatio: item.aspectRatio || (item.width && item.height ? item.width / item.height : null),
+          isThankYouCard: item.isThankYouCard || item.id === 'photo_thank_you_finale',
         };
       });
+
+      // Ensure Grand Finale "Thank You For Attending" card is appended at the end of the ribbon
+      const hasFinale = list.some((p) => p.isThankYouCard || p.id === 'photo_thank_you_finale');
+      if (!hasFinale) {
+        list.push(getThankYouCardPhoto());
+      }
+
+      return list;
     }
     return [];
   }, [items, photos, images]);
@@ -224,11 +234,48 @@ export default function DepthRibbon({
     poolRef.current = pool;
   }, [pool]);
 
-  const totalCount = propCount || pool.length || 513;
+  const totalCount = pool.length || propCount || 513;
 
-  // ─── Selected Photo for Social Tray (ONLY opens when user clicks an image) ──
-  const [selectedPhoto, setSelectedPhoto] = useState(null);
-  const [selectedPhotoIdx, setSelectedPhotoIdx] = useState(null);
+  // ─── Selected Photo for Social Tray (ONLY opens when user clicks an image or opens via ?p= / ?prog=) ──
+  const [selectedPhoto, setSelectedPhoto] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    const pParam = params.get('p') || params.get('photo');
+    const progParam = params.get('prog') || params.get('progress');
+    let targetIdx = -1;
+    if (pParam) {
+      const num = parseInt(pParam, 10);
+      if (!isNaN(num) && num >= 1 && num <= pool.length) {
+        targetIdx = num - 1;
+      }
+    } else if (progParam) {
+      const val = parseFloat(progParam);
+      if (!isNaN(val)) {
+        targetIdx = Math.min(pool.length - 1, Math.round(val * (pool.length - 1)));
+      }
+    }
+    return targetIdx >= 0 && pool[targetIdx] ? pool[targetIdx] : null;
+  });
+
+  const [selectedPhotoIdx, setSelectedPhotoIdx] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    const pParam = params.get('p') || params.get('photo');
+    const progParam = params.get('prog') || params.get('progress');
+    let targetIdx = -1;
+    if (pParam) {
+      const num = parseInt(pParam, 10);
+      if (!isNaN(num) && num >= 1 && num <= pool.length) {
+        targetIdx = num - 1;
+      }
+    } else if (progParam) {
+      const val = parseFloat(progParam);
+      if (!isNaN(val)) {
+        targetIdx = Math.min(pool.length - 1, Math.round(val * (pool.length - 1)));
+      }
+    }
+    return targetIdx >= 0 ? targetIdx : null;
+  });
 
   // ─── Social Engagement State (Synced with Supabase + In-Memory Cache) ───────
   const [likeCount, setLikeCount] = useState(0);
@@ -240,6 +287,47 @@ export default function DepthRibbon({
   const clientIdRef = useRef(getOrCreateClientId());
   const socialCacheRef = useRef(new Map());
   const [downloadStatus, setDownloadStatus] = useState('idle'); // 'idle' | 'downloading' | 'done'
+  const [shareStatus, setShareStatus] = useState('idle'); // 'idle' | 'copied' | 'shared'
+
+  const handleSharePhoto = useCallback(async (photo, photoIdx) => {
+    const pNum = typeof photoIdx === 'number' ? photoIdx + 1 : Math.round(scrollCurrentRef.current * (totalCount - 1)) + 1;
+    const progressVal = typeof photoIdx === 'number'
+      ? (photoIdx / Math.max(1, totalCount - 1))
+      : scrollCurrentRef.current;
+
+    const origin = window.location.origin;
+    const pathname = window.location.pathname;
+    const shareUrl = `${origin}${pathname}?p=${pNum}&prog=${progressVal.toFixed(4)}`;
+
+    const titleText = photo?.isThankYouCard
+      ? "Greens Heaven 2026 · Thank You For Attending"
+      : `Greens Heaven · ${photo?.title || `Photo #${pNum}`}`;
+
+    const shareData = {
+      title: titleText,
+      text: `View ${photo?.title || `photo #${pNum}`} in the Greens Heaven 3D space gallery!`,
+      url: shareUrl,
+    };
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData);
+        setShareStatus('shared');
+        setTimeout(() => setShareStatus('idle'), 2000);
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareStatus('copied');
+      setTimeout(() => setShareStatus('idle'), 2000);
+    } catch {
+      window.prompt('Copy gallery link:', shareUrl);
+    }
+  }, [totalCount]);
 
   const handleDownloadPhoto = useCallback(async (photo) => {
     if (!photo || downloadStatus === 'downloading') return;
@@ -248,6 +336,18 @@ export default function DepthRibbon({
     const preferredUrl = photo.originalUrl || photo.thumbnailUrl || photo.src;
     const fallbackUrl = photo.thumbnailUrl || photo.originalUrl || photo.src;
     const filename = photo.filename || `${photo.title || 'photo'}.jpg`;
+
+    if (preferredUrl && preferredUrl.startsWith('data:')) {
+      const link = document.createElement('a');
+      link.href = preferredUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setDownloadStatus('done');
+      setTimeout(() => setDownloadStatus('idle'), 2000);
+      return;
+    }
 
     try {
       let res = await fetch(preferredUrl);
@@ -393,9 +493,28 @@ export default function DepthRibbon({
     });
   };
 
+  // Read initial progress or photo from URL params on mount (e.g. ?p=46 or ?prog=0.45)
+  const initialTargetProgress = useMemo(() => {
+    if (typeof window === 'undefined') return 0;
+    const params = new URLSearchParams(window.location.search);
+    const progParam = params.get('prog') || params.get('progress');
+    if (progParam) {
+      const val = parseFloat(progParam);
+      if (!isNaN(val)) return Math.max(0, Math.min(1, val));
+    }
+    const pParam = params.get('p') || params.get('photo');
+    if (pParam) {
+      const num = parseInt(pParam, 10);
+      if (!isNaN(num) && num >= 1) {
+        return (num - 1) / Math.max(1, totalCount - 1);
+      }
+    }
+    return 0;
+  }, [totalCount]);
+
   // ─── Scroll-Driven Physics State ─────────────────────────────────────────────
-  const scrollTargetRef = useRef(0);
-  const scrollCurrentRef = useRef(0);
+  const scrollTargetRef = useRef(initialTargetProgress);
+  const scrollCurrentRef = useRef(initialTargetProgress);
 
   // Orbit rotation in 3D overview
   const orbitAngleRef = useRef(15);
@@ -492,7 +611,16 @@ export default function DepthRibbon({
     const placeholderTex = new THREE.CanvasTexture(pCanvas);
 
     function loadCardTexture(url, mesh, onAspectReady) {
-      if (!url || !mesh) return;
+      if (!mesh) return;
+      if (mesh.userData?.photo?.isThankYouCard) {
+        const asset = getThankYouCardAsset();
+        if (asset.texture) {
+          mesh.material.map = asset.texture;
+          mesh.material.needsUpdate = true;
+        }
+        return;
+      }
+      if (!url) return;
       if (textureCache.has(url)) {
         const cached = textureCache.get(url);
         mesh.material.map = cached;
@@ -550,8 +678,14 @@ export default function DepthRibbon({
       const cardAspect = aspect || photo.aspectRatio || (photo.width && photo.height ? photo.width / photo.height : 0.8);
       const cardGeom = getOrCreateCardGeometry(cardAspect, cardSize);
 
+      let initialMap = placeholderTex;
+      if (photo.isThankYouCard) {
+        const asset = getThankYouCardAsset();
+        if (asset.texture) initialMap = asset.texture;
+      }
+
       const mat = new THREE.MeshBasicMaterial({
-        map: placeholderTex,
+        map: initialMap,
         side: THREE.FrontSide,
         transparent: false,
       });
@@ -961,6 +1095,19 @@ export default function DepthRibbon({
                 <Check size={13} className="text-emerald-400" />
               ) : (
                 <Download size={13} />
+              )}
+            </button>
+
+            {/* Share Photo Link with scroll progress */}
+            <button
+              className={`engagement-btn share-btn ${shareStatus === 'copied' || shareStatus === 'shared' ? 'copied' : ''}`}
+              onClick={() => handleSharePhoto(selectedPhoto, selectedPhotoIdx)}
+              title={shareStatus === 'copied' ? 'Link copied!' : 'Share photo link'}
+            >
+              {shareStatus === 'copied' || shareStatus === 'shared' ? (
+                <Check size={13} className="text-emerald-400" />
+              ) : (
+                <Share2 size={13} />
               )}
             </button>
 
