@@ -548,7 +548,8 @@ export default function DepthRibbon({
     });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dpr));
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.NoToneMapping;
 
     // Scene
     const scene = new THREE.Scene();
@@ -609,6 +610,7 @@ export default function DepthRibbon({
     pctx.fillStyle = '#0c1710';
     pctx.fillRect(0, 0, 64, 64);
     const placeholderTex = new THREE.CanvasTexture(pCanvas);
+    placeholderTex.colorSpace = THREE.SRGBColorSpace;
 
     function loadCardTexture(url, mesh, onAspectReady) {
       if (!mesh) return;
@@ -634,9 +636,12 @@ export default function DepthRibbon({
         url,
         (loadedTex) => {
           loadedTex.colorSpace = THREE.SRGBColorSpace;
-          loadedTex.generateMipmaps = false;
-          loadedTex.minFilter = THREE.LinearFilter;
+          loadedTex.generateMipmaps = true;
+          loadedTex.minFilter = THREE.LinearMipmapLinearFilter;
           loadedTex.magFilter = THREE.LinearFilter;
+          if (renderer.capabilities) {
+            loadedTex.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
+          }
           textureCache.set(url, loadedTex);
 
           // ONLY update mesh texture when image is 100% loaded - ZERO black flash!
@@ -762,6 +767,10 @@ export default function DepthRibbon({
           setSelectedPhoto(clickedPhoto);
           setSelectedPhotoIdx(clickedIdx);
           onFocusChangeRef.current?.(clickedPhoto, clickedIdx);
+
+          if (clickedPhoto?.originalUrl && clickedPhoto.originalUrl !== clickedPhoto.thumbnailUrl) {
+            loadCardTexture(clickedPhoto.originalUrl, clickedMesh);
+          }
         }
       } else {
         // Clicking empty space closes the social tray
@@ -828,10 +837,14 @@ export default function DepthRibbon({
           // so it is 100% ready before reaching clear view
           if (!mesh.userData.textureLoaded && distToCam < preloadDist) {
             mesh.userData.textureLoaded = true;
-            loadCardTexture(
-              mesh.userData.photo.thumbnailUrl || mesh.userData.photo.originalUrl,
-              mesh
-            );
+            const isNearFront = distToCam < 8.5;
+            const targetUrl = isNearFront && mesh.userData.photo.originalUrl
+              ? mesh.userData.photo.originalUrl
+              : (mesh.userData.photo.thumbnailUrl || mesh.userData.photo.originalUrl);
+            loadCardTexture(targetUrl, mesh);
+          } else if (mesh.userData.textureLoaded && !mesh.userData.hiResLoaded && distToCam < 8.5 && mesh.userData.photo.originalUrl) {
+            mesh.userData.hiResLoaded = true;
+            loadCardTexture(mesh.userData.photo.originalUrl, mesh);
           }
         }
       }
