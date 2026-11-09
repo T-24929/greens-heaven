@@ -118,15 +118,14 @@ export default function SpaceGalleryPage({ user: propUser }) {
 
     const origin = window.location.origin;
     const pathname = window.location.pathname;
-    const shareUrl = `${origin}${pathname}#${pNum}`;
+    const shareUrl = `${origin}${pathname}?p=${pNum}#${pNum}`;
 
     const titleText = p.isThankYouCard
-      ? "Greens Heaven 2026 · Commemorative Ticket Pass"
-      : `Greens Heaven · ${p.title || `Photo #${pNum}`}`;
+      ? "Greens Heaven 2026"
+      : `Photo #${pNum} · Greens Heaven 2026`;
 
     const shareData = {
       title: titleText,
-      text: `View photo #${pNum} in the Greens Heaven 3D space gallery!`,
       url: shareUrl,
     };
 
