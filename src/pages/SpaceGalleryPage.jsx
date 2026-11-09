@@ -64,6 +64,30 @@ export default function SpaceGalleryPage({ user: propUser }) {
     setIsZoomedIn(false);
   }, []);
 
+  // Keyboard navigation for Fullscreen Inspection Lightbox (Arrow keys & Escape)
+  useEffect(() => {
+    if (!focusedPhoto || !manifest?.photos?.length) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setFocusedPhoto(null);
+      } else if (e.key === 'ArrowLeft') {
+        const idx = manifest.photos.findIndex((p) => p.id === focusedPhoto.id);
+        const prev = manifest.photos[(idx - 1 + manifest.photos.length) % manifest.photos.length];
+        setFocusedPhoto(prev);
+        setFullResLoaded(false);
+      } else if (e.key === 'ArrowRight') {
+        const idx = manifest.photos.findIndex((p) => p.id === focusedPhoto.id);
+        const next = manifest.photos[(idx + 1) % manifest.photos.length];
+        setFocusedPhoto(next);
+        setFullResLoaded(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [focusedPhoto, manifest?.photos]);
+
   // Full-Res Master Download Handler
   const [downloadingPhoto, setDownloadingPhoto] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);

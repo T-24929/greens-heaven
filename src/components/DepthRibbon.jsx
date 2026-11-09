@@ -135,11 +135,9 @@ export default function DepthRibbon({
   count: propCount,
   path = 'spiral',
   tour = 'ride',
-  interval = 9,
   speed = 0,
   cardSize = 0.72,
   aspect = null,
-  radius = 0.20,
   offset = 1.0,
   fov = 48,
   fog = 1,
@@ -147,14 +145,10 @@ export default function DepthRibbon({
   shadow = 0.5,
   accentColor = '#5ef38e',
   backgroundColor = '#000000',
-  focusOnClick = true,
-  holdToReveal = false,
-  captions = true,
   interactive = true,
   draggable = true,
   wheel = true,
   pauseOnHover = true,
-  seed = 0,
   paused = false,
   dpr = 2,
   onFocusChange,
@@ -287,6 +281,19 @@ export default function DepthRibbon({
   }, [downloadStatus]);
 
   const selectedPhotoId = selectedPhoto?.id || (typeof selectedPhotoIdx === 'number' ? `photo_${selectedPhotoIdx + 1}` : null);
+
+  // Press Escape to dismiss the selected photo engagement tray
+  useEffect(() => {
+    if (!selectedPhoto) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && !isCommentsOpen) {
+        setSelectedPhoto(null);
+        setSelectedPhotoIdx(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedPhoto, isCommentsOpen]);
 
   // Fetch likes & comment count ONLY when an image is clicked and selected
   useEffect(() => {
