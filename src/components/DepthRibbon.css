@@ -355,7 +355,10 @@
 
 @media (max-width: 640px) {
   .depth-ribbon-engagement-bar {
-    bottom: calc(38px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(68px + max(env(safe-area-inset-bottom, 0px), 16px));
+  }
+  .depth-ribbon-progress-bar {
+    bottom: calc(24px + max(env(safe-area-inset-bottom, 0px), 12px));
   }
 }
 

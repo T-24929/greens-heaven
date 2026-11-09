@@ -23,7 +23,7 @@ function drawBarcode(ctx, x, y, width, height) {
   ];
   let curX = x;
   const unit = width / 110;
-  ctx.fillStyle = 'rgba(215, 230, 220, 0.85)';
+  ctx.fillStyle = 'rgba(215, 235, 222, 0.9)';
   bars.forEach((w, idx) => {
     if (idx % 2 === 0) {
       ctx.fillRect(curX, y, w * unit, height);
@@ -33,20 +33,20 @@ function drawBarcode(ctx, x, y, width, height) {
 }
 
 /**
- * Generates and caches the authentic Green's Heaven VIP Ticket Pass
- * featuring the official logo, hero grass artwork, ticket stub perforations, and thank you tribute.
+ * Generates and caches the authentic Green's Heaven Commemorative Pass
+ * featuring bold, minimal, high-impact typography with zero wasted space.
  */
 export function getThankYouCardAsset() {
   if (cachedAsset) return cachedAsset;
   if (typeof document === 'undefined') {
-    return { texture: null, dataUrl: '' };
+    return { texture: null, dataUrl: '', canvas: null };
   }
 
   const canvas = document.createElement('canvas');
   canvas.width = 1200;
   canvas.height = 1800;
   const ctx = canvas.getContext('2d');
-  if (!ctx) return { texture: null, dataUrl: '' };
+  if (!ctx) return { texture: null, dataUrl: '', canvas: null };
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -64,10 +64,10 @@ export function getThankYouCardAsset() {
     const W = 1200;
     const H = 1800;
     const pad = 48;
-    const cardW = W - pad * 2;
-    const cardH = H - pad * 2;
-    const cornerR = 36;
-    const stubY = 1320;
+    const cardW = W - pad * 2; // 1104
+    const cardH = H - pad * 2; // 1704
+    const cornerR = 40;
+    const stubY = 1350;
 
     // Reset background: Deep Void Space
     ctx.clearRect(0, 0, W, H);
@@ -79,159 +79,176 @@ export function getThankYouCardAsset() {
     drawRoundedRect(ctx, pad, pad, cardW, cardH, cornerR);
     ctx.clip();
 
-    // ── Ticket Background & Art ──
-    ctx.fillStyle = '#0a140d';
+    // ── Ticket Background & Radial Ambiance ──
+    const bgGrad = ctx.createLinearGradient(pad, pad, pad, pad + cardH);
+    bgGrad.addColorStop(0, '#06130a');
+    bgGrad.addColorStop(0.35, '#08170d');
+    bgGrad.addColorStop(0.7, '#040b06');
+    bgGrad.addColorStop(1, '#020603');
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(pad, pad, cardW, cardH);
 
-    const artH = 680;
+    // Subtle atmospheric top glow behind logo
+    const topGlow = ctx.createRadialGradient(600, 340, 50, 600, 340, 480);
+    topGlow.addColorStop(0, 'rgba(33, 179, 84, 0.18)');
+    topGlow.addColorStop(0.6, 'rgba(16, 80, 40, 0.05)');
+    topGlow.addColorStop(1, 'transparent');
+    ctx.fillStyle = topGlow;
+    ctx.fillRect(pad, pad, cardW, cardH);
+
+    // If hero grass image exists, draw subtle textured overlay in top portion
     if (heroImg && heroImg.complete && heroImg.naturalWidth > 0) {
-      // Real hero grass photo from public/images/hero-grass.png
-      ctx.drawImage(heroImg, pad, pad, cardW, artH);
-    } else {
-      // Fallback lush grass emerald gradient
-      const grassGrad = ctx.createLinearGradient(pad, pad, pad, pad + artH);
-      grassGrad.addColorStop(0, '#0c2214');
-      grassGrad.addColorStop(0.5, '#13391f');
-      grassGrad.addColorStop(1, '#09180e');
-      ctx.fillStyle = grassGrad;
-      ctx.fillRect(pad, pad, cardW, artH);
+      ctx.save();
+      ctx.globalAlpha = 0.14;
+      ctx.drawImage(heroImg, pad, pad, cardW, 640);
+      ctx.restore();
     }
 
-    // Atmospheric shadow scrim over hero grass (matches Dashboard .dash-ticket-art::after)
-    const scrim = ctx.createLinearGradient(0, pad, 0, pad + artH);
-    scrim.addColorStop(0, 'rgba(4, 16, 8, 0.75)');
-    scrim.addColorStop(0.35, 'rgba(4, 16, 8, 0.28)');
-    scrim.addColorStop(0.8, 'rgba(11, 22, 13, 0.92)');
-    scrim.addColorStop(1, '#0b160e');
-    ctx.fillStyle = scrim;
-    ctx.fillRect(pad, pad, cardW, artH);
-
-    // ── Top Header Line ──
-    ctx.fillStyle = '#d5e6cc';
-    ctx.font = '600 20px system-ui, -apple-system, sans-serif';
+    // ── 1. Top Header Bar (Clean, Minimal Metadata) ──
+    ctx.fillStyle = '#cbe0ce';
+    ctx.font = '700 24px system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText('ISIPATHANA COLLEGE', pad + 40, pad + 38);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('ISIPATHANA COLLEGE', pad + 44, pad + 48);
 
     ctx.textAlign = 'right';
-    ctx.font = '700 22px "Cormorant Garamond", Georgia, serif';
-    ctx.fillText('XXVI', pad + cardW - 40, pad + 36);
+    ctx.fillStyle = '#5ef38e';
+    ctx.font = '700 22px ui-monospace, monospace';
+    ctx.fillText('BATCH OF 2023 / 2026', pad + cardW - 44, pad + 48);
 
-    // ── Digital Pass Pill Badge ──
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad + 44, pad + 90);
+    ctx.lineTo(pad + cardW - 44, pad + 90);
+    ctx.stroke();
+
+    // ── 2. Commemorative Pass Badge Pill ──
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const pillY = pad + 105;
-    ctx.fillStyle = 'rgba(26, 48, 27, 0.85)';
-    drawRoundedRect(ctx, 600 - 160, pillY - 18, 320, 36, 18);
+    const pillY = pad + 135;
+    ctx.fillStyle = 'rgba(20, 50, 28, 0.85)';
+    drawRoundedRect(ctx, 600 - 180, pillY - 20, 360, 40, 20);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(94, 243, 142, 0.45)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#5ef38e';
+    ctx.font = '700 15px ui-monospace, monospace';
+    ctx.fillText('COMMEMORATIVE ENTRY PASS', 600, pillY);
+
+    // ── 3. Official Green's Heaven Logo ──
+    const logoY = pad + 185;
+    if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
+      const targetLogoW = 580;
+      const targetLogoH = (targetLogoW / logoImg.naturalWidth) * logoImg.naturalHeight;
+      const logoX = (W - targetLogoW) / 2;
+      ctx.drawImage(logoImg, logoX, logoY, targetLogoW, targetLogoH);
+    } else {
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 82px system-ui, -apple-system, sans-serif';
+      ctx.fillText("GREEN'S HEAVEN", 600, logoY + 110);
+    }
+
+    // Event Subtitle
+    ctx.fillStyle = '#e4f5df';
+    ctx.font = 'italic 500 30px "Cormorant Garamond", Georgia, serif';
+    ctx.fillText('One evening. The whole batch.', 600, pad + 465);
+
+    // ── 4. Venue & Preserved Counter Glass Bar ──
+    const glassY = pad + 510;
+    ctx.fillStyle = 'rgba(12, 28, 17, 0.72)';
+    drawRoundedRect(ctx, pad + 44, glassY, cardW - 88, 86, 18);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(94, 243, 142, 0.22)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Left: Solis Hotel & Date
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#7ea577';
+    ctx.font = '700 13px ui-monospace, monospace';
+    ctx.fillText('DATE & VENUE', pad + 74, glassY + 28);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 24px system-ui, -apple-system, sans-serif';
+    ctx.fillText('31 OCT · SOLIS HOTEL', pad + 74, glassY + 58);
+
+    // Divider
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+    ctx.beginPath();
+    ctx.moveTo(600, glassY + 18);
+    ctx.lineTo(600, glassY + 68);
+    ctx.stroke();
+
+    // Right: 513 Master Photos
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#7ea577';
+    ctx.font = '700 13px ui-monospace, monospace';
+    ctx.fillText('HISTORIC CELEBRATION', pad + cardW - 74, glassY + 28);
+    ctx.fillStyle = '#5ef38e';
+    ctx.font = '700 24px system-ui, -apple-system, sans-serif';
+    ctx.fillText('513 MASTER PHOTOS', pad + cardW - 74, glassY + 58);
+
+    // ── 5. Central Grand Tribute: BOLD & PROMINENT (Not Tiny!) ──
+    const tributeY = pad + 655;
+    ctx.textAlign = 'center';
+
+    // Eyebrow
+    ctx.fillStyle = '#5ef38e';
+    ctx.font = '700 20px ui-monospace, monospace';
+    ctx.fillText('ONE LAST COLLISION BEFORE THE ABSOLUTE VOID', 600, tributeY);
+
+    // Massive, Clean, Razor-Sharp Headlines
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 110px system-ui, -apple-system, sans-serif';
+    ctx.fillText('THANK YOU', 600, tributeY + 98);
+
+    ctx.fillStyle = '#5ef38e';
+    ctx.font = '800 64px system-ui, -apple-system, sans-serif';
+    ctx.fillText('FOR ATTENDING', 600, tributeY + 188);
+
+    // Glowing Emerald Center Rule
+    const ruleGrad = ctx.createLinearGradient(350, 0, 850, 0);
+    ruleGrad.addColorStop(0, 'transparent');
+    ruleGrad.addColorStop(0.5, '#5ef38e');
+    ruleGrad.addColorStop(1, 'transparent');
+    ctx.strokeStyle = ruleGrad;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(350, tributeY + 242);
+    ctx.lineTo(850, tributeY + 242);
+    ctx.stroke();
+
+    // Narrative Lines (Legible 32px font size with perfect leading)
+    ctx.fillStyle = '#f0f7f2';
+    ctx.font = '500 32px system-ui, -apple-system, sans-serif';
+    ctx.fillText('Thank you for being part of an unforgettable night.', 600, tributeY + 300);
+    ctx.fillText('Every memory, friendship, and smile from this celebration', 600, tributeY + 352);
+
+    ctx.fillStyle = '#b4d7ba';
+    ctx.fillText('is preserved forever in our 3D space galaxy.', 600, tributeY + 404);
+
+    // Minimal Commemorative Batch Pill
+    const batchPillY = tributeY + 472;
+    ctx.fillStyle = 'rgba(22, 54, 30, 0.85)';
+    drawRoundedRect(ctx, 600 - 240, batchPillY - 24, 480, 48, 24);
     ctx.fill();
     ctx.strokeStyle = 'rgba(94, 243, 142, 0.4)';
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
     ctx.fillStyle = '#5ef38e';
-    ctx.font = '700 14px ui-monospace, monospace';
-    ctx.fillText('COMMEMORATIVE ENTRY PASS', 600, pillY);
-
-    // ── Official Green's Heaven Logo ──
-    const logoY = pad + 155;
-    if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
-      // Official logo from public/images/greens-heaven-logo.png (aspect ratio ~2.37)
-      const targetLogoW = 520;
-      const targetLogoH = (targetLogoW / logoImg.naturalWidth) * logoImg.naturalHeight;
-      const logoX = (W - targetLogoW) / 2;
-      ctx.drawImage(logoImg, logoX, logoY, targetLogoW, targetLogoH);
-    } else {
-      // Vector typography fallback
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '800 68px system-ui, -apple-system, sans-serif';
-      ctx.fillText("GREEN'S HEAVEN", 600, logoY + 80);
-    }
-
-    // ── Tagline (Cormorant Garamond italic) ──
-    ctx.fillStyle = '#e3efdd';
-    ctx.font = 'italic 500 28px "Cormorant Garamond", Georgia, serif';
-    ctx.fillText('One evening. The whole batch.', 600, pad + 410);
-
-    // ── Date & Venue Grid ──
-    const dateRowY = pad + 475;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(pad + 40, dateRowY);
-    ctx.lineTo(pad + cardW - 40, dateRowY);
-    ctx.stroke();
-
-    // Date Left
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '700 52px "Cormorant Garamond", Georgia, serif';
-    ctx.fillText('31', pad + 40, dateRowY + 50);
-
-    ctx.fillStyle = '#a0b795';
-    ctx.font = '600 17px system-ui, -apple-system, sans-serif';
-    ctx.fillText('OCT / 2026', pad + 115, dateRowY + 50);
-
-    // Venue Right
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '600 22px system-ui, -apple-system, sans-serif';
-    ctx.fillText('SOLIS HOTEL', pad + cardW - 40, dateRowY + 40);
-    ctx.fillStyle = '#a0b795';
-    ctx.font = '500 16px system-ui, -apple-system, sans-serif';
-    ctx.fillText('5:30 PM ONWARDS', pad + cardW - 40, dateRowY + 68);
-
-    // ── Central Body: Thank You For Attending Tribute ──
-    const bodyY = pad + artH + 40;
-    ctx.textAlign = 'center';
-
-    // Eyebrow
-    ctx.fillStyle = '#5ef38e';
     ctx.font = '700 18px ui-monospace, monospace';
-    ctx.fillText('BATCH OF 2023 (O/L) & 2026 (A/L)', 600, bodyY);
-
-    // Main Celebratory Headline
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '800 56px system-ui, -apple-system, sans-serif';
-    ctx.fillText('THANK YOU', 600, bodyY + 70);
-    ctx.fillStyle = '#5ef38e';
-    ctx.font = '700 40px system-ui, -apple-system, sans-serif';
-    ctx.fillText('FOR ATTENDING', 600, bodyY + 130);
-
-    // Gold/Emerald Divider Accent
-    ctx.strokeStyle = 'rgba(94, 243, 142, 0.35)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(420, bodyY + 185);
-    ctx.lineTo(780, bodyY + 185);
-    ctx.stroke();
-
-    // Warm Celebratory Narrative
-    ctx.fillStyle = 'rgba(230, 240, 234, 0.88)';
-    ctx.font = '400 26px system-ui, -apple-system, sans-serif';
-    ctx.fillText('Thank you for being part of an unforgettable night.', 600, bodyY + 245);
-    ctx.fillText('Every memory, friendship, and smile from this historic celebration', 600, bodyY + 295);
-    ctx.fillText('is preserved forever in this 3D space galaxy.', 600, bodyY + 345);
-
-    // Admit Badge
-    ctx.fillStyle = 'rgba(31, 57, 38, 0.65)';
-    drawRoundedRect(ctx, 600 - 170, bodyY + 400, 340, 44, 22);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(94, 243, 142, 0.3)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    ctx.fillStyle = '#c5e8ce';
-    ctx.font = '600 17px system-ui, -apple-system, sans-serif';
-    ctx.fillText('ONE EVENING · THE WHOLE BATCH', 600, bodyY + 422);
+    ctx.fillText('★ 513 MASTER PHOTOS · PRESERVED IN 4K ★', 600, batchPillY);
 
     // Restore clipping before drawing notches and stubs
     ctx.restore();
 
-    // ── Perforated Dashed Stub Line & Classic Circular Notches ──
+    // ── 6. Perforated Dashed Stub Line & Classic Ticket Notches ──
     ctx.save();
-    ctx.setLineDash([14, 12]);
-    ctx.strokeStyle = 'rgba(84, 124, 72, 0.75)';
+    ctx.setLineDash([16, 12]);
+    ctx.strokeStyle = 'rgba(94, 243, 142, 0.45)';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.moveTo(pad + 44, stubY);
@@ -240,11 +257,11 @@ export function getThankYouCardAsset() {
     ctx.setLineDash([]);
     ctx.restore();
 
-    // Circular Cutouts on left & right edges (Ticket Stub Notches)
-    const notchRadius = 30;
+    // Circular Edge Notches
+    const notchRadius = 32;
     ctx.fillStyle = '#020503';
-    ctx.strokeStyle = '#43553a';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(94, 243, 142, 0.5)';
+    ctx.lineWidth = 2.5;
 
     // Left notch
     ctx.beginPath();
@@ -258,54 +275,64 @@ export function getThankYouCardAsset() {
     ctx.fill();
     ctx.stroke();
 
-    // ── Ticket Stub Content (Bottom Section) ──
-    const stubContentY = stubY + 45;
+    // ── 7. Ticket Stub Content (Bottom Section) ──
+    const stubContentY = stubY + 40;
 
-    // Left Column: Reference Code & Barcode
+    // Left Column: Record Code & High-Contrast Barcode
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillStyle = '#a0b795';
-    ctx.font = '700 15px ui-monospace, monospace';
-    ctx.fillText('COMMEMORATIVE RECORD', pad + 40, stubContentY);
+    ctx.fillStyle = '#84a480';
+    ctx.font = '700 16px ui-monospace, monospace';
+    ctx.fillText('OFFICIAL RECORD', pad + 44, stubContentY);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = '700 38px ui-monospace, monospace';
-    ctx.fillText('GH-2026-VOID', pad + 40, stubContentY + 28);
+    ctx.font = '800 46px ui-monospace, monospace';
+    ctx.fillText('GH-2026-VOID', pad + 44, stubContentY + 28);
 
     // Vector Barcode Graphic
-    drawBarcode(ctx, pad + 40, stubContentY + 88, 440, 58);
+    drawBarcode(ctx, pad + 44, stubContentY + 92, 460, 68);
 
-    ctx.fillStyle = 'rgba(160, 183, 149, 0.7)';
-    ctx.font = '500 13px ui-monospace, monospace';
-    ctx.fillText('* GH-2026-513-MEMORIES *', pad + 40, stubContentY + 154);
+    ctx.fillStyle = 'rgba(142, 175, 137, 0.85)';
+    ctx.font = '600 15px ui-monospace, monospace';
+    ctx.fillText('* GH-2026-513-MEMORIES *', pad + 44, stubContentY + 172);
 
     // Right Column: Aurora Photography Credit
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#a0b795';
-    ctx.font = '700 15px ui-monospace, monospace';
-    ctx.fillText('PHOTOGRAPHY CREDIT', pad + cardW - 40, stubContentY);
+    ctx.fillStyle = '#84a480';
+    ctx.font = '700 16px ui-monospace, monospace';
+    ctx.fillText('PHOTOGRAPHY CREDIT', pad + cardW - 44, stubContentY);
 
     ctx.fillStyle = '#5ef38e';
-    ctx.font = '700 32px system-ui, -apple-system, sans-serif';
-    ctx.fillText('AURORA.LK', pad + cardW - 40, stubContentY + 28);
+    ctx.font = '900 46px system-ui, -apple-system, sans-serif';
+    ctx.fillText('AURORA.LK', pad + cardW - 44, stubContentY + 28);
 
-    ctx.fillStyle = 'rgba(235, 245, 238, 0.7)';
-    ctx.font = '400 18px system-ui, -apple-system, sans-serif';
-    ctx.fillText('513 Master Photos Preserved', pad + cardW - 40, stubContentY + 76);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '600 22px system-ui, -apple-system, sans-serif';
+    ctx.fillText('All 513 Master Photos in 4K', pad + cardW - 44, stubContentY + 88);
 
-    ctx.fillStyle = '#a0b795';
-    ctx.font = '500 15px system-ui, -apple-system, sans-serif';
-    ctx.fillText('3D Interactive Space Galaxy', pad + cardW - 40, stubContentY + 104);
+    ctx.fillStyle = '#9cb994';
+    ctx.font = '500 18px system-ui, -apple-system, sans-serif';
+    ctx.fillText('Captured by Dasindu Nimnal', pad + cardW - 44, stubContentY + 122);
 
-    // ── Ticket Perimeter Border ──
-    ctx.strokeStyle = '#3a4934';
+    ctx.fillStyle = '#5ef38e';
+    ctx.font = '600 17px ui-monospace, monospace';
+    ctx.fillText('greensheavenxxvi.online', pad + cardW - 44, stubContentY + 158);
+
+    // ── 8. Ticket Outer Perimeter Border ──
+    ctx.strokeStyle = 'rgba(94, 243, 142, 0.38)';
     ctx.lineWidth = 3;
     drawRoundedRect(ctx, pad, pad, cardW, cardH, cornerR);
     ctx.stroke();
 
-    // Re-stamp notch outlines cleanly over perimeter border
-    ctx.strokeStyle = '#43553a';
-    ctx.lineWidth = 3;
+    // Inset subtle thin border
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+    ctx.lineWidth = 1;
+    drawRoundedRect(ctx, pad + 8, pad + 8, cardW - 16, cardH - 16, cornerR - 8);
+    ctx.stroke();
+
+    // Re-stamp notch outlines cleanly
+    ctx.strokeStyle = 'rgba(94, 243, 142, 0.5)';
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.arc(pad, stubY, notchRadius, -Math.PI / 2, Math.PI / 2);
     ctx.stroke();
@@ -317,16 +344,16 @@ export function getThankYouCardAsset() {
     // Update Three.js Texture & DataURL
     texture.needsUpdate = true;
     try {
-      cachedAsset.dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+      cachedAsset.dataUrl = canvas.toDataURL('image/jpeg', 0.95);
     } catch {
       // ignore
     }
   }
 
-  // 1. Initial draw with vector fallback (instant)
+  // 1. Initial immediate draw with vector fallback (synchronous)
   renderTicket(null, null);
 
-  // 2. Asynchronously load the official assets from public/images
+  // 2. Preload official assets and re-render with graphics
   let heroLoaded = null;
   let logoLoaded = null;
 
@@ -363,7 +390,11 @@ export function getThankYouCardPhoto() {
     aspectRatio: 0.667,
     width: 1200,
     height: 1800,
-    originalUrl: asset.dataUrl || '',
-    thumbnailUrl: asset.dataUrl || '',
+    get originalUrl() {
+      return cachedAsset?.dataUrl || asset?.dataUrl || cachedAsset?.canvas?.toDataURL('image/jpeg', 0.95) || '';
+    },
+    get thumbnailUrl() {
+      return cachedAsset?.dataUrl || asset?.dataUrl || cachedAsset?.canvas?.toDataURL('image/jpeg', 0.95) || '';
+    },
   };
 }

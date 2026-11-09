@@ -139,9 +139,6 @@ export default function LandingPage({ user }) {
             <img src={assets.logo} width="425" height="179" alt="Greens Heaven" />
           </a>
           <nav aria-label="Main navigation">
-            <StarBorder {...starButtonProps} className="landing-nav-reserve">
-              <BlurText text="3D Photo Album" enabled={phase === 'ready'} startDelay={400} />
-            </StarBorder>
             <a href={user ? '/dashboard' : '/login'}>
               <BlurText text={user ? 'My dashboard' : 'Sign in'} enabled={phase === 'ready'} startDelay={450} />
             </a>
@@ -160,7 +157,7 @@ export default function LandingPage({ user }) {
           </p>
           <FadeContent className="landing-reserve" trigger="mount" enabled={phase === 'ready'} duration={.7} delay={.65}>
             <StarBorder {...starButtonProps} className="landing-cta">
-              <BlurText text="Explore 3D Gallery" enabled={phase === 'ready'} startDelay={700} />
+              <BlurText text="View Gallery" enabled={phase === 'ready'} startDelay={700} />
             </StarBorder>
             <span>
               <BlurText text="513 Master Photos Preserved" enabled={phase === 'ready'} startDelay={750} />
@@ -228,7 +225,7 @@ export default function LandingPage({ user }) {
           </div>
           <p><BlurText text="31 October 2026" /><br /><BlurText text="Solis Hotel · Isipathana College" /></p>
           <StarBorder {...starButtonProps} className="landing-cta">
-            <BlurText text="Explore 3D Gallery" />
+            <BlurText text="View Gallery" />
           </StarBorder>
         </FadeContent>
       </section>
