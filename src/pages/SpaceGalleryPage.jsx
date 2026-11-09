@@ -243,6 +243,11 @@ export default function SpaceGalleryPage({ user: propUser }) {
               />
             </div>
           </div>
+
+          {/* Elegant Small Credit Pill */}
+          <div className="inspection-credit" onClick={(e) => e.stopPropagation()}>
+            <span>Captured by AURORA.LK</span>
+          </div>
         </div>
       )}
     </div>
