@@ -779,7 +779,7 @@ export default function DepthRibbon({
     };
   }, [pool, totalCount, path, fov, fog, thread, shadow, accentColor, backgroundColor, dpr, aspect, cardSize, offset]);
 
-  // ─── Gesture & Event Handlers (Zero Re-renders during scroll) ───────────────
+  // ─── Gesture & Event Handlers (Calibrated for buttery-smooth mobile navigation) ───────────────
   const handleWheel = useCallback((e) => {
     if (!wheel) return;
     e.preventDefault();
@@ -790,11 +790,12 @@ export default function DepthRibbon({
 
     const sign = Math.sign(rawDelta);
     const abs = Math.abs(rawDelta);
-    const subtleDelta = sign * Math.min(abs, 130) * 0.000032;
+    const cardStep = 1 / Math.max(1, totalCount);
+    const subtleDelta = sign * cardStep * Math.min(1.0, abs / 100) * 0.28;
 
     // eslint-disable-next-line react-hooks/immutability
     scrollTargetRef.current = Math.max(0, Math.min(1, scrollTargetRef.current + subtleDelta));
-  }, [wheel]);
+  }, [wheel, totalCount]);
 
   // Pointer Down (Supports drag to travel)
   const handlePointerDown = (e) => {
@@ -840,7 +841,14 @@ export default function DepthRibbon({
       orbitAngleRef.current = orbitDragStartRef.current.angle + dx * 0.35;
       orbitPitchRef.current = Math.max(-35, Math.min(65, orbitDragStartRef.current.pitch - dy * 0.22));
     } else if (draggable) {
-      const delta = -(dy * 0.00018);
+      // Natural mobile & desktop drag: support both horizontal swipe and vertical drag
+      const dragDist = Math.abs(dx) > Math.abs(dy) ? -dx : -dy;
+
+      // Calibrated sensitivity: 1 card per ~160px on mobile touch (smooth & controlled)
+      const pixelsPerCard = e.pointerType === 'touch' ? 160 : 110;
+      const cardStep = 1 / Math.max(1, totalCount);
+      const delta = (dragDist / pixelsPerCard) * cardStep;
+
       // eslint-disable-next-line react-hooks/immutability
       scrollTargetRef.current = Math.max(0, Math.min(1, orbitDragStartRef.current.scroll + delta));
     }

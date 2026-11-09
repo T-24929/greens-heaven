@@ -1,8 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   ArrowLeft,
-  ZoomIn,
-  ZoomOut,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -30,9 +28,8 @@ export default function SpaceGalleryPage({ user: propUser }) {
     return () => subscription?.unsubscribe();
   }, [propUser]);
 
-  // Lightbox Inspection State (100% Pristine Master Lossless Inspection)
+  // Lightbox Inspection State
   const [focusedPhoto, setFocusedPhoto] = useState(null);
-  const [fullResLoaded, setFullResLoaded] = useState(false);
   const [isZoomedIn, setIsZoomedIn] = useState(false);
 
   // Load 513 album manifest
@@ -53,7 +50,6 @@ export default function SpaceGalleryPage({ user: propUser }) {
 
   const openInspection = useCallback((photo) => {
     setFocusedPhoto(photo);
-    setFullResLoaded(false);
     setIsZoomedIn(false);
   }, []);
 
@@ -68,12 +64,10 @@ export default function SpaceGalleryPage({ user: propUser }) {
         const idx = manifest.photos.findIndex((p) => p.id === focusedPhoto.id);
         const prev = manifest.photos[(idx - 1 + manifest.photos.length) % manifest.photos.length];
         setFocusedPhoto(prev);
-        setFullResLoaded(false);
       } else if (e.key === 'ArrowRight') {
         const idx = manifest.photos.findIndex((p) => p.id === focusedPhoto.id);
         const next = manifest.photos[(idx + 1) % manifest.photos.length];
         setFocusedPhoto(next);
-        setFullResLoaded(false);
       }
     };
 
@@ -144,7 +138,7 @@ export default function SpaceGalleryPage({ user: propUser }) {
       </header>
 
       {/* Atmospheric Loading State */}
-      {loading && (
+      {!manifest?.photos && (
         <div className="gallery-space-loader">
           <div className="gallery-loader-orb" />
           <p className="gallery-loader-label">Preparing 513 event memories…</p>
@@ -174,26 +168,16 @@ export default function SpaceGalleryPage({ user: propUser }) {
       )}
 
       {/* =========================================================
-          FULLSCREEN LOSSLESS INSPECTION LIGHTBOX (Original Ratio)
+          FULLSCREEN LOSSLESS INSPECTION LIGHTBOX (Clean, No Unwanted Text)
          ========================================================= */}
       {focusedPhoto && (
         <div className="inspection-modal-overlay" onClick={() => setFocusedPhoto(null)}>
           <div className="inspection-header" onClick={(e) => e.stopPropagation()}>
-            <div className="inspection-title-wrap">
-              <h2>{focusedPhoto.title}</h2>
-              <span className="aspect-pill">
-                Original Ratio ({focusedPhoto.width} × {focusedPhoto.height} px)
-              </span>
-              <span className="aspect-pill text-emerald-400">
-                {fullResLoaded ? '100% Lossless Master' : 'Loading Master...'}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
-                className={`action-pill-btn ${downloadSuccess ? 'text-emerald-400 border-emerald-500/40' : ''}`}
+                className={`action-pill-btn download-pill-btn ${downloadSuccess ? 'text-emerald-400 border-emerald-500/40' : ''}`}
                 onClick={() => handleDownloadPhoto(focusedPhoto)}
-                title="Download full-resolution master photo"
+                title="Download photo"
                 disabled={downloadingPhoto}
               >
                 {downloadingPhoto ? (
@@ -203,20 +187,11 @@ export default function SpaceGalleryPage({ user: propUser }) {
                 ) : (
                   <Download size={16} />
                 )}
-                <span>{downloadSuccess ? 'Saved' : 'Download'}</span>
+                <span>Download</span>
               </button>
 
               <button
-                className="action-pill-btn"
-                onClick={() => setIsZoomedIn((z) => !z)}
-                title={isZoomedIn ? 'Fit view' : '1:1 Master Resolution'}
-              >
-                {isZoomedIn ? <ZoomOut size={16} /> : <ZoomIn size={16} />}
-                <span>{isZoomedIn ? 'Fit View' : '1:1 Master'}</span>
-              </button>
-
-              <button
-                className="action-pill-btn text-gray-300 hover:text-white"
+                className="action-pill-btn close-pill-btn text-gray-300 hover:text-white"
                 onClick={() => setFocusedPhoto(null)}
                 title="Close"
               >
@@ -233,7 +208,6 @@ export default function SpaceGalleryPage({ user: propUser }) {
                 const idx = manifest.photos.findIndex((p) => p.id === focusedPhoto.id);
                 const prev = manifest.photos[(idx - 1 + manifest.photos.length) % manifest.photos.length];
                 setFocusedPhoto(prev);
-                setFullResLoaded(false);
               }}
               title="Previous Photo"
             >
@@ -246,7 +220,6 @@ export default function SpaceGalleryPage({ user: propUser }) {
                 const idx = manifest.photos.findIndex((p) => p.id === focusedPhoto.id);
                 const next = manifest.photos[(idx + 1) % manifest.photos.length];
                 setFocusedPhoto(next);
-                setFullResLoaded(false);
               }}
               title="Next Photo"
             >
@@ -262,22 +235,13 @@ export default function SpaceGalleryPage({ user: propUser }) {
                 src={focusedPhoto.originalUrl}
                 alt={focusedPhoto.title}
                 className="inspection-master-img"
-                onLoad={() => setFullResLoaded(true)}
                 onError={(e) => {
                   if (focusedPhoto.thumbnailUrl && e.target.src !== focusedPhoto.thumbnailUrl) {
                     e.target.src = focusedPhoto.thumbnailUrl;
-                    setFullResLoaded(true);
                   }
                 }}
               />
             </div>
-          </div>
-
-          <div className="inspection-footer" onClick={(e) => e.stopPropagation()}>
-            <span>Click photo to toggle 1:1 zoom · Use Arrow keys to navigate</span>
-            <span className="text-gray-500 font-mono">
-              Master: {focusedPhoto.filename}
-            </span>
           </div>
         </div>
       )}

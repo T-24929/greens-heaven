@@ -443,13 +443,13 @@
 }
 
 /* =========================================================
-   FULLSCREEN LOSSLESS INSPECTION LIGHTBOX
+   FULLSCREEN LOSSLESS INSPECTION LIGHTBOX (Pure, Minimal, No Unwanted Text)
    ========================================================= */
 .inspection-modal-overlay {
   position: absolute;
   inset: 0;
   z-index: 50;
-  background: rgba(3, 7, 4, 0.94);
+  background: rgba(2, 5, 3, 0.96);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
   display: flex;
@@ -463,34 +463,23 @@
 }
 
 .inspection-header {
-  padding: 16px 24px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 20px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid rgba(53, 207, 104, 0.18);
-  background: rgba(6, 12, 8, 0.6);
+  justify-content: flex-end;
+  gap: 10px;
+  background: linear-gradient(180deg, rgba(2, 6, 3, 0.8) 0%, transparent 100%);
+  border-bottom: none;
+  z-index: 30;
+  pointer-events: none;
 }
 
-.inspection-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.inspection-title-wrap h2 {
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: #f0f4f1;
-}
-
-.aspect-pill {
-  font-size: 0.75rem;
-  padding: 3px 8px;
-  background: rgba(33, 179, 84, 0.15);
-  border: 1px solid rgba(33, 179, 84, 0.3);
-  color: #5ef38e;
-  border-radius: 6px;
-  font-weight: 500;
+.inspection-header > * {
+  pointer-events: auto;
 }
 
 .inspection-viewport {
@@ -500,22 +489,42 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding: 24px;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
 }
 
-.inspection-image {
-  max-width: 90vw;
-  max-height: 82vh;
-  object-fit: contain;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), 0 0 35px rgba(33, 179, 84, 0.15);
-  border: 1px solid rgba(53, 207, 104, 0.3);
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+.inspection-img-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: zoom-in;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
-.inspection-image.zoomed {
+.inspection-master-img {
+  max-width: 92vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.95);
+  user-select: none;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.inspection-img-container.is-zoomed {
   cursor: zoom-out;
+  overflow: auto;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.inspection-img-container.is-zoomed .inspection-master-img {
+  max-width: none;
+  max-height: none;
 }
 
 .nav-dolly-btn {
