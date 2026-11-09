@@ -349,3 +349,61 @@
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+
+/* Verification Gate Box & Ticket Badges */
+.user-no-ticket-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #fbbf24;
+  font-size: 11px;
+}
+
+.photo-comments-gate-box {
+  padding: 16px 20px 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(6, 12, 8, 0.95);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.gate-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f3f4f6;
+  margin: 0;
+}
+
+.gate-desc {
+  font-size: 11px;
+  color: #9ca3af;
+  margin: 0;
+  line-height: 1.4;
+  max-width: 340px;
+}
+
+.gate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 4px;
+  background: rgba(94, 243, 142, 0.15);
+  border: 1px solid rgba(94, 243, 142, 0.35);
+  color: #5ef38e;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 16px;
+  border-radius: 999px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.gate-btn:hover {
+  background: #5ef38e;
+  color: #020403;
+  box-shadow: 0 0 16px rgba(94, 243, 142, 0.4);
+}

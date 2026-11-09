@@ -492,4 +492,25 @@ select test_support.denied($sql$insert into public.external_incomes(title, categ
 -- Cannot adjust ticket deductions
 select test_support.denied($sql$select public.set_reservation_deduction(current_setting('test.reservation_id')::uuid, 1000, 'Test')$sql$, '42501', 'view-only admin cannot adjust ticket deductions');
 
+
+-- Photo Likes and Comments ticket-holder security checks
+reset role;
+set local role anon;
+select test_support.denied($sql$insert into public.photo_likes(photo_id, client_id) values ('photo_1', 'anon_client')$sql$, '42501', 'anon cannot like photos');
+select test_support.denied($sql$insert into public.photo_comments(photo_id, user_name, content) values ('photo_1', 'Anon', 'Hello')$sql$, '42501', 'anon cannot comment on photos');
+
+-- Authenticated user without approved ticket cannot comment or like
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000008', true);
+select test_support.denied($sql$insert into public.photo_likes(photo_id, user_id) values ('photo_1', '10000000-0000-4000-8000-000000000008')$sql$, '42501', 'non-ticket user cannot like photos');
+select test_support.denied($sql$insert into public.photo_comments(photo_id, user_id, user_name, content) values ('photo_1', '10000000-0000-4000-8000-000000000008', 'NoTicket', 'Nice')$sql$, '42501', 'non-ticket user cannot comment');
+
+-- Admin can like and comment
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000006', true);
+select test_support.ok((select public.can_socialize()), 'admin can socialize');
+insert into public.photo_likes(photo_id, user_id) values ('photo_1', '10000000-0000-4000-8000-000000000006');
+insert into public.photo_comments(photo_id, user_id, user_name, content) values ('photo_1', '10000000-0000-4000-8000-000000000006', 'Admin', 'Celebration!');
+select test_support.ok((select count(*) = 1 from public.photo_likes where photo_id = 'photo_1' and user_id = '10000000-0000-4000-8000-000000000006'), 'admin like persisted');
+select test_support.ok((select count(*) = 1 from public.photo_comments where photo_id = 'photo_1' and user_id = '10000000-0000-4000-8000-000000000006'), 'admin comment persisted');
+
 rollback;

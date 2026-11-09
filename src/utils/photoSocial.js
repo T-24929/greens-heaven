@@ -1,33 +1,93 @@
 import { supabase, isSupabaseConfigured } from './supabase.js';
 
-// ─── Anonymous Client Identifier ─────────────────────────────────────────────
-// Allows guest users to like and track their likes across sessions
-export function getOrCreateClientId() {
-  if (typeof window === 'undefined') return 'server';
-  let cid = localStorage.getItem('gh_photo_client_id');
-  if (!cid) {
-    cid = 'guest_' + Math.random().toString(36).slice(2, 11) + '_' + Date.now().toString(36);
-    try {
-      localStorage.setItem('gh_photo_client_id', cid);
-    } catch {
-      // Ignore localStorage restrictions in private/incognito mode
-    }
+// ─── Ticket Holder Verification & Cache ───────────────────────────────────────
+const ticketStatusCache = new Map();
+
+export async function checkUserTicketStatus(user) {
+  if (!user?.id) {
+    return {
+      isSignedIn: false,
+      hasTicket: false,
+      isApproved: false,
+      isAdmin: false,
+      attendeeName: null,
+    };
   }
-  return cid;
+
+  if (ticketStatusCache.has(user.id)) {
+    return ticketStatusCache.get(user.id);
+  }
+
+  if (!isSupabaseConfigured || !supabase) {
+    const fallback = {
+      isSignedIn: true,
+      hasTicket: true,
+      isApproved: true,
+      isAdmin: false,
+      attendeeName: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Attendee',
+    };
+    return fallback;
+  }
+
+  try {
+    // 1. Check if user is admin
+    let isAdmin = Boolean(user.app_metadata?.role === 'admin' || user.app_metadata?.is_admin);
+    if (!isAdmin) {
+      try {
+        const { data: adminCheck } = await supabase.rpc('is_admin');
+        isAdmin = Boolean(adminCheck);
+      } catch {
+        // ignore
+      }
+    }
+
+    // 2. Check reservation status
+    const { data: reservation } = await supabase
+      .from('reservations')
+      .select('id, status, full_name')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const isApproved = reservation?.status === 'approved';
+    const hasTicket = isApproved || isAdmin;
+    const attendeeName =
+      reservation?.full_name ||
+      user.user_metadata?.full_name ||
+      user.user_metadata?.name ||
+      user.email?.split('@')[0] ||
+      'Attendee';
+
+    const result = {
+      isSignedIn: true,
+      hasTicket,
+      isApproved,
+      isAdmin,
+      attendeeName,
+    };
+
+    ticketStatusCache.set(user.id, result);
+    return result;
+  } catch (err) {
+    console.warn('Error checking ticket status:', err);
+    return {
+      isSignedIn: true,
+      hasTicket: false,
+      isApproved: false,
+      isAdmin: false,
+      attendeeName: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Attendee',
+    };
+  }
 }
 
 // ─── Rate Limiter ─────────────────────────────────────────────────────────────
-// Protects against spamming likes or comments
 const likeTimestamps = [];
 const commentTimestamps = [];
 
 export function checkLikeRateLimit() {
   const now = Date.now();
-  // Clear timestamps older than 10 seconds
   while (likeTimestamps.length > 0 && now - likeTimestamps[0] > 10000) {
     likeTimestamps.shift();
   }
-  // Max 6 likes per 10 seconds
   if (likeTimestamps.length >= 6) {
     const waitSec = Math.ceil((10000 - (now - likeTimestamps[0])) / 1000);
     return { allowed: false, message: `Please slow down! Wait ${waitSec}s` };
@@ -41,7 +101,6 @@ export function checkCommentRateLimit() {
   while (commentTimestamps.length > 0 && now - commentTimestamps[0] > 60000) {
     commentTimestamps.shift();
   }
-  // Max 4 comments per minute
   if (commentTimestamps.length >= 4) {
     const waitSec = Math.ceil((60000 - (now - commentTimestamps[0])) / 1000);
     return { allowed: false, message: `Commenting fast! Please wait ${waitSec}s` };
@@ -51,7 +110,6 @@ export function checkCommentRateLimit() {
 }
 
 // ─── Local Storage Cache Fallback ─────────────────────────────────────────────
-// Guarantees zero UI downtime even if database migration is pending
 function getLocalCache(key, defaultVal) {
   try {
     const val = localStorage.getItem(`gh_photo_${key}`);
@@ -65,20 +123,19 @@ function setLocalCache(key, val) {
   try {
     localStorage.setItem(`gh_photo_${key}`, JSON.stringify(val));
   } catch {
-    // Ignore localStorage quota errors
+    // Ignore quota errors
   }
 }
 
-// ─── Likes API ────────────────────────────────────────────────────────────────
-export async function getPhotoLikes(photoId, userId, clientId) {
+// ─── Likes API (Ticket Holders Only) ──────────────────────────────────────────
+export async function getPhotoLikes(photoId, userId) {
   const defaultRes = { count: 0, isLiked: false };
   if (!photoId) return defaultRes;
 
   const localLikes = getLocalCache(`likes_${photoId}`, { count: 0, users: [] });
-  const cid = clientId || getOrCreateClientId();
 
   if (!isSupabaseConfigured || !supabase) {
-    const isLiked = userId ? localLikes.users.includes(userId) : localLikes.users.includes(cid);
+    const isLiked = userId ? localLikes.users.includes(userId) : false;
     return { count: localLikes.count || 0, isLiked };
   }
 
@@ -90,12 +147,11 @@ export async function getPhotoLikes(photoId, userId, clientId) {
       .eq('photo_id', photoId);
 
     if (countErr) {
-      // Table not yet migrated or inaccessible -> use local cache
-      const isLiked = userId ? localLikes.users.includes(userId) : localLikes.users.includes(cid);
+      const isLiked = userId ? localLikes.users.includes(userId) : false;
       return { count: localLikes.count || 0, isLiked };
     }
 
-    // 2. Check if current user or client has liked
+    // 2. Check if current user has liked
     let isLiked = false;
     if (userId) {
       const { data: userLike } = await supabase
@@ -105,42 +161,51 @@ export async function getPhotoLikes(photoId, userId, clientId) {
         .eq('user_id', userId)
         .maybeSingle();
       if (userLike) isLiked = true;
-    } else if (cid) {
-      const { data: clientLike } = await supabase
-        .from('photo_likes')
-        .select('id')
-        .eq('photo_id', photoId)
-        .eq('client_id', cid)
-        .maybeSingle();
-      if (clientLike) isLiked = true;
     }
 
     return { count: count || 0, isLiked };
   } catch (err) {
     console.warn('Error fetching photo likes from Supabase:', err);
-    const isLiked = userId ? localLikes.users.includes(userId) : localLikes.users.includes(cid);
+    const isLiked = userId ? localLikes.users.includes(userId) : false;
     return { count: localLikes.count || 0, isLiked };
   }
 }
 
-export async function togglePhotoLike(photoId, currentIsLiked, userId, clientId) {
-  // Check rate limit
+export async function togglePhotoLike(photoId, currentIsLiked, user) {
+  if (!photoId) return { error: 'No photo selected' };
+
+  if (!user?.id) {
+    return {
+      error: 'Please sign in with your confirmed ticket account to like photos.',
+      requiresAuth: true,
+      isLiked: currentIsLiked,
+    };
+  }
+
+  const status = await checkUserTicketStatus(user);
+  if (!status.hasTicket) {
+    return {
+      error: 'Likes are exclusive to confirmed Greens Heaven ticket holders.',
+      requiresTicket: true,
+      isLiked: currentIsLiked,
+    };
+  }
+
   const rateLimit = checkLikeRateLimit();
   if (!rateLimit.allowed) {
     return { error: rateLimit.message, isLiked: currentIsLiked };
   }
 
-  const cid = clientId || getOrCreateClientId();
+  const userId = user.id;
   const nextIsLiked = !currentIsLiked;
 
   // Optimistic local update
   const localLikes = getLocalCache(`likes_${photoId}`, { count: 0, users: [] });
-  const actor = userId || cid;
   if (nextIsLiked) {
-    if (!localLikes.users.includes(actor)) localLikes.users.push(actor);
+    if (!localLikes.users.includes(userId)) localLikes.users.push(userId);
     localLikes.count = Math.max(0, localLikes.count + 1);
   } else {
-    localLikes.users = localLikes.users.filter((u) => u !== actor);
+    localLikes.users = localLikes.users.filter((u) => u !== userId);
     localLikes.count = Math.max(0, localLikes.count - 1);
   }
   setLocalCache(`likes_${photoId}`, localLikes);
@@ -151,26 +216,29 @@ export async function togglePhotoLike(photoId, currentIsLiked, userId, clientId)
 
   try {
     if (nextIsLiked) {
-      // Add like
-      const row = { photo_id: photoId };
-      if (userId) row.user_id = userId;
-      else row.client_id = cid;
-
-      const { error: insErr } = await supabase.from('photo_likes').insert(row);
+      const { error: insErr } = await supabase.from('photo_likes').insert({
+        photo_id: photoId,
+        user_id: userId,
+      });
       if (insErr && insErr.code !== '23505') {
         console.warn('Supabase like insert error:', insErr);
+        if (insErr.code === '42501') {
+          return {
+            error: 'Only confirmed ticket holders can like photos.',
+            requiresTicket: true,
+            isLiked: currentIsLiked,
+          };
+        }
       }
     } else {
-      // Remove like
-      let query = supabase.from('photo_likes').delete().eq('photo_id', photoId);
-      if (userId) query = query.eq('user_id', userId);
-      else query = query.eq('client_id', cid);
-
-      const { error: delErr } = await query;
+      const { error: delErr } = await supabase
+        .from('photo_likes')
+        .delete()
+        .eq('photo_id', photoId)
+        .eq('user_id', userId);
       if (delErr) console.warn('Supabase unlike error:', delErr);
     }
 
-    // Refresh live count from DB
     const { count } = await supabase
       .from('photo_likes')
       .select('*', { count: 'exact', head: true })
@@ -183,7 +251,7 @@ export async function togglePhotoLike(photoId, currentIsLiked, userId, clientId)
   }
 }
 
-// ─── Comments API ─────────────────────────────────────────────────────────────
+// ─── Comments API (Ticket Holders Only) ───────────────────────────────────────
 export async function getPhotoComments(photoId) {
   if (!photoId) return [];
 
@@ -212,7 +280,24 @@ export async function getPhotoComments(photoId) {
   }
 }
 
-export async function addPhotoComment(photoId, content, user, guestName = 'Greens Heaven Guest') {
+export async function addPhotoComment(photoId, content, user) {
+  if (!photoId) return { error: 'No photo selected' };
+
+  if (!user?.id) {
+    return {
+      error: 'Please sign in with your confirmed ticket account to comment.',
+      requiresAuth: true,
+    };
+  }
+
+  const status = await checkUserTicketStatus(user);
+  if (!status.hasTicket) {
+    return {
+      error: 'Commenting is exclusive to confirmed Greens Heaven ticket holders.',
+      requiresTicket: true,
+    };
+  }
+
   const trimmed = (content || '').trim();
   if (!trimmed) {
     return { error: 'Comment cannot be empty' };
@@ -221,35 +306,24 @@ export async function addPhotoComment(photoId, content, user, guestName = 'Green
     return { error: 'Comment must be under 600 characters' };
   }
 
-  // Check rate limit
   const rateLimit = checkCommentRateLimit();
   if (!rateLimit.allowed) {
     return { error: rateLimit.message };
   }
 
-  const userName =
-    user?.user_metadata?.full_name ||
-    user?.user_metadata?.name ||
-    user?.email?.split('@')[0] ||
-    guestName ||
-    'Guest';
-
-  const userAvatar =
-    user?.user_metadata?.avatar_url ||
-    user?.user_metadata?.picture ||
-    null;
+  const userName = status.attendeeName || 'Ticket Holder';
+  const userAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
 
   const newComment = {
     id: 'c_' + Math.random().toString(36).slice(2, 10),
     photo_id: photoId,
-    user_id: user?.id || null,
+    user_id: user.id,
     user_name: userName,
     user_avatar: userAvatar,
     content: trimmed,
     created_at: new Date().toISOString(),
   };
 
-  // Local storage cache update
   const localComments = getLocalCache(`comments_${photoId}`, []);
   localComments.unshift(newComment);
   setLocalCache(`comments_${photoId}`, localComments);
@@ -261,11 +335,11 @@ export async function addPhotoComment(photoId, content, user, guestName = 'Green
   try {
     const payload = {
       photo_id: photoId,
-      content: trimmed,
+      user_id: user.id,
       user_name: userName,
       user_avatar: userAvatar,
+      content: trimmed,
     };
-    if (user?.id) payload.user_id = user.id;
 
     const { data, error } = await supabase
       .from('photo_comments')
@@ -275,6 +349,9 @@ export async function addPhotoComment(photoId, content, user, guestName = 'Green
 
     if (error) {
       console.warn('Supabase comment insert error:', error);
+      if (error.code === '42501') {
+        return { error: 'Commenting is exclusive to confirmed ticket holders.' };
+      }
       return { comment: newComment };
     }
 

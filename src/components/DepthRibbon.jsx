@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import * as THREE from 'three';
 import { Heart, MessageSquare, Maximize2, Download, Check, Loader2, Share2, X } from 'lucide-react';
-import { getOrCreateClientId, getPhotoLikes, togglePhotoLike, getPhotoComments } from '../utils/photoSocial.js';
+import { getPhotoLikes, togglePhotoLike, getPhotoComments } from '../utils/photoSocial.js';
 import { getThankYouCardAsset, getThankYouCardPhoto } from '../utils/thankYouCard.js';
 import { downloadPhotoFile } from '../utils/photoDownload.js';
 import PhotoCommentsDrawer from './PhotoCommentsDrawer.jsx';
@@ -286,7 +286,6 @@ export default function DepthRibbon({
   const [likeRateLimitMsg, setLikeRateLimitMsg] = useState('');
   const [commentCount, setCommentCount] = useState(0);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
-  const clientIdRef = useRef(getOrCreateClientId());
   const socialCacheRef = useRef(new Map());
   const [downloadStatus, setDownloadStatus] = useState('idle'); // 'idle' | 'downloading' | 'done'
   const [shareStatus, setShareStatus] = useState('idle'); // 'idle' | 'copied' | 'shared'
@@ -407,7 +406,7 @@ export default function DepthRibbon({
     let active = true;
 
     Promise.all([
-      getPhotoLikes(selectedPhotoId, user?.id, clientIdRef.current),
+      getPhotoLikes(selectedPhotoId, user?.id),
       getPhotoComments(selectedPhotoId),
     ]).then(([likesData, commentsData]) => {
       if (!active) return;
@@ -433,17 +432,24 @@ export default function DepthRibbon({
     };
   }, [selectedPhotoId, user?.id]);
 
-  // Handle Like Button Click with Rate Limiting
+  // Handle Like Button Click with Rate Limiting (Ticket Holders Only)
   const handleLikeClick = async (e) => {
     e.stopPropagation();
     if (!selectedPhotoId) return;
+
+    if (!user) {
+      setLikeRateLimitMsg('Sign in with your ticket account to like photos.');
+      setTimeout(() => setLikeRateLimitMsg(''), 3000);
+      return;
+    }
+
     setIsLiking(true);
     setTimeout(() => setIsLiking(false), 320);
 
-    const res = await togglePhotoLike(selectedPhotoId, isLiked, user?.id, clientIdRef.current);
+    const res = await togglePhotoLike(selectedPhotoId, isLiked, user);
     if (res?.error) {
       setLikeRateLimitMsg(res.error);
-      setTimeout(() => setLikeRateLimitMsg(''), 2500);
+      setTimeout(() => setLikeRateLimitMsg(''), 3000);
       return;
     }
 

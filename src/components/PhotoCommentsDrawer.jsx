@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Send, LogIn, MessageSquare, AlertCircle } from 'lucide-react';
-import { getPhotoComments, addPhotoComment } from '../utils/photoSocial.js';
+import { X, Send, LogIn, MessageSquare, AlertCircle, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { getPhotoComments, addPhotoComment, checkUserTicketStatus } from '../utils/photoSocial.js';
 import './PhotoCommentsDrawer.css';
 
 function formatTimeAgo(isoString) {
@@ -26,12 +26,36 @@ export default function PhotoCommentsDrawer({
 }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
-  const [guestName, setGuestName] = useState('');
+  const [ticketStatus, setTicketStatus] = useState(() => ({
+    isSignedIn: Boolean(user?.id),
+    hasTicket: false,
+    attendeeName: user?.user_metadata?.full_name || null,
+    loading: Boolean(user?.id),
+  }));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const listEndRef = useRef(null);
 
   const photoId = photo?.id || (typeof photoIndex === 'number' ? `photo_${photoIndex + 1}` : null);
+
+  // Check ticket status whenever user changes or drawer opens
+  useEffect(() => {
+    let active = true;
+    if (!user) return;
+
+    checkUserTicketStatus(user).then((res) => {
+      if (active) {
+        setTicketStatus({
+          ...res,
+          loading: false,
+        });
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [user, isOpen]);
 
   // Load comments whenever photo changes or drawer opens
   useEffect(() => {
@@ -53,10 +77,20 @@ export default function PhotoCommentsDrawer({
     e.preventDefault();
     if (!newComment.trim() || isSubmitting) return;
 
+    if (!user) {
+      setErrorMsg('Please sign in to comment.');
+      return;
+    }
+
+    if (!ticketStatus.hasTicket) {
+      setErrorMsg('Commenting is exclusive to confirmed Greens Heaven ticket holders.');
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMsg('');
 
-    const res = await addPhotoComment(photoId, newComment, user, guestName);
+    const res = await addPhotoComment(photoId, newComment, user);
     setIsSubmitting(false);
 
     if (res?.error) {
@@ -71,12 +105,6 @@ export default function PhotoCommentsDrawer({
   };
 
   if (!isOpen) return null;
-
-  const currentUserName =
-    user?.user_metadata?.full_name ||
-    user?.user_metadata?.name ||
-    user?.email?.split('@')[0] ||
-    null;
 
   return (
     <div className="photo-comments-overlay" onClick={onClose}>
@@ -101,13 +129,22 @@ export default function PhotoCommentsDrawer({
         {/* User Status Bar */}
         <div className="photo-comments-user-bar">
           {user ? (
-            <div className="user-signed-in-pill">
-              <span className="user-status-dot online" />
-              <span>Signed in as <strong>{currentUserName}</strong></span>
-            </div>
+            ticketStatus.hasTicket ? (
+              <div className="user-signed-in-pill">
+                <CheckCircle2 size={13} className="text-emerald-400" />
+                <span>
+                  Verified Attendee: <strong>{ticketStatus.attendeeName}</strong>
+                </span>
+              </div>
+            ) : (
+              <div className="user-no-ticket-pill">
+                <ShieldAlert size={14} className="text-amber-400" />
+                <span>Ticket required to comment</span>
+              </div>
+            )
           ) : (
             <div className="user-guest-prompt">
-              <span>Commenting as guest</span>
+              <span>Ticket holders only</span>
               <a href="/login?next=/gallery" className="sign-in-link">
                 <LogIn size={13} />
                 <span>Sign in</span>
@@ -122,7 +159,11 @@ export default function PhotoCommentsDrawer({
             <div className="photo-comments-empty">
               <MessageSquare size={28} className="empty-icon" />
               <p className="empty-title">No comments yet</p>
-              <p className="empty-desc">Be the first to share your thoughts on this photo!</p>
+              <p className="empty-desc">
+                {ticketStatus.hasTicket
+                  ? 'Be the first to share your memory on this photo!'
+                  : 'Confirmed ticket holders can comment on this photo.'}
+              </p>
             </div>
           ) : (
             comments.map((c) => (
@@ -155,38 +196,48 @@ export default function PhotoCommentsDrawer({
           </div>
         )}
 
-        {/* Comment Form */}
-        <form className="photo-comments-form" onSubmit={handleSubmit}>
-          {!user && (
-            <input
-              type="text"
-              className="guest-name-input"
-              placeholder="Your name (optional)"
-              value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
-              maxLength={40}
-            />
-          )}
-
-          <div className="input-row">
-            <input
-              type="text"
-              className="comment-text-input"
-              placeholder={user ? `Add a comment as ${currentUserName}...` : 'Write a comment...'}
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              maxLength={600}
-            />
-            <button
-              type="submit"
-              className="comment-submit-btn"
-              disabled={!newComment.trim() || isSubmitting}
-              title="Post Comment"
-            >
-              <Send size={15} />
-            </button>
+        {/* Comment Form or Verification Gate */}
+        {!user ? (
+          <div className="photo-comments-gate-box">
+            <p className="gate-title">Sign in to join the conversation</p>
+            <p className="gate-desc">
+              Comments and likes are exclusive to confirmed Greens Heaven ticket holders.
+            </p>
+            <a href="/login?next=/gallery" className="gate-btn">
+              <LogIn size={14} />
+              <span>Sign In with Ticket Account</span>
+            </a>
           </div>
-        </form>
+        ) : !ticketStatus.hasTicket && !ticketStatus.loading ? (
+          <div className="photo-comments-gate-box">
+            <p className="gate-title">Confirmed Ticket Required</p>
+            <p className="gate-desc">
+              This account does not have a confirmed ticket. Only batchmates with an approved ticket can comment.
+            </p>
+          </div>
+        ) : (
+          <form className="photo-comments-form" onSubmit={handleSubmit}>
+            <div className="input-row">
+              <input
+                type="text"
+                className="comment-text-input"
+                placeholder={`Add a comment as ${ticketStatus.attendeeName || 'Attendee'}...`}
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                maxLength={600}
+                disabled={isSubmitting}
+              />
+              <button
+                type="submit"
+                className="comment-submit-btn"
+                disabled={!newComment.trim() || isSubmitting}
+                title="Post Comment"
+              >
+                <Send size={15} />
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
