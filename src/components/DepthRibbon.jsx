@@ -251,11 +251,15 @@ export default function DepthRibbon({
     if (!photo || downloadStatus === 'downloading') return;
     setDownloadStatus('downloading');
 
-    const downloadUrl = photo.originalUrl || photo.thumbnailUrl || photo.src;
+    const preferredUrl = photo.originalUrl || photo.thumbnailUrl || photo.src;
+    const fallbackUrl = photo.thumbnailUrl || photo.originalUrl || photo.src;
     const filename = photo.filename || `${photo.title || 'photo'}.jpg`;
 
     try {
-      const res = await fetch(downloadUrl);
+      let res = await fetch(preferredUrl);
+      if (!res.ok && fallbackUrl && fallbackUrl !== preferredUrl) {
+        res = await fetch(fallbackUrl);
+      }
       if (!res.ok) throw new Error('Fetch failed');
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -270,7 +274,7 @@ export default function DepthRibbon({
     } catch {
       // Direct link fallback
       const link = document.createElement('a');
-      link.href = downloadUrl;
+      link.href = fallbackUrl || preferredUrl;
       link.download = filename;
       link.target = '_blank';
       document.body.appendChild(link);

@@ -73,11 +73,15 @@ export default function SpaceGalleryPage({ user: propUser }) {
     setDownloadingPhoto(true);
     setDownloadSuccess(false);
 
-    const downloadUrl = photo.originalUrl || photo.thumbnailUrl;
+    const preferredUrl = photo.originalUrl || photo.thumbnailUrl;
+    const fallbackUrl = photo.thumbnailUrl || photo.originalUrl;
     const filename = photo.filename || `${photo.title || 'photo'}.jpg`;
 
     try {
-      const res = await fetch(downloadUrl);
+      let res = await fetch(preferredUrl);
+      if (!res.ok && fallbackUrl && fallbackUrl !== preferredUrl) {
+        res = await fetch(fallbackUrl);
+      }
       if (!res.ok) throw new Error('Download failed');
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -91,7 +95,7 @@ export default function SpaceGalleryPage({ user: propUser }) {
       setDownloadSuccess(true);
     } catch {
       const link = document.createElement('a');
-      link.href = downloadUrl;
+      link.href = fallbackUrl || preferredUrl;
       link.download = filename;
       link.target = '_blank';
       document.body.appendChild(link);
@@ -234,6 +238,12 @@ export default function SpaceGalleryPage({ user: propUser }) {
                 alt={focusedPhoto.title}
                 className="inspection-master-img"
                 onLoad={() => setFullResLoaded(true)}
+                onError={(e) => {
+                  if (focusedPhoto.thumbnailUrl && e.target.src !== focusedPhoto.thumbnailUrl) {
+                    e.target.src = focusedPhoto.thumbnailUrl;
+                    setFullResLoaded(true);
+                  }
+                }}
               />
             </div>
           </div>
