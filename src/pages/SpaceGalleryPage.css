@@ -44,6 +44,42 @@
   pointer-events: none;
 }
 
+/* Atmospheric Space Album Loader */
+.gallery-space-loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: #040805;
+  z-index: 20;
+  pointer-events: none;
+  animation: fadeInOverlay 0.25s ease;
+}
+
+.gallery-loader-orb {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid rgba(94, 243, 142, 0.15);
+  border-top-color: #5ef38e;
+  animation: spinLoader 0.9s cubic-bezier(0.55, 0.085, 0.68, 0.53) infinite;
+  box-shadow: 0 0 24px rgba(94, 243, 142, 0.35);
+}
+
+@keyframes spinLoader {
+  to { transform: rotate(360deg); }
+}
+
+.gallery-loader-label {
+  font-size: 13px;
+  color: #9ca3af;
+  letter-spacing: 0.03em;
+  font-weight: 400;
+}
+
 /* =========================================================
    TOP FINDER & CAMERA CONTROLS BAR ("Find Anything")
    ========================================================= */

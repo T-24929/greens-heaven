@@ -143,6 +143,14 @@ export default function SpaceGalleryPage({ user: propUser }) {
         </a>
       </header>
 
+      {/* Atmospheric Loading State */}
+      {loading && (
+        <div className="gallery-space-loader">
+          <div className="gallery-loader-orb" />
+          <p className="gallery-loader-label">Preparing 513 event memories…</p>
+        </div>
+      )}
+
       {/* =========================================================
           3D DEPTH RIBBON VIEWPORT (React Bits Pro Spec)
          ========================================================= */}
