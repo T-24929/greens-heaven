@@ -242,6 +242,7 @@ export default function LandingPage({ user }) {
             <img src={assets.logo} width="425" height="179" alt="Greens Heaven" />
           </a>
           <nav aria-label="Main navigation">
+            <a href="/gallery" className="landing-nav-gallery"><BlurText text="3D Gallery" enabled={phase === 'ready'} startDelay={380} /></a>
             <StarBorder {...starButtonProps} className="landing-nav-reserve"><BlurText text="Reserve a ticket" enabled={phase === 'ready'} startDelay={400} /></StarBorder>
             <a href={user ? '/dashboard' : '/login'}><BlurText text={user ? 'My dashboard' : 'Sign in'} enabled={phase === 'ready'} startDelay={450} /></a>
           </nav>
@@ -345,7 +346,10 @@ export default function LandingPage({ user }) {
       <div className="landing-footer-top">
       <img src={assets.batch} width="274" height="41" alt="Isipathana College · Batch of 2023 O/L & 2026 A/L" />
       <nav aria-label="Footer navigation">
-        <a href="/privacy"><BlurText text="Privacy" /></a><a href="/terms"><BlurText text="Payment information" /></a><a href="/refund-policy"><BlurText text="Refund policy" /></a>
+        <a href="/gallery"><BlurText text="3D Gallery" /></a>
+        <a href="/privacy"><BlurText text="Privacy" /></a>
+        <a href="/terms"><BlurText text="Payment information" /></a>
+        <a href="/refund-policy"><BlurText text="Refund policy" /></a>
         <a href="https://www.instagram.com/greens_heaven/" target="_blank" rel="noreferrer"><BlurText text="Instagram" /> <span aria-hidden="true">↗</span></a>
       </nav>
       </div>
