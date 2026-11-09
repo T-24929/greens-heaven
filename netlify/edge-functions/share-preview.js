@@ -1,4 +1,4 @@
-import photoFilenames from './gallery-manifest-list.js'
+import photoFilenames from './_gallery-manifest-list.js'
 
 const origin = 'https://greensheavenxxvi.online'
 const defaultLogo = `${origin}/images/greens-heaven-logo.png`

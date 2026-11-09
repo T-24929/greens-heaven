@@ -355,10 +355,27 @@
 
 @media (max-width: 640px) {
   .depth-ribbon-engagement-bar {
-    bottom: calc(68px + max(env(safe-area-inset-bottom, 0px), 16px));
+    bottom: calc(74px + max(env(safe-area-inset-bottom, 0px), 16px));
+    max-width: calc(100vw - 20px);
+    gap: 5px;
+    padding: 3px 6px;
   }
   .depth-ribbon-progress-bar {
     bottom: calc(24px + max(env(safe-area-inset-bottom, 0px), 12px));
+  }
+}
+
+@media (max-width: 480px) {
+  .depth-ribbon-engagement-bar {
+    bottom: calc(72px + max(env(safe-area-inset-bottom, 0px), 14px));
+  }
+  .depth-ribbon-engagement-bar .engagement-title-text {
+    display: none;
+  }
+  .depth-ribbon-engagement-bar .engagement-btn {
+    padding: 4px 8px;
+    gap: 4px;
+    font-size: 10px;
   }
 }
 
