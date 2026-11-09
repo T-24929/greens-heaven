@@ -128,6 +128,23 @@ function getOrCreateCardGeometry(aspectRatio, cardSize) {
   return geom;
 }
 
+// Read target photo number from URL hash (#503) or query param (?p=503)
+function getTargetPhotoNumberFromUrl() {
+  if (typeof window === 'undefined') return null;
+  if (window.location.hash) {
+    const cleanHash = window.location.hash.replace(/^[#p/\-_]+/, '');
+    const num = parseInt(cleanHash, 10);
+    if (!isNaN(num) && num >= 1) return num;
+  }
+  const params = new URLSearchParams(window.location.search);
+  const pParam = params.get('p') || params.get('photo');
+  if (pParam) {
+    const num = parseInt(pParam, 10);
+    if (!isNaN(num) && num >= 1) return num;
+  }
+  return null;
+}
+
 export default function DepthRibbon({
   items = [],
   photos = [],
@@ -236,45 +253,21 @@ export default function DepthRibbon({
 
   const totalCount = pool.length || propCount || 513;
 
-  // ─── Selected Photo for Social Tray (ONLY opens when user clicks an image or opens via ?p= / ?prog=) ──
+  // ─── Selected Photo for Social Tray (ONLY opens when user clicks an image or opens via #503 / ?p=503) ──
   const [selectedPhoto, setSelectedPhoto] = useState(() => {
-    if (typeof window === 'undefined') return null;
-    const params = new URLSearchParams(window.location.search);
-    const pParam = params.get('p') || params.get('photo');
-    const progParam = params.get('prog') || params.get('progress');
-    let targetIdx = -1;
-    if (pParam) {
-      const num = parseInt(pParam, 10);
-      if (!isNaN(num) && num >= 1 && num <= pool.length) {
-        targetIdx = num - 1;
-      }
-    } else if (progParam) {
-      const val = parseFloat(progParam);
-      if (!isNaN(val)) {
-        targetIdx = Math.min(pool.length - 1, Math.round(val * (pool.length - 1)));
-      }
+    const num = getTargetPhotoNumberFromUrl();
+    if (num && num >= 1 && num <= pool.length) {
+      return pool[num - 1];
     }
-    return targetIdx >= 0 && pool[targetIdx] ? pool[targetIdx] : null;
+    return null;
   });
 
   const [selectedPhotoIdx, setSelectedPhotoIdx] = useState(() => {
-    if (typeof window === 'undefined') return null;
-    const params = new URLSearchParams(window.location.search);
-    const pParam = params.get('p') || params.get('photo');
-    const progParam = params.get('prog') || params.get('progress');
-    let targetIdx = -1;
-    if (pParam) {
-      const num = parseInt(pParam, 10);
-      if (!isNaN(num) && num >= 1 && num <= pool.length) {
-        targetIdx = num - 1;
-      }
-    } else if (progParam) {
-      const val = parseFloat(progParam);
-      if (!isNaN(val)) {
-        targetIdx = Math.min(pool.length - 1, Math.round(val * (pool.length - 1)));
-      }
+    const num = getTargetPhotoNumberFromUrl();
+    if (num && num >= 1 && num <= pool.length) {
+      return num - 1;
     }
-    return targetIdx >= 0 ? targetIdx : null;
+    return null;
   });
 
   // ─── Social Engagement State (Synced with Supabase + In-Memory Cache) ───────
@@ -290,22 +283,21 @@ export default function DepthRibbon({
   const [shareStatus, setShareStatus] = useState('idle'); // 'idle' | 'copied' | 'shared'
 
   const handleSharePhoto = useCallback(async (photo, photoIdx) => {
-    const pNum = typeof photoIdx === 'number' ? photoIdx + 1 : Math.round(scrollCurrentRef.current * (totalCount - 1)) + 1;
-    const progressVal = typeof photoIdx === 'number'
-      ? (photoIdx / Math.max(1, totalCount - 1))
-      : scrollCurrentRef.current;
+    const pNum = typeof photoIdx === 'number'
+      ? photoIdx + 1
+      : Math.min(totalCount, Math.floor(scrollCurrentRef.current * totalCount) + 1);
 
     const origin = window.location.origin;
     const pathname = window.location.pathname;
-    const shareUrl = `${origin}${pathname}?p=${pNum}&prog=${progressVal.toFixed(4)}`;
+    const shareUrl = `${origin}${pathname}#${pNum}`;
 
     const titleText = photo?.isThankYouCard
-      ? "Greens Heaven 2026 · Thank You For Attending"
+      ? "Greens Heaven 2026 · Commemorative Ticket Pass"
       : `Greens Heaven · ${photo?.title || `Photo #${pNum}`}`;
 
     const shareData = {
       title: titleText,
-      text: `View ${photo?.title || `photo #${pNum}`} in the Greens Heaven 3D space gallery!`,
+      text: `View photo #${pNum} in the Greens Heaven 3D space gallery!`,
       url: shareUrl,
     };
 
@@ -325,7 +317,7 @@ export default function DepthRibbon({
       setShareStatus('copied');
       setTimeout(() => setShareStatus('idle'), 2000);
     } catch {
-      window.prompt('Copy gallery link:', shareUrl);
+      window.prompt('Copy photo link:', shareUrl);
     }
   }, [totalCount]);
 
@@ -493,21 +485,12 @@ export default function DepthRibbon({
     });
   };
 
-  // Read initial progress or photo from URL params on mount (e.g. ?p=46 or ?prog=0.45)
+  // Read initial photo from URL hash (#503) or query params (?p=503) on mount
   const initialTargetProgress = useMemo(() => {
-    if (typeof window === 'undefined') return 0;
-    const params = new URLSearchParams(window.location.search);
-    const progParam = params.get('prog') || params.get('progress');
-    if (progParam) {
-      const val = parseFloat(progParam);
-      if (!isNaN(val)) return Math.max(0, Math.min(1, val));
-    }
-    const pParam = params.get('p') || params.get('photo');
-    if (pParam) {
-      const num = parseInt(pParam, 10);
-      if (!isNaN(num) && num >= 1) {
-        return (num - 1) / Math.max(1, totalCount - 1);
-      }
+    const num = getTargetPhotoNumberFromUrl();
+    if (num && num >= 1) {
+      const idx = Math.min(totalCount - 1, num - 1);
+      return idx / Math.max(1, totalCount - 1);
     }
     return 0;
   }, [totalCount]);
@@ -515,6 +498,22 @@ export default function DepthRibbon({
   // ─── Scroll-Driven Physics State ─────────────────────────────────────────────
   const scrollTargetRef = useRef(initialTargetProgress);
   const scrollCurrentRef = useRef(initialTargetProgress);
+
+  // Listen for hash changes to navigate directly to target photo (#503)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onHashChange = () => {
+      const num = getTargetPhotoNumberFromUrl();
+      if (num && num >= 1 && num <= pool.length) {
+        const idx = num - 1;
+        scrollTargetRef.current = idx / Math.max(1, totalCount - 1);
+        setSelectedPhoto(pool[idx]);
+        setSelectedPhotoIdx(idx);
+      }
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, [pool, totalCount]);
 
   // Orbit rotation in 3D overview
   const orbitAngleRef = useRef(15);

@@ -143,28 +143,26 @@ export default function SpaceGalleryPage({ user: propUser }) {
     }
   }, [downloadingPhoto]);
 
-  // Share Photo Link Handler with Photo Progress Parameter
+  // Share Photo Link Handler using precise photo numbering (#503)
   const [shareSuccess, setShareSuccess] = useState(false);
   const handleSharePhoto = useCallback(async (photo) => {
     const list = allPhotos || manifest?.photos || [];
     const p = photo || focusedPhoto;
     if (!p) return;
-    const total = list.length || 514;
     const idx = list.findIndex((item) => item.id === p.id);
     const pNum = idx >= 0 ? idx + 1 : 1;
-    const progressVal = (pNum - 1) / Math.max(1, total - 1);
 
     const origin = window.location.origin;
     const pathname = window.location.pathname;
-    const shareUrl = `${origin}${pathname}?p=${pNum}&prog=${progressVal.toFixed(4)}`;
+    const shareUrl = `${origin}${pathname}#${pNum}`;
 
     const titleText = p.isThankYouCard
-      ? "Greens Heaven 2026 · Thank You For Attending"
+      ? "Greens Heaven 2026 · Commemorative Ticket Pass"
       : `Greens Heaven · ${p.title || `Photo #${pNum}`}`;
 
     const shareData = {
       title: titleText,
-      text: `View ${p.title || `photo #${pNum}`} in the Greens Heaven 3D space gallery!`,
+      text: `View photo #${pNum} in the Greens Heaven 3D space gallery!`,
       url: shareUrl,
     };
 
@@ -235,6 +233,11 @@ export default function SpaceGalleryPage({ user: propUser }) {
           captions={true}
         />
       )}
+
+      {/* Persistent Subtle Gallery Footer Credit */}
+      <footer className="gallery-space-footer" aria-label="Photography credit">
+        <span>Captured by AURORA.LK</span>
+      </footer>
 
       {/* =========================================================
           FULLSCREEN LOSSLESS INSPECTION LIGHTBOX (Clean, No Unwanted Text)

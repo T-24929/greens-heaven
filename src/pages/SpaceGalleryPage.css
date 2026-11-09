@@ -597,3 +597,38 @@
     display: none;
   }
 }
+
+/* Subtle Persistent Gallery Footer Credit */
+.gallery-space-footer {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(220, 230, 224, 0.55);
+  background: rgba(4, 9, 6, 0.75);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 4px 14px;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 15;
+  user-select: none;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  transition: opacity 0.2s ease;
+}
+
+@media (max-width: 640px) {
+  .gallery-space-footer {
+    bottom: 8px;
+    font-size: 10px;
+    padding: 3px 12px;
+  }
+}

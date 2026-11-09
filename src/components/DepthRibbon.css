@@ -331,7 +331,7 @@
 /* Social Engagement Bar Underneath Focused Card (Ultra-Compact Single Row) */
 .depth-ribbon-engagement-bar {
   position: absolute;
-  bottom: 20px;
+  bottom: 42px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -350,6 +350,12 @@
   transition: opacity 0.2s ease, transform 0.2s ease;
   max-width: calc(100vw - 32px);
   white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .depth-ribbon-engagement-bar {
+    bottom: 36px;
+  }
 }
 
 .engagement-info {
