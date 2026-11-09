@@ -55,3 +55,7 @@ supabase/.branches/
 # Local code graph
 graphify-out/
 .graphify-cache/
+
+# Space Gallery original album sources
+album-source/
+public/gallery/originals/

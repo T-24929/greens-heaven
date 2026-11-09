@@ -18,9 +18,10 @@ const AdminPage = lazy(() => import('./pages/AdminPage.jsx'))
 const AuthPage = lazy(() => import('./pages/AuthPage.jsx'))
 const AdminsDrawer = lazy(() => import('./components/admin/AdminsDrawer.jsx'))
 const AdminHeader = lazy(() => import('./components/admin/AdminHeader.jsx'))
+const SpaceGalleryPage = lazy(() => import('./pages/SpaceGalleryPage.jsx'))
 
 const currentPath = () => window.location.pathname.replace(/^\/{2,}/, '/').replace(/\/$/, '') || '/'
-const appRoutes = new Set(['/', '/refund-policy', '/privacy', '/terms', '/login', '/reset-password', '/auth/callback', '/auth/confirm', ...adminRoutes, ...reservationRoutes])
+const appRoutes = new Set(['/', '/gallery', '/space', '/refund-policy', '/privacy', '/terms', '/login', '/reset-password', '/auth/callback', '/auth/confirm', ...adminRoutes, ...reservationRoutes])
 
 function LegalPage({ privacy }) {
   return <article className="panel stack narrow"><h1 className="page-heading">{privacy ? 'Your information' : 'Reservations and payments'}</h1>
@@ -167,6 +168,7 @@ export default function App() {
 
   let content
   if (notFound) content = <ErrorPage status={404} />
+  else if (path === '/gallery' || path === '/space') content = <Suspense fallback={<Loading>Opening space galaxy…</Loading>}><SpaceGalleryPage user={auth.user} /></Suspense>
   else if (path === '/') content = <LandingPage user={auth.user} />
   else if (path === '/refund-policy') content = <RefundPolicyPage />
   else if (path === '/privacy' || path === '/terms') content = <LegalPage privacy={path === '/privacy'} />
@@ -179,6 +181,8 @@ export default function App() {
   else if (path === '/dashboard') content = <ReservationPage key={auth.user?.id || 'guest'} user={auth.user} view="dashboard" />
   else if (adminPath) content = <Suspense fallback={<Loading>Opening the admin dashboard…</Loading>}><AdminPage key={auth.user?.id || 'guest'} user={auth.user} currentPath={path} /></Suspense>
   else content = <ErrorPage status={500} />
+
+  if (path === '/gallery' || path === '/space') return content
 
   if (path === '/') return <div className="app-shell landing-shell">
     <a className="skip-link" href="#main">Skip to content</a>
@@ -213,7 +217,7 @@ export default function App() {
 
   return <div className="app-shell">
     <a className="skip-link" href="#main">Skip to content</a>
-    <header className="site-header"><div className="container row page-title"><a href="/" className="brand">Greens Heaven</a><nav aria-label="Main navigation" className="row"><a href="/" aria-current={path === '/' ? 'page' : undefined}>The event</a>{auth.user ? <><a href="/dashboard" aria-current={path === '/dashboard' ? 'page' : undefined}>My dashboard</a><Button variant="outline" onClick={signOut} disabled={signingOut}>{signingOut ? 'Signing out…' : 'Sign out'}</Button></> : <><a href="/reserve" aria-current={path === '/reserve' || path === '/ticket' ? 'page' : undefined}>Reserve a ticket</a><a href="/login" aria-current={path === '/login' ? 'page' : undefined}>Sign in</a></>}</nav></div></header>
+    <header className="site-header"><div className="container row page-title"><a href="/" className="brand">Greens Heaven</a><nav aria-label="Main navigation" className="row"><a href="/" aria-current={path === '/' ? 'page' : undefined}>The event</a><a href="/gallery" aria-current={path === '/gallery' ? 'page' : undefined}>Space Album</a>{auth.user ? <><a href="/dashboard" aria-current={path === '/dashboard' ? 'page' : undefined}>My dashboard</a><Button variant="outline" onClick={signOut} disabled={signingOut}>{signingOut ? 'Signing out…' : 'Sign out'}</Button></> : <><a href="/reserve" aria-current={path === '/reserve' || path === '/ticket' ? 'page' : undefined}>Reserve a ticket</a><a href="/login" aria-current={path === '/login' ? 'page' : undefined}>Sign in</a></>}</nav></div></header>
     <main id="main" className="container main-content" tabIndex={-1}><Notice kind="error">{error || (path !== '/auth/callback' ? auth.error : '')}</Notice>{content}</main>
     <footer className="site-footer container row page-title"><p className="muted text-sm">Greens Heaven · Isipathana College batch of 2023 O/L & 2026 A/L</p><div className="row"><a href="/privacy">Privacy</a><a href="/terms">Payment information</a><a href="/refund-policy">Refund policy</a><a href="https://www.instagram.com/greens_heaven/" target="_blank" rel="noreferrer">Instagram</a></div></footer>
   </div>

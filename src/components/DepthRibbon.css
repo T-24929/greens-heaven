@@ -1,0 +1,495 @@
+/* Depth Ribbon 3D Experience (Scroll-Based Specification) */
+.depth-ribbon-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  user-select: none;
+  cursor: grab;
+  perspective: 1100px;
+  perspective-origin: 50% 50%;
+  background: #000000;
+  touch-action: none;
+}
+
+.depth-ribbon-container:active {
+  cursor: grabbing;
+}
+
+/* 3D Stage */
+.depth-ribbon-stage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+/* Floating Photo Card */
+.depth-ribbon-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: auto;
+  transform-style: preserve-3d;
+  will-change: transform, opacity, filter;
+  cursor: pointer;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.depth-ribbon-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 28px;
+  overflow: hidden;
+  background: #080d09;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 24px 60px -8px rgba(0, 0, 0, 0.95),
+              0 0 20px rgba(0, 0, 0, 0.8);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.depth-ribbon-card:hover .depth-ribbon-card-inner {
+  border-color: rgba(94, 243, 142, 0.6);
+  box-shadow: 0 30px 70px -6px rgba(0, 0, 0, 0.98),
+              0 0 30px rgba(94, 243, 142, 0.3);
+  transform: scale(1.04);
+}
+
+.depth-ribbon-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+/* Minimal Card Badge */
+.depth-ribbon-card-badge {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: rgba(2, 5, 3, 0.82);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #e5e7eb;
+  pointer-events: none;
+}
+
+.depth-ribbon-card-badge-num {
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+  color: #5ef38e;
+}
+
+/* Floating HUD Controls */
+.depth-ribbon-hud {
+  position: absolute;
+  top: 76px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 30;
+  pointer-events: auto;
+}
+
+.depth-ribbon-hud-panel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(8, 14, 10, 0.9);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  padding: 4px 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+}
+
+.depth-ribbon-pill-btn {
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #9ca3af;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.18s ease;
+}
+
+.depth-ribbon-pill-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.depth-ribbon-pill-btn.active {
+  color: #020403;
+  background: #5ef38e;
+  font-weight: 600;
+  box-shadow: 0 0 16px rgba(94, 243, 142, 0.45);
+}
+
+/* Vertical Right-Edge Scroll Track (Scroll-Driven Explorer) */
+.depth-ribbon-v-track {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 48vh;
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.depth-ribbon-v-bar {
+  position: relative;
+  width: 4px;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+
+.depth-ribbon-v-thumb {
+  position: absolute;
+  left: 50%;
+  width: 14px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+  background: #5ef38e;
+  border-radius: 999px;
+  box-shadow: 0 0 12px rgba(94, 243, 142, 0.6);
+  cursor: grab;
+  transition: transform 0.1s ease, background-color 0.15s ease;
+}
+
+.depth-ribbon-v-thumb:active {
+  cursor: grabbing;
+  transform: translate(-50%, -50%) scale(1.15);
+  background: #7affaa;
+}
+
+.depth-ribbon-v-badge {
+  position: absolute;
+  right: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(4, 9, 5, 0.95);
+  border: 1px solid rgba(94, 243, 142, 0.3);
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #5ef38e;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.depth-ribbon-v-track:hover .depth-ribbon-v-badge,
+.depth-ribbon-v-track:active .depth-ribbon-v-badge {
+  opacity: 1;
+}
+
+/* Bottom Progress Track Scrubber */
+.depth-ribbon-progress-bar {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(8, 14, 10, 0.9);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  padding: 6px 16px;
+  z-index: 30;
+  pointer-events: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+}
+
+.depth-ribbon-track-line {
+  position: relative;
+  width: 220px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.depth-ribbon-track-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: #5ef38e;
+  border-radius: 999px;
+  box-shadow: 0 0 8px #5ef38e;
+  transition: width 0.08s linear;
+}
+
+.depth-ribbon-progress-text {
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
+.depth-ribbon-progress-text strong {
+  color: #5ef38e;
+}
+
+/* Scroll Hint Pill (Subtle indicator for user) */
+.depth-ribbon-scroll-hint {
+  position: absolute;
+  bottom: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: #6b7280;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+  animation: pulseHint 2.4s infinite ease-in-out;
+}
+
+@keyframes pulseHint {
+  0%, 100% { opacity: 0.5; transform: translateX(-50%) translateY(0); }
+  50% { opacity: 0.9; transform: translateX(-50%) translateY(-2px); }
+}
+
+
+/* React Bits Pro Style Floating Glassmorphic Caption */
+.depth-ribbon-caption {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: rgba(6, 12, 8, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  padding: 8px 22px;
+  pointer-events: none;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  z-index: 25;
+}
+
+.depth-ribbon-caption-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f3f4f6;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+}
+
+.depth-ribbon-caption-badge {
+  color: #5ef38e;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.depth-ribbon-caption-sub {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+
+/* Social Engagement Bar Underneath Focused Card (Ultra-Compact Single Row) */
+.depth-ribbon-engagement-bar {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  background: rgba(6, 12, 8, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  padding: 4px 6px 4px 10px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.85);
+  z-index: 25;
+  pointer-events: auto;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  max-width: calc(100vw - 32px);
+  white-space: nowrap;
+}
+
+.engagement-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.engagement-badge {
+  color: #020403;
+  background: #5ef38e;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+.engagement-title-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f3f4f6;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 130px;
+}
+
+@media (min-width: 640px) {
+  .engagement-title-text {
+    max-width: 240px;
+  }
+}
+
+.engagement-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+}
+
+.engagement-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.engagement-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #d1d5db;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  height: 28px;
+}
+
+.engagement-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.engagement-btn.like-btn.liked {
+  color: #f43f5e;
+  background: rgba(244, 63, 94, 0.14);
+  border-color: rgba(244, 63, 94, 0.4);
+}
+
+.engagement-btn.like-btn.animating {
+  animation: heartPulse 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes heartPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+
+.engagement-btn.comment-btn:hover {
+  color: #5ef38e;
+  border-color: rgba(94, 243, 142, 0.3);
+}
+
+.engagement-btn.inspect-btn,
+.engagement-btn.download-btn,
+.engagement-btn.close-tray-btn {
+  padding: 0;
+  width: 28px;
+  height: 28px;
+}
+
+.engagement-btn.download-btn:hover {
+  color: #5ef38e;
+  border-color: rgba(94, 243, 142, 0.4);
+}
+
+.engagement-btn.download-btn.downloaded {
+  color: #5ef38e;
+  background: rgba(94, 243, 142, 0.15);
+  border-color: rgba(94, 243, 142, 0.4);
+}
+
+.engagement-btn.close-tray-btn {
+  color: #9ca3af;
+  background: transparent;
+  border-color: transparent;
+}
+
+.engagement-btn.close-tray-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.engagement-rate-limit-pill {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: #f87171;
+  background: rgba(18, 5, 5, 0.95);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  animation: fadeInOverlay 0.2s ease;
+}
